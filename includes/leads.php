@@ -62,13 +62,13 @@ function lead_stats(): array
 {
     $pdo = db();
     $r = $pdo->query("SELECT COUNT(*) AS total,
-            SUM(stage = 'DEAL') AS deal, SUM(stage = 'HOLD') AS hold,
+            COUNT(*) FILTER (WHERE stage = 'DEAL') AS deal, COUNT(*) FILTER (WHERE stage = 'HOLD') AS hold,
             COALESCE(SUM(CASE WHEN stage = 'HOLD' THEN contract_value END), 0) AS hold_potential,
             COALESCE(SUM(CASE WHEN stage = 'DEAL' THEN deal_value END), 0) AS deal_value
         FROM leads")->fetch();
     // Konversi bulan ini: lead yang masuk bulan ini (tgl masuk, atau tgl dibuat bila kosong)
-    $m = $pdo->query("SELECT COUNT(*) AS n, SUM(stage = 'DEAL') AS deal FROM leads
-        WHERE DATE_FORMAT(COALESCE(lead_date, DATE(created_at)), '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')")->fetch();
+    $m = $pdo->query("SELECT COUNT(*) AS n, COUNT(*) FILTER (WHERE stage = 'DEAL') AS deal FROM leads
+        WHERE date_trunc('month', COALESCE(lead_date, created_at::date)) = date_trunc('month', CURRENT_DATE)")->fetch();
     return [
         'total'          => (int)$r['total'],
         'deal'           => (int)$r['deal'],

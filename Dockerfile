@@ -1,6 +1,11 @@
 FROM php:8.3-apache
 ENV PORT=80
-RUN docker-php-ext-install pdo pdo_mysql mysqli
+# PostgreSQL (Supabase): driver pdo_pgsql butuh libpq
+RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev \
+    && docker-php-ext-install pdo pdo_pgsql \
+    && rm -rf /var/lib/apt/lists/*
+# Pengaturan PHP production: error tidak ditampilkan ke pengunjung (tetap tercatat di log)
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 RUN a2enmod rewrite
 COPY . /var/www/html/
 RUN sed -i "s/80/\${PORT}/g" /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf

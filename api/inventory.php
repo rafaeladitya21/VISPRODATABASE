@@ -44,7 +44,7 @@ function inv_detail(int $id): array
     $invoices = $pdo->query("SELECT t.invoice_no, t.event_name, t.event_date, t.status, c.name AS customer_name
         FROM transactions t LEFT JOIN customers c ON c.id = t.customer_id
         WHERE t.status IN ('Draft', 'Confirmed')
-        ORDER BY (t.event_date IS NULL), (t.event_date < CURDATE()), ABS(DATEDIFF(t.event_date, CURDATE())), t.id DESC
+        ORDER BY (t.event_date IS NULL), (t.event_date < CURRENT_DATE), ABS(t.event_date - CURRENT_DATE), t.id DESC
         LIMIT 200")->fetchAll();
 
     return [
@@ -265,6 +265,6 @@ try {
 } catch (PDOException $e) {
     if (db()->inTransaction()) db()->rollBack();
     error_log('[inventory] ' . $e->getMessage());
-    if ((int)($e->errorInfo[1] ?? 0) === 1062) json_error('Alat dengan nama ini sudah ada.', 422);
+    if (is_unique_violation($e)) json_error('Alat dengan nama ini sudah ada.', 422);
     json_error('Gagal mengakses database.', 500);
 }

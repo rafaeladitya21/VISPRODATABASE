@@ -220,7 +220,7 @@ try {
         $st->execute($args);
         $items = array_map('lead_row', $st->fetchAll());
 
-        $src = $pdo->query("SELECT COALESCE(source, 'Lainnya') AS source, COUNT(*) AS n, SUM(stage = 'DEAL') AS deal
+        $src = $pdo->query("SELECT COALESCE(source, 'Lainnya') AS source, COUNT(*) AS n, COUNT(*) FILTER (WHERE stage = 'DEAL') AS deal
                             FROM leads GROUP BY COALESCE(source, 'Lainnya')")->fetchAll();
         $pics = $pdo->query("SELECT DISTINCT pic FROM leads WHERE pic IS NOT NULL AND pic <> '' ORDER BY pic")->fetchAll(PDO::FETCH_COLUMN);
 
@@ -290,22 +290,18 @@ try {
         if ($lead['stage'] !== 'DEAL') json_error('Transaksi hanya bisa dibuat dari lead berstatus Deal.', 422);
 
         // a) Customer dengan nama + perusahaan sama, atau buat baru
-        $st = $pdo->prepare("SELECT id, code FROM customers WHERE name = ? AND COALESCE(vendor, '') = COALESCE(?, '') ORDER BY id LIMIT 1");
+        $st = $pdo->prepare("SELECT id, code FROM customers WHERE name = ?::citext AND COALESCE(vendor, '') = COALESCE(?::citext, '') ORDER BY id LIMIT 1");
         $st->execute([$lead['client_name'], $lead['company']]);
         $cust = $st->fetch();
         $newCustomer = false;
         if (!$cust) {
-            if ((int)$pdo->query("SELECT GET_LOCK('mh_customer_code', 10)")->fetchColumn() !== 1) json_error('Server sibuk, coba lagi.', 503);
-            try {
-                $next = (int)$pdo->query("SELECT COALESCE(MAX(CAST(SUBSTRING(code, 6) AS UNSIGNED)), 0) + 1 FROM customers WHERE code LIKE 'CUST-%'")->fetchColumn();
-                $code = 'CUST-' . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
-                $pdo->prepare('INSERT INTO customers (code, name, vendor, whatsapp) VALUES (?, ?, ?, ?)')
-                    ->execute([$code, $lead['client_name'], $lead['company'], $lead['whatsapp']]);
-                $cust = ['id' => (int)$pdo->lastInsertId(), 'code' => $code];
-                $newCustomer = true;
-            } finally {
-                $pdo->query("SELECT RELEASE_LOCK('mh_customer_code')");
-            }
+            $cust = with_lock('mh_customer_code', function () use ($pdo, $lead) {
+                $code = next_customer_code();
+                $st = $pdo->prepare('INSERT INTO customers (code, name, vendor, whatsapp) VALUES (?, ?, ?, ?) RETURNING id');
+                $st->execute([$code, $lead['client_name'], $lead['company'], $lead['whatsapp']]);
+                return ['id' => (int)$st->fetchColumn(), 'code' => $code];
+            });
+            $newCustomer = true;
         }
 
         // b) Transaksi baru: nama event = layanan, revenue = nilai dealing, tanggal = event_date

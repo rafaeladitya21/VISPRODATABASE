@@ -9,10 +9,8 @@
  */
 declare(strict_types=1);
 
-// Env DEV_NO_LOGIN (true/false) menang. Tanpa env: aktif di lokal, MATI di Railway (login wajib).
-define('DEV_NO_LOGIN', getenv('DEV_NO_LOGIN') !== false
-    ? filter_var(getenv('DEV_NO_LOGIN'), FILTER_VALIDATE_BOOLEAN)
-    : getenv('RAILWAY_ENVIRONMENT') === false && getenv('RAILWAY_ENVIRONMENT_NAME') === false);
+// Hanya aktif bila env / .env lokal berisi DEV_NO_LOGIN=true. Tanpa itu login WAJIB (aman untuk hosting).
+define('DEV_NO_LOGIN', filter_var(getenv('DEV_NO_LOGIN') ?: 'false', FILTER_VALIDATE_BOOLEAN));
 
 /**
  * Kode sandi untuk menghapus customer (disimpan sebagai hash, bukan teks asli).

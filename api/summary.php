@@ -16,7 +16,7 @@ require_once __DIR__ . '/../includes/leads.php';
 $year = (int)($_GET['year'] ?? date('Y'));
 if ($year < 2000 || $year > 2100) $year = (int)date('Y');
 
-const EVENT_DATE_SQL = 'COALESCE(event_date, DATE(created_at))';
+const EVENT_DATE_SQL = 'COALESCE(event_date, created_at::date)';
 
 try {
     $pdo = db();
@@ -35,9 +35,9 @@ try {
     $kpi = array_map('intval', $k);
 
     // Per bulan pada tahun terpilih
-    $st = $pdo->prepare("SELECT MONTH(" . EVENT_DATE_SQL . ") AS m, COUNT(*) AS n,
+    $st = $pdo->prepare("SELECT EXTRACT(MONTH FROM " . EVENT_DATE_SQL . ")::int AS m, COUNT(*) AS n,
             SUM(revenue) AS revenue, SUM(total_operational) AS operational, SUM(net_profit) AS profit
-        FROM transactions WHERE status <> 'Batal' AND YEAR(" . EVENT_DATE_SQL . ") = ?
+        FROM transactions WHERE status <> 'Batal' AND EXTRACT(YEAR FROM " . EVENT_DATE_SQL . ")::int = ?::int
         GROUP BY m");
     $st->execute([$year]);
     $months = [];
@@ -50,7 +50,7 @@ try {
     }
 
     // Tahun yang punya data (+ tahun berjalan)
-    $years = $pdo->query("SELECT DISTINCT YEAR(" . EVENT_DATE_SQL . ") FROM transactions WHERE status <> 'Batal'")->fetchAll(PDO::FETCH_COLUMN);
+    $years = $pdo->query("SELECT DISTINCT EXTRACT(YEAR FROM " . EVENT_DATE_SQL . ")::int FROM transactions WHERE status <> 'Batal'")->fetchAll(PDO::FETCH_COLUMN);
     $years = array_map('intval', $years);
     $years[] = (int)date('Y');
     $years[] = $year;

@@ -63,7 +63,7 @@ try {
 
         // Riwayat: transaksi lengkap (untuk tab Invoice & Perhitungan Awal)
         $st = db()->prepare('SELECT id FROM transactions WHERE customer_id = ?
-            ORDER BY COALESCE(event_date, DATE(created_at)) DESC, id DESC');
+            ORDER BY COALESCE(event_date, created_at::date) DESC, id DESC');
         $st->execute([$c['id']]);
         $history = array_map(fn($id) => tx_full((int)$id), $st->fetchAll(PDO::FETCH_COLUMN));
 
@@ -80,14 +80,11 @@ try {
 
         // Kode berikutnya dalam kunci agar tidak dobel
         $pdo = db();
-        if ((int)$pdo->query("SELECT GET_LOCK('mh_customer_code', 10)")->fetchColumn() !== 1) json_error('Server sibuk, coba lagi.', 503);
-        try {
-            $next = (int)$pdo->query("SELECT COALESCE(MAX(CAST(SUBSTRING(code, 6) AS UNSIGNED)), 0) + 1 FROM customers WHERE code LIKE 'CUST-%'")->fetchColumn();
-            $code = 'CUST-' . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
+        $code = with_lock('mh_customer_code', function () use ($pdo, $name, $vendor, $wa) {
+            $code = next_customer_code();
             $pdo->prepare('INSERT INTO customers (code, name, vendor, whatsapp) VALUES (?, ?, ?, ?)')->execute([$code, $name, $vendor, $wa]);
-        } finally {
-            $pdo->query("SELECT RELEASE_LOCK('mh_customer_code')");
-        }
+            return $code;
+        });
 
         $st = $pdo->prepare(CUSTOMER_AGG_SQL . ' WHERE c.code = ? GROUP BY c.id');
         $st->execute([$code]);

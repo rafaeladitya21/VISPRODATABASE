@@ -1,27 +1,37 @@
 # Management Hub — Visual Production
 
 Sistem manajemen keuangan studio Visual Production.id (pengganti Google Sheet "DATA PROJECT 2026").
-PHP 8 + MySQL/MariaDB, frontend HTML/CSS/JS vanilla.
+PHP 8 + PostgreSQL (Supabase), frontend HTML/CSS/JS vanilla.
+
+## Database: Supabase
+
+- Project: `infgrmdyhlbqzzbxbton` (region ap-northeast-2). Lokal dan Railway memakai database yang **sama**.
+- Koneksi lewat **Session pooler** (IPv4): Supabase → **Connect** → **Direct** → **Session pooler**.
+  Koneksi "Direct" biasa hanya IPv6 dan tidak bisa dipakai dari Railway / kebanyakan jaringan rumah.
+- Tabel + seed dibuat otomatis dari `database.sql` saat database masih kosong (tabel `users` belum ada),
+  dalam satu transaksi. Data yang sudah ada tidak pernah dihapus.
+- RLS aktif di semua tabel tanpa policy → anon key / API publik Supabase tidak bisa membaca data.
+  Aplikasi PHP terhubung langsung sebagai `postgres`, jadi tidak terpengaruh. **Jangan** menambah policy
+  atau mematikan RLS kecuali memang ingin datanya bisa diakses lewat API publik.
+- Kolom teks memakai `citext`: pencarian & nama unik tidak peka huruf besar/kecil.
 
 ## Instalasi di XAMPP
 
 1. Salin folder ini ke `C:\xampp\htdocs\management-hub`.
-2. Buka **XAMPP Control Panel**, jalankan **Apache** dan **MySQL**.
-3. Import database:
-   - **phpMyAdmin**: buka http://localhost/phpmyadmin → tab **Import** → pilih `database.sql` → **Go**, atau
-   - **terminal**: `C:\xampp\mysql\bin\mysql.exe -u root < database.sql`
-
-   > `database.sql` menghapus lalu membuat ulang semua tabel. **Jangan import ulang setelah ada data asli.**
-4. Buka http://localhost/management-hub
-5. Masuk dengan akun awal:
+2. Aktifkan driver PostgreSQL: `C:\xampp\php\php.ini` → hapus `;` di depan `extension=pdo_pgsql`.
+3. Salin `.env.example` menjadi `.env`, isi password database Supabase di `DATABASE_URL`
+   (Supabase → Project Settings → Database). `.env` tidak masuk git.
+4. Buka **XAMPP Control Panel**, jalankan (atau restart) **Apache**. MySQL tidak diperlukan lagi.
+5. Buka http://localhost/management-hub
+6. Masuk dengan akun awal:
    - Email: `admin@visualproduction.id`
    - Kata sandi: `admin12345` → **segera ganti** (banner peringatan tampil selama masih memakai sandi default).
 
 ### Mode development tanpa login
 
-`includes/config.php` → `define('DEV_NO_LOGIN', true);` melewati login dan otomatis masuk sebagai admin default (Rafa).
-Ganti ke `false` untuk mengaktifkan login lagi (berlaku ±2 detik kemudian karena cache OPcache).
-**Wajib `false` sebelum aplikasi bisa diakses orang lain.**
+`.env` → `DEV_NO_LOGIN=true` melewati login dan otomatis masuk sebagai admin default (Rafa).
+Tanpa baris itu (atau `false`) login wajib — ini perilaku default di hosting.
+**Jangan pernah mengisi `DEV_NO_LOGIN` di hosting.**
 
 ### Kode sandi hapus customer
 
@@ -30,14 +40,23 @@ Menghapus customer wajib memasukkan kode sandi (dicek di server, disimpan sebaga
 Ganti kode: `C:\xampp\php\php.exe -r "echo password_hash('KODE_BARU', PASSWORD_DEFAULT);"`
 lalu tempel hasilnya ke `DELETE_CUSTOMER_PIN_HASH`. Buka kunci lebih cepat: kosongkan tabel `pin_attempts`.
 
-Pengaturan koneksi ada di `includes/db.php` (default XAMPP: host `127.0.0.1`, user `root`, sandi kosong).
+Pengaturan koneksi ada di `includes/db.php` (`DATABASE_URL` dari environment atau `.env`).
 
-### Mengganti kata sandi (sementara, lewat phpMyAdmin)
+### Mengganti kata sandi (sementara, lewat Supabase)
 
 ```
 C:\xampp\php\php.exe -r "echo password_hash('SANDI_BARU', PASSWORD_DEFAULT);"
 ```
-Salin hasilnya ke kolom `users.password_hash`, lalu set `must_change_password` = `0`.
+Supabase → **Table Editor** → `users`: salin hasilnya ke kolom `password_hash`, lalu set `must_change_password` = `0`.
+
+### Memindahkan data dari MySQL lama
+
+`tools/migrate-from-mysql.php` menyalin semua tabel dari MySQL (`MYSQL_URL` di `.env`) ke Supabase:
+
+```
+C:\xampp\php\php.exe tools\migrate-from-mysql.php            # cek jumlah baris, tidak mengubah apa pun
+C:\xampp\php\php.exe tools\migrate-from-mysql.php --commit   # HAPUS isi Supabase lalu isi dari MySQL
+```
 
 ## Struktur
 
@@ -76,17 +95,16 @@ Total sewa        = Harga sewa × Qty × Day
 
 ## Catatan
 
-- Nomor invoice `INV-{tahun}-{0001}` dan kode customer `CUST-001` dibuat server dengan kunci (`GET_LOCK`) sehingga tidak dobel.
+- Nomor invoice `INV-{tahun}-{0001}` dan kode customer `CUST-001` dibuat server dengan kunci (advisory lock PostgreSQL) sehingga tidak dobel.
 - "Unduh PDF" memakai dialog cetak browser → pilih **Simpan sebagai PDF**.
 - Menu **Laporan** dan link **Lupa?** belum memiliki halaman (belum ada di spesifikasi).
 
-## Deploy (Railway)
+## Deploy (Render)
 
-- URL: https://visprodatabase-production.up.railway.app
-- Setiap `git push` ke `main` otomatis di-deploy ulang (lihat `Dockerfile`).
-- Database: service **MySQL** di project Railway yang sama. Koneksi lewat variabel `MYSQLHOST`, `MYSQLPORT`,
-  `MYSQLDATABASE`, `MYSQLUSER`, `MYSQLPASSWORD` (referensi ke service MySQL) — lihat `includes/db.php`.
-- Tabel + seed dibuat otomatis dari `database.sql` saat database masih kosong (tabel `users` belum ada).
-  Data yang sudah ada tidak pernah dihapus.
-- Login selalu aktif di Railway (`DEV_NO_LOGIN=false`). Lokal tetap tanpa login kecuali env `DEV_NO_LOGIN=false`.
+- Aplikasi PHP berjalan di Render (Docker, lihat `Dockerfile` dan `render.yaml`); database di Supabase.
+- Setup sekali: Render → **New → Blueprint** → pilih repo GitHub ini → isi `DATABASE_URL`
+  (connection string Session pooler Supabase lengkap dengan password) → **Apply**.
+- Setiap `git push` ke `main` otomatis di-deploy ulang.
+- Login selalu wajib di hosting (`DEV_NO_LOGIN` tidak diisi).
+- Paket gratis Render tidur setelah ±15 menit tanpa pengunjung; buka pertama berikutnya butuh ±1 menit.
 - Session disimpan di container: setiap deploy ulang semua pengguna perlu login lagi.

@@ -4,6 +4,27 @@
  * Di-include oleh semua halaman dan endpoint API.
  */
 declare(strict_types=1);
+
+// --- Konfigurasi koneksi (PostgreSQL / Supabase) ---
+// Hosting: variabel environment DATABASE_URL. Lokal: file .env di root proyek (tidak masuk git),
+// contoh di .env.example. Format: postgresql://USER:PASSWORD@HOST:PORT/DATABASE
+// Supabase → Connect → Session pooler (IPv4), mis.
+//   postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+
+/** Muat .env (KEY=VALUE per baris) tanpa menimpa environment yang sudah ada. */
+function load_dotenv(string $file): void
+{
+    if (!is_readable($file)) return;
+    foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) continue;
+        [$k, $v] = array_map('trim', explode('=', $line, 2));
+        if (strlen($v) >= 2 && ($v[0] === '"' || $v[0] === "'") && $v[-1] === $v[0]) $v = substr($v, 1, -1);
+        if ($k !== '' && getenv($k) === false) putenv("$k=$v");
+    }
+}
+load_dotenv(dirname(__DIR__) . '/.env');   // sebelum config.php: DEV_NO_LOGIN bisa diatur dari .env
+
 require_once __DIR__ . '/config.php';
 
 /** true bila mode development tanpa login aktif (lihat includes/config.php) */
@@ -12,9 +33,6 @@ function dev_no_login(): bool
     return defined('DEV_NO_LOGIN') && DEV_NO_LOGIN === true;
 }
 
-// --- Konfigurasi koneksi ---
-// Dibaca dari environment (Railway: MYSQLHOST, MYSQLPORT, MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD).
-// Bila tidak ada, pakai default XAMPP lokal.
 function env_str(array $keys, string $default): string
 {
     foreach ($keys as $k) {
@@ -23,11 +41,30 @@ function env_str(array $keys, string $default): string
     }
     return $default;
 }
-define('DB_HOST', env_str(['DB_HOST', 'MYSQLHOST'], '127.0.0.1'));
-define('DB_PORT', (int)env_str(['DB_PORT', 'MYSQLPORT'], '3306'));
-define('DB_NAME', env_str(['DB_NAME', 'MYSQLDATABASE'], 'management_hub'));
-define('DB_USER', env_str(['DB_USER', 'MYSQLUSER'], 'root'));
-define('DB_PASS', env_str(['DB_PASS', 'MYSQLPASSWORD'], ''));
+
+/** [host, port, dbname, user, pass] dari DATABASE_URL, atau DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASS */
+function db_config(): array
+{
+    $url = env_str(['DATABASE_URL'], '');
+    if ($url !== '') {
+        $p = parse_url($url);
+        if ($p === false || empty($p['host'])) throw new RuntimeException('DATABASE_URL tidak valid.');
+        return [
+            $p['host'],
+            (int)($p['port'] ?? 5432),
+            ltrim(rawurldecode($p['path'] ?? '/postgres'), '/') ?: 'postgres',
+            rawurldecode($p['user'] ?? 'postgres'),
+            rawurldecode($p['pass'] ?? ''),
+        ];
+    }
+    return [
+        env_str(['DB_HOST'], '127.0.0.1'),
+        (int)env_str(['DB_PORT'], '5432'),
+        env_str(['DB_NAME'], 'postgres'),
+        env_str(['DB_USER'], 'postgres'),
+        env_str(['DB_PASS'], ''),
+    ];
+}
 
 const SESSION_REMEMBER_SECONDS = 60 * 60 * 24 * 30; // "Ingat saya" = 30 hari
 
@@ -38,40 +75,83 @@ function db(): PDO
 {
     static $pdo = null;
     if ($pdo === null) {
-        $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', DB_HOST, DB_PORT, DB_NAME);
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+        [$host, $port, $name, $user, $pass] = db_config();
+        $local = in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
+        $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s;sslmode=%s;connect_timeout=10',
+            $host, $port, $name, env_str(['DB_SSLMODE'], $local ? 'prefer' : 'require'));
+        $pdo = new PDO($dsn, $user, $pass, [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
-        $pdo->exec("SET time_zone = '+07:00'");
+        // Waktu Jakarta; citext ada di schema "extensions" (Supabase)
+        $pdo->exec("SET TIME ZONE 'Asia/Jakarta'; SET search_path TO public, extensions");
         ensure_schema($pdo);
     }
     return $pdo;
 }
 
+/** true bila error PDO adalah pelanggaran UNIQUE (nama/kode dobel) */
+function is_unique_violation(PDOException $e): bool
+{
+    return ($e->errorInfo[0] ?? $e->getCode()) === '23505';
+}
+
 /**
- * Database baru (mis. MySQL Railway) masih kosong → buat tabel + seed dari database.sql.
+ * Database baru (mis. project Supabase kosong) → buat tabel + seed dari database.sql.
  * Hanya berjalan bila tabel `users` belum ada, jadi data yang sudah ada tidak tersentuh.
+ * Seluruh file dijalankan dalam satu transaksi: gagal di tengah → semua dibatalkan, dicoba lagi nanti.
  */
 function ensure_schema(PDO $pdo): void
 {
-    if ($pdo->query("SHOW TABLES LIKE 'users'")->fetchColumn() !== false) return;
+    $exists = fn() => $pdo->query("SELECT to_regclass('public.users') IS NOT NULL")->fetchColumn();
+    if ($exists()) return;
 
-    $pdo->query("SELECT GET_LOCK('mhub_schema_init', 30)")->fetchColumn();
+    $pdo->query("SELECT pg_advisory_lock(hashtext('mhub_schema_init'))");
     try {
-        if ($pdo->query("SHOW TABLES LIKE 'users'")->fetchColumn() !== false) return; // sudah dibuat proses lain
-        $sql = (string)file_get_contents(dirname(__DIR__) . '/database.sql');
-        // Pakai database dari koneksi, bukan nama database di file
-        $sql = preg_replace('/^\s*CREATE DATABASE[^;]*;/mi', '', $sql);
-        $sql = preg_replace('/^\s*USE\s+[^;]*;/mi', '', $sql);
-        $sql = preg_replace('/^\s*--.*$/m', '', $sql);
-        foreach (preg_split('/;\s*$/m', $sql) as $stmt) {
-            if (trim($stmt) !== '') $pdo->exec($stmt);
+        if ($exists()) return; // sudah dibuat proses lain
+        $pdo->beginTransaction();
+        try {
+            $pdo->exec((string)file_get_contents(dirname(__DIR__) . '/database.sql'));
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
         }
+        $pdo->exec('SET search_path TO public, extensions');
     } finally {
-        $pdo->query("SELECT RELEASE_LOCK('mhub_schema_init')")->fetchColumn();
+        $pdo->query("SELECT pg_advisory_unlock(hashtext('mhub_schema_init'))");
     }
+}
+
+/**
+ * Kunci bernama (pengganti GET_LOCK MySQL) selama $fn berjalan — mis. membuat nomor invoice
+ * berurutan tanpa dobel. Berlaku untuk koneksi ini; dilepas otomatis meski $fn gagal.
+ */
+function with_lock(string $name, callable $fn): mixed
+{
+    $pdo = db();
+    $st = $pdo->prepare('SELECT pg_try_advisory_lock(hashtext(?))');
+    $deadline = microtime(true) + 10;
+    while (true) {
+        $st->execute([$name]);
+        if ($st->fetchColumn()) break;
+        if (microtime(true) > $deadline) json_error('Server sibuk, coba lagi.', 503);
+        usleep(100000);
+    }
+    try {
+        return $fn();
+    } finally {
+        $pdo->prepare('SELECT pg_advisory_unlock(hashtext(?))')->execute([$name]);
+    }
+}
+
+/** Kode customer berikutnya ('CUST-030'). Panggil di dalam with_lock('mh_customer_code', …). */
+function next_customer_code(): string
+{
+    $next = (int)db()->query("SELECT COALESCE(MAX(NULLIF(regexp_replace(substring(code from 6), '\\D', '', 'g'), '')::bigint), 0) + 1
+                              FROM customers WHERE code LIKE 'CUST-%'")->fetchColumn();
+    return 'CUST-' . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
 }
 
 /** Mulai session dengan cookie aman. $remember hanya dipakai saat login. */

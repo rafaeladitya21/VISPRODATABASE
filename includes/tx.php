@@ -291,19 +291,16 @@ function tx_create(?int $customerId = null, ?string $eventDate = null): array
     $prefix = "INV-$year-";
 
     // Kunci bernama: hanya satu request yang boleh membuat nomor dalam satu waktu
-    if ((int)$pdo->query("SELECT GET_LOCK('mh_invoice_no', 10)")->fetchColumn() !== 1) {
-        json_error('Server sibuk, coba lagi.', 503);
-    }
-    try {
-        $st = $pdo->prepare('SELECT MAX(CAST(SUBSTRING(invoice_no, ?) AS UNSIGNED)) FROM transactions WHERE invoice_no LIKE ?');
+    $id = with_lock('mh_invoice_no', function () use ($pdo, $prefix, $customerId, $eventDate) {
+        $st = $pdo->prepare("SELECT MAX(NULLIF(regexp_replace(substring(invoice_no from ?::int), '\\D', '', 'g'), '')::bigint)
+                             FROM transactions WHERE invoice_no LIKE ?");
         $st->execute([strlen($prefix) + 1, $prefix . '%']);
         $next = (int)$st->fetchColumn() + 1;
         $invoice = $prefix . str_pad((string)$next, 4, '0', STR_PAD_LEFT);
 
-        $pdo->prepare('INSERT INTO transactions (invoice_no, customer_id, event_date) VALUES (?, ?, ?)')->execute([$invoice, $customerId, $eventDate]);
-        $id = (int)$pdo->lastInsertId();
-    } finally {
-        $pdo->query("SELECT RELEASE_LOCK('mh_invoice_no')");
-    }
+        $st = $pdo->prepare('INSERT INTO transactions (invoice_no, customer_id, event_date) VALUES (?, ?, ?) RETURNING id');
+        $st->execute([$invoice, $customerId, $eventDate]);
+        return (int)$st->fetchColumn();
+    });
     return tx_full($id);
 }

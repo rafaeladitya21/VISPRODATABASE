@@ -11,10 +11,10 @@ require_once __DIR__ . '/db.php';
 function pin_table(): void
 {
     db()->exec('CREATE TABLE IF NOT EXISTS pin_attempts (
-        scope        VARCHAR(40) NOT NULL PRIMARY KEY,
-        fails        INT         NOT NULL DEFAULT 0,
-        locked_until DATETIME    NULL
-    ) ENGINE=InnoDB');
+        scope        VARCHAR(40)  NOT NULL PRIMARY KEY,
+        fails        INTEGER      NOT NULL DEFAULT 0,
+        locked_until TIMESTAMP(0) NULL
+    )');
 }
 
 /** Hentikan request (JSON error) bila kode salah / sedang dikunci. */
@@ -23,8 +23,8 @@ function require_pin(string $scope, string $hash, mixed $pin): void
     pin_table();
     $pdo = db();
 
-    $st = $pdo->prepare('SELECT fails, locked_until, locked_until > NOW() AS locked,
-                                TIMESTAMPDIFF(SECOND, NOW(), locked_until) AS wait
+    $st = $pdo->prepare('SELECT fails, locked_until, (locked_until > LOCALTIMESTAMP)::int AS locked,
+                                COALESCE(EXTRACT(EPOCH FROM locked_until - LOCALTIMESTAMP), 0)::int AS wait
                          FROM pin_attempts WHERE scope = ?');
     $st->execute([$scope]);
     $row = $st->fetch() ?: ['fails' => 0, 'locked' => 0, 'wait' => 0];
@@ -44,8 +44,8 @@ function require_pin(string $scope, string $hash, mixed $pin): void
     $fails = (int)$row['fails'] + 1;
     $lock = $fails >= PIN_MAX_FAILS;
     $pdo->prepare('INSERT INTO pin_attempts (scope, fails, locked_until)
-                   VALUES (?, ?, IF(?, NOW() + INTERVAL ? SECOND, NULL))
-                   ON DUPLICATE KEY UPDATE fails = VALUES(fails), locked_until = VALUES(locked_until)')
+                   VALUES (?, ?, CASE WHEN ?::int = 1 THEN LOCALTIMESTAMP(0) + make_interval(secs => ?::int) END)
+                   ON CONFLICT (scope) DO UPDATE SET fails = EXCLUDED.fails, locked_until = EXCLUDED.locked_until')
         ->execute([$scope, $lock ? 0 : $fails, $lock ? 1 : 0, PIN_LOCK_SECONDS]);
 
     usleep(400000); // perlambat tebakan beruntun

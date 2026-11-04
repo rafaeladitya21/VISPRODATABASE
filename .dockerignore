@@ -6,3 +6,6 @@ storage
 *.log
 Dockerfile
 .dockerignore
+tools
+.env
+.env.*

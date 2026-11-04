@@ -67,7 +67,7 @@ const SCHED_EQUIPMENT_SQL = "SELECT te.transaction_id, te.equipment_id, SUM(te.q
         MAX(ii.qty) AS inv_qty, MAX(COALESCE(sv.broken, 0)) AS broken
     FROM transaction_equipment te
     LEFT JOIN equipment e ON e.id = te.equipment_id
-    LEFT JOIN inventory_items ii ON ii.name = COALESCE(e.name, te.equipment_name) COLLATE utf8mb4_unicode_ci
+    LEFT JOIN inventory_items ii ON ii.name = COALESCE(e.name, te.equipment_name)
     LEFT JOIN (SELECT item_id, SUM(qty) AS broken FROM inventory_service
                WHERE fixed_at IS NULL GROUP BY item_id) sv ON sv.item_id = ii.id";
 
@@ -90,7 +90,7 @@ function sched_stock_for(array $ids): array
     $in = implode(',', array_fill(0, count($ids), '?'));
     $st = db()->prepare("SELECT e.id, e.name, ii.qty AS inv_qty, COALESCE(sv.broken, 0) AS broken
         FROM equipment e
-        LEFT JOIN inventory_items ii ON ii.name = e.name COLLATE utf8mb4_unicode_ci
+        LEFT JOIN inventory_items ii ON ii.name = e.name
         LEFT JOIN (SELECT item_id, SUM(qty) AS broken FROM inventory_service
                    WHERE fixed_at IS NULL GROUP BY item_id) sv ON sv.item_id = ii.id
         WHERE e.id IN ($in)");
