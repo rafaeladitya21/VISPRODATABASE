@@ -372,9 +372,56 @@
     if (t && t.hasAttribute && t.hasAttribute('data-noac')) t.setAttribute('readonly', '');
   }, true);
 
+  /* --- Tema terang / gelap (pilihan di sidebar, disimpan per browser) --- */
+  var THEME_KEY = 'mh-theme';
+  var root = document.documentElement;
+  var themeAnimTimer = null;
+
+  function savedTheme() {
+    try { var t = localStorage.getItem(THEME_KEY); return t === 'dark' || t === 'light' ? t : null; } catch (e) { return null; }
+  }
+
+  function syncThemeButtons() {
+    var cur = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-theme-set') === cur ? 'true' : 'false');
+    });
+  }
+
+  MH.setTheme = function (theme, persist) {
+    if (theme !== 'dark' && theme !== 'light') return;
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduce && root.getAttribute('data-theme') !== theme) {
+      root.classList.add('theme-anim');
+      clearTimeout(themeAnimTimer);
+      themeAnimTimer = setTimeout(function () { root.classList.remove('theme-anim'); }, 400);
+    }
+    root.setAttribute('data-theme', theme);
+    if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) {} }
+    syncThemeButtons();
+  };
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-theme-set]');
+    if (b) MH.setTheme(b.getAttribute('data-theme-set'), true);
+  });
+
+  // Belum pernah memilih → ikut perubahan tema sistem
+  if (window.matchMedia) {
+    var mq = matchMedia('(prefers-color-scheme: dark)');
+    var onSystem = function (ev) { if (!savedTheme()) MH.setTheme(ev.matches ? 'dark' : 'light', false); };
+    if (mq.addEventListener) mq.addEventListener('change', onSystem); else if (mq.addListener) mq.addListener(onSystem);
+  }
+
+  // Tab lain mengganti tema → samakan
+  window.addEventListener('storage', function (e) {
+    if (e.key === THEME_KEY && (e.newValue === 'dark' || e.newValue === 'light')) MH.setTheme(e.newValue, false);
+  });
+
   window.MH = MH;
 
   // Animasi masuk untuk isi halaman
+  syncThemeButtons();
   document.addEventListener('DOMContentLoaded', function () {
     var main = document.getElementById('main');
     if (main) MH.stagger(main);

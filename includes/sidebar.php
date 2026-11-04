@@ -45,6 +45,19 @@ function render_sidebar(string $active, array $user): void
         </ul>
       </nav>
 
+      <div class="sidebar__account">
+      <div class="theme-switch" role="group" aria-label="Tema tampilan">
+        <span class="theme-switch__thumb" aria-hidden="true"></span>
+        <button class="theme-switch__btn" type="button" data-theme-set="light" aria-pressed="true" title="Mode terang">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>
+          <span>Terang</span>
+        </button>
+        <button class="theme-switch__btn" type="button" data-theme-set="dark" aria-pressed="false" title="Mode gelap">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+          <span>Gelap</span>
+        </button>
+      </div>
+
       <div class="sidebar__user">
         <span class="avatar" aria-hidden="true"><?= e($initials) ?></span>
         <span class="sidebar__who">
@@ -56,6 +69,7 @@ function render_sidebar(string $active, array $user): void
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3"/></svg>
           </button>
         </form>
+      </div>
       </div>
     </aside>
     <?php

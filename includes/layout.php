@@ -23,6 +23,15 @@ function layout_start(string $title, string $active): void
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
   <title><?= e($title) ?> — Management Hub</title>
+  <script>
+    // Tema dipasang sebelum CSS dirender (tanpa kedip). Belum pernah memilih → ikuti sistem.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('mh-theme'); } catch (e) {}
+      if (t !== 'dark' && t !== 'light') t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
   <link rel="preload" href="assets/fonts/Satoshi-Bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

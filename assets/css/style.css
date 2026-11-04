@@ -49,6 +49,84 @@
   --bar-h: 44px;
   --dot: 12px;
   --sidebar-w: 248px;
+
+  /* Permukaan kecil (kalender, kolom Leads) */
+  --line-3: #F0F0F0;
+  --out-bg: #FCFCFC;
+  --out-num: #C7C7C7;
+  --col-bg: #EDEDED;
+  --col-over: #E4E4E4;
+  --col-dash: #CFCFCF;
+
+  color-scheme: light;
+}
+
+/* ---------------------------------------------------------
+   Mode gelap: <html data-theme="dark"> (dipilih di sidebar, disimpan di localStorage).
+   Monokrom dibalik: --ink jadi terang, --white jadi permukaan gelap.
+   Hanya untuk layar — cetak invoice/SPK tetap putih.
+   --------------------------------------------------------- */
+@media screen {
+  :root[data-theme="dark"] {
+    --ink: #F2F2F2;
+    --ink-2: #D4D4D4;
+    --muted-dark: #8F8F8F;
+    --muted: #A1A1A1;
+    --text-2: #CFCFCF;
+    --line: #2B2B2B;
+    --line-2: #262626;
+    --line-3: #232323;
+    --soft: #1F1F1F;
+    --bg: #121212;
+    --white: #1A1A1A;
+    --bar: #6B6B6B;
+    --dash: #3D3D3D;
+    --placeholder: #6E6E6E;
+    --red: #F87171;
+    --red-soft: rgba(248, 113, 113, .1);
+    --red-line: rgba(248, 113, 113, .32);
+    --out-bg: #161616;
+    --out-num: #4A4A4A;
+    --col-bg: #171717;
+    --col-over: #202020;
+    --col-dash: #3A3A3A;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-window: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 16px -4px rgba(0, 0, 0, .45), 0 28px 56px -12px rgba(0, 0, 0, .6);
+    --ring: 0 0 0 3px rgba(255, 255, 255, .14);
+    color-scheme: dark;
+  }
+
+  /* Panel yang memang selalu hitam tetap hitam (palet terang di dalamnya) */
+  :root[data-theme="dark"] :is(.sidebar, .drawer__head, .editbar, .mpick__card, .agenda__head,
+      .totalbox, .fin__net, .invoice__due, .calc__net, .kpi--dark) {
+    --ink: #0A0A0A;
+    --ink-2: #262626;
+    --muted-dark: #737373;
+    --muted: #6B6B6B;
+    --text-2: #404040;
+    --line: #E5E5E5;
+    --line-2: #EEEEEE;
+    --soft: #FAFAFA;
+    --white: #FFFFFF;
+    --dash: #D4D4D4;
+    --placeholder: #A3A3A3;
+    --bar: #8A8A8A;
+    color-scheme: dark;
+  }
+  :root[data-theme="dark"] :is(.totalbox, .fin__net, .invoice__due, .calc__net, .kpi--dark, .agenda__head, .mpick__card) {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07);
+  }
+  :root[data-theme="dark"] .sidebar { border-right: 1px solid rgba(255, 255, 255, .06); }
+  :root[data-theme="dark"] .editbar { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 8px 24px -8px rgba(0, 0, 0, .6); }
+  :root[data-theme="dark"] img { opacity: .94; }
+  :root[data-theme="dark"] .sidebar img { opacity: 1; }
+}
+
+/* Pergantian tema: warna memudar halus (kelas dipasang sebentar oleh app.js) */
+html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after {
+  transition: background-color .35s var(--ease-out), color .35s var(--ease-out),
+              border-color .35s var(--ease-out), fill .35s var(--ease-out), box-shadow .35s var(--ease-out),
+              transform .35s var(--ease-wave) !important;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -150,8 +228,8 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 40px #FAFAFA inset;
-  -webkit-text-fill-color: #0A0A0A;
+  -webkit-box-shadow: 0 0 0 40px var(--soft) inset;
+  -webkit-text-fill-color: var(--ink);
   transition: background-color 9999s;
 }
 
@@ -540,6 +618,40 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
 }
 .sidebar__logout:hover { color: var(--white); background: rgba(255, 255, 255, .08); }
 
+/* Pilihan tema (di atas kartu admin) */
+.theme-switch {
+  position: relative;
+  display: grid; grid-template-columns: 1fr 1fr;
+  margin-bottom: 10px; padding: 3px;
+  border: 1px solid var(--ink-2); border-radius: 10px;
+  background: rgba(255, 255, 255, .03);
+}
+.theme-switch__thumb {
+  position: absolute; top: 3px; bottom: 3px; left: 3px;
+  width: calc(50% - 3px); border-radius: 7px;
+  background: rgba(255, 255, 255, .12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+  transition: transform .35s var(--ease-wave);
+}
+:root[data-theme="dark"] .theme-switch__thumb { transform: translateX(100%); }
+.theme-switch__btn {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 32px; padding: 0 8px;
+  font: inherit; font-size: 13px; font-weight: 500; color: #A3A3A3;
+  background: transparent; border: 0; border-radius: 7px; cursor: pointer;
+  transition: color .2s ease;
+}
+.theme-switch__btn:hover { color: #E5E5E5; }
+.theme-switch__btn[aria-pressed="true"] { color: var(--white); font-weight: 600; }
+.theme-switch__btn .icon { width: 16px; height: 16px; }
+.theme-switch__btn[aria-pressed="true"] .icon { animation: theme-pop .45s var(--ease-wave); }
+@keyframes theme-pop { from { transform: rotate(-60deg) scale(.6); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .theme-switch__thumb, .theme-switch__btn { transition: none; }
+  .theme-switch__btn[aria-pressed="true"] .icon { animation: none; }
+}
+
 /* --- Konten --- */
 .main { flex: 1; min-width: 0; padding: 28px 32px 48px; }
 
@@ -608,8 +720,12 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
   .sidebar__label { display: none; }
   .sidebar__list { flex-direction: row; }
   .sidebar__link { white-space: nowrap; }
-  .sidebar__user { margin-left: auto; padding: 4px 4px 4px 8px; border: 0; background: none; }
+  .sidebar__user { margin-left: 0; padding: 4px 4px 4px 8px; border: 0; background: none; }
   .sidebar__who small { display: none; }
+  .sidebar__account { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .theme-switch { margin: 0; }
+  .theme-switch__btn { width: 34px; padding: 0; }
+  .theme-switch__btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .main { padding: 20px 16px 40px; }
   .page-head__title { font-size: 26px; }
   .page-head__actions, .search { width: 100%; }
@@ -1147,7 +1263,7 @@ select.input option { color: var(--ink); }
 .mpop__rev { font-size: 11px; color: var(--muted); }
 .mpop__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); }
 .mpop__m.is-selected { color: var(--white); background: var(--ink); border-color: var(--ink); }
-.mpop__m.is-selected .mpop__rev { color: #D4D4D4; }
+.mpop__m.is-selected .mpop__rev { color: inherit; opacity: .72; }
 .mpop__m.is-selected .mpop__dot { background: var(--white); }
 
 .mpop__all {
@@ -1191,7 +1307,7 @@ select.input option { color: var(--ink); }
 .sc-main.is-loading { opacity: .55; pointer-events: none; }
 
 /* Kalender */
-.cal__head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid #F0F0F0; background: var(--soft); }
+.cal__head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line-3); background: var(--soft); }
 .cal__head span { padding: 10px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .cal__head .is-weekend { color: var(--placeholder); }
 .cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -1203,7 +1319,7 @@ select.input option { color: var(--ink); }
   min-width: 0; min-height: 116px; padding: 8px;
   font: inherit; color: var(--ink); text-align: left;
   background: var(--white); border: 0;
-  border-right: 1px solid #F0F0F0; border-bottom: 1px solid #F0F0F0;
+  border-right: 1px solid var(--line-3); border-bottom: 1px solid var(--line-3);
   cursor: pointer;
   transition: background-color .15s ease;
 }
@@ -1219,8 +1335,8 @@ select.input option { color: var(--ink); }
   font-size: 13px; font-weight: 600;
 }
 .cal__cell.is-weekend .cal__num { color: var(--muted); }
-.cal__cell.is-out { background: #FCFCFC; }
-.cal__cell.is-out .cal__num { color: #C7C7C7; }
+.cal__cell.is-out { background: var(--out-bg); }
+.cal__cell.is-out .cal__num { color: var(--out-num); }
 .cal__cell.is-out .cal__chips { opacity: .5; }
 .cal__cell.is-today .cal__num { color: var(--white); background: var(--ink); }
 
@@ -1240,7 +1356,7 @@ select.input option { color: var(--ink); }
 
 /* Mode daftar */
 .sc-list { padding: 4px 20px; }
-.sl-group { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid #F0F0F0; }
+.sl-group { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line-3); }
 .sl-group:last-child { border-bottom: 0; }
 .sl-date {
   display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
@@ -1551,14 +1667,14 @@ select.input option { color: var(--ink); }
 /* Pipeline */
 .ld-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .ld-board[hidden] { display: none; }
-.ld-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px; background: #EDEDED; border: 2px solid transparent; border-radius: var(--radius-card); transition: border-color .15s ease, background-color .15s ease; }
-.ld-col.is-over { border-color: var(--ink); border-style: dashed; background: #E4E4E4; }
+.ld-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px; background: var(--col-bg); border: 2px solid transparent; border-radius: var(--radius-card); transition: border-color .15s ease, background-color .15s ease; }
+.ld-col.is-over { border-color: var(--ink); border-style: dashed; background: var(--col-over); }
 .ld-col__head { display: flex; align-items: center; gap: 8px; padding: 4px 4px 2px; }
 .ld-col__name { font-size: 15px; letter-spacing: -0.01em; }
 .ld-col__count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; font-size: 12px; font-weight: 700; background: var(--white); border-radius: 999px; }
 .ld-col__sum { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--text-2); }
 .ld-col__list { display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
-.ld-col__empty { padding: 20px 12px; font-size: 13px; text-align: center; color: var(--muted); border: 1.5px dashed #CFCFCF; border-radius: 10px; }
+.ld-col__empty { padding: 20px 12px; font-size: 13px; text-align: center; color: var(--muted); border: 1.5px dashed var(--col-dash); border-radius: 10px; }
 .ld-more { width: 100%; height: 38px; font-size: 13px; background: transparent; }
 
 .ld-dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; }
