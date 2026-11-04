@@ -5,9 +5,9 @@ PHP 8 + PostgreSQL (Supabase), frontend HTML/CSS/JS vanilla.
 
 ## Database: Supabase
 
-- Project: `infgrmdyhlbqzzbxbton` (region ap-northeast-2). Lokal dan Railway memakai database yang **sama**.
+- Project: `infgrmdyhlbqzzbxbton` (region ap-northeast-2). Lokal dan Vercel memakai database yang **sama**.
 - Koneksi lewat **Session pooler** (IPv4): Supabase → **Connect** → **Direct** → **Session pooler**.
-  Koneksi "Direct" biasa hanya IPv6 dan tidak bisa dipakai dari Railway / kebanyakan jaringan rumah.
+  Koneksi "Direct" biasa hanya IPv6 dan tidak bisa dipakai dari Vercel / kebanyakan jaringan rumah.
 - Tabel + seed dibuat otomatis dari `database.sql` saat database masih kosong (tabel `users` belum ada),
   dalam satu transaksi. Data yang sudah ada tidak pernah dihapus.
 - RLS aktif di semua tabel tanpa policy → anon key / API publik Supabase tidak bisa membaca data.
@@ -99,12 +99,15 @@ Total sewa        = Harga sewa × Qty × Day
 - "Unduh PDF" memakai dialog cetak browser → pilih **Simpan sebagai PDF**.
 - Menu **Laporan** dan link **Lupa?** belum memiliki halaman (belum ada di spesifikasi).
 
-## Deploy (Render)
+## Deploy (Vercel + Supabase)
 
-- Aplikasi PHP berjalan di Render (Docker, lihat `Dockerfile` dan `render.yaml`); database di Supabase.
-- Setup sekali: Render → **New → Blueprint** → pilih repo GitHub ini → isi `DATABASE_URL`
-  (connection string Session pooler Supabase lengkap dengan password) → **Apply**.
+- Aplikasi berjalan di **Vercel** sebagai serverless function PHP 8.3 (runtime komunitas `vercel-php`),
+  region `icn1` (Seoul, dekat database Supabase). Database di **Supabase**.
+- `vercel.json`: `/assets/*` disajikan statis; semua request lain masuk ke `api/index.php` (router) yang hanya
+  meneruskan ke halaman & API yang terdaftar — file internal (`includes/`, `database.sql`, …) selalu 404.
+- Setup sekali: vercel.com → **Add New → Project** → import repo GitHub ini → **Environment Variables**:
+  `DATABASE_URL` = connection string Session pooler Supabase lengkap dengan password → **Deploy**.
 - Setiap `git push` ke `main` otomatis di-deploy ulang.
-- Login selalu wajib di hosting (`DEV_NO_LOGIN` tidak diisi).
-- Paket gratis Render tidur setelah ±15 menit tanpa pengunjung; buka pertama berikutnya butuh ±1 menit.
-- Session disimpan di container: setiap deploy ulang semua pengguna perlu login lagi.
+- Login selalu wajib di hosting (`DEV_NO_LOGIN` tidak diisi). Session disimpan di tabel `sessions`
+  (bukan file), jadi tetap login meski deploy ulang.
+- Coba router Vercel di laptop: `C:\xampp\php\php.exe -S 127.0.0.1:8123 api\index.php` (tanpa CSS/JS).

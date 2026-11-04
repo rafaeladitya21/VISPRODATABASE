@@ -1,0 +1,41 @@
+<?php
+/**
+ * Router untuk hosting Vercel (vercel-php): semua request selain /assets diarahkan ke sini
+ * (lihat vercel.json), lalu diteruskan ke halaman / endpoint yang DIDAFTAR di bawah.
+ * Selain itu → 404, jadi file internal (includes/, database.sql, tools/, …) tidak pernah terbuka.
+ * Di XAMPP / Apache file ini tidak dipakai — Apache langsung menjalankan file .php-nya.
+ */
+declare(strict_types=1);
+
+const MH_PAGES = ['index', 'login', 'logout', 'dashboard', 'transaksi', 'customer', 'harga-alat',
+                  'inventaris', 'jadwal', 'leads', 'spk'];
+const MH_APIS  = ['auth', 'customers', 'equipment', 'inventory', 'leads', 'schedule', 'summary', 'transactions'];
+
+$root = dirname(__DIR__);
+$path = (string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
+// vercel.json juga mengirim path asli lewat ?__route= (cadangan bila REQUEST_URI sudah ditulis ulang)
+if (($path === '/api/index.php' || $path === '/api/index') && isset($_GET['__route'])) {
+    $path = '/' . ltrim((string)$_GET['__route'], '/');
+}
+unset($_GET['__route']);
+
+$file = null;
+if ($path === '/' || $path === '') {
+    $file = "$root/index.php";
+} elseif (preg_match('#^/([a-z-]+)(?:\.php)?$#', $path, $m) && in_array($m[1], MH_PAGES, true)) {
+    $file = "$root/{$m[1]}.php";
+} elseif (preg_match('#^/api/([a-z]+)(?:\.php)?$#', $path, $m) && in_array($m[1], MH_APIS, true)) {
+    $file = "$root/api/{$m[1]}.php";
+}
+
+if ($file === null || !is_file($file)) {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Halaman tidak ditemukan.';
+    exit;
+}
+
+$_SERVER['SCRIPT_FILENAME'] = $file;
+$_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'] = substr($file, strlen($root));
+chdir(dirname($file));
+require $file;

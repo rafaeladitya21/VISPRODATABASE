@@ -35,8 +35,11 @@ if (!$user) {
     exit;
 }
 
-// API hanya membaca session → lepas kunci file session agar request paralel tidak antre
-if (defined('API_REQUEST')) session_write_close();
+// Semua API: request yang mengubah data wajib membawa token CSRF (dikirim otomatis oleh MH.api)
+if (defined('API_REQUEST')) {
+    csrf_require();
+    session_write_close(); // API hanya membaca session → selesai lebih cepat
+}
 
 // Halaman aplikasi tidak boleh di-cache (supaya tombol Back setelah logout tidak menampilkan data)
 header('Cache-Control: no-store');

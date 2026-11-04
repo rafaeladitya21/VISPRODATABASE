@@ -154,16 +154,65 @@ function next_customer_code(): string
     return 'CUST-' . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
 }
 
+/**
+ * Session disimpan di tabel `sessions` (bukan file): hosting serverless seperti Vercel tidak punya
+ * disk yang bertahan antar-request, dan semua instance memakai database yang sama.
+ */
+final class DbSessionHandler implements SessionHandlerInterface, SessionUpdateTimestampHandlerInterface
+{
+    public function open(string $path, string $name): bool { return true; }
+    public function close(): bool { return true; }
+
+    public function read(string $id): string|false
+    {
+        $st = db()->prepare('SELECT data FROM sessions WHERE id = ? AND expires_at > LOCALTIMESTAMP');
+        $st->execute([$id]);
+        $data = $st->fetchColumn();
+        return $data === false ? '' : (string)$data;
+    }
+
+    public function write(string $id, string $data): bool
+    {
+        db()->prepare('INSERT INTO sessions (id, data, expires_at) VALUES (?, ?, LOCALTIMESTAMP(0) + make_interval(secs => ?::int))
+                       ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, expires_at = EXCLUDED.expires_at')
+            ->execute([$id, $data, SESSION_REMEMBER_SECONDS]);
+        return true;
+    }
+
+    public function destroy(string $id): bool
+    {
+        db()->prepare('DELETE FROM sessions WHERE id = ?')->execute([$id]);
+        return true;
+    }
+
+    public function gc(int $max_lifetime): int|false
+    {
+        return db()->exec('DELETE FROM sessions WHERE expires_at < LOCALTIMESTAMP');
+    }
+
+    /** use_strict_mode: hanya terima ID yang memang dibuat server */
+    public function validateId(string $id): bool
+    {
+        $st = db()->prepare('SELECT 1 FROM sessions WHERE id = ? AND expires_at > LOCALTIMESTAMP');
+        $st->execute([$id]);
+        return $st->fetchColumn() !== false;
+    }
+
+    /** Data tidak berubah → cukup perpanjang masa berlaku */
+    public function updateTimestamp(string $id, string $data): bool
+    {
+        db()->prepare('UPDATE sessions SET expires_at = LOCALTIMESTAMP(0) + make_interval(secs => ?::int) WHERE id = ?')
+            ->execute([SESSION_REMEMBER_SECONDS, $id]);
+        return true;
+    }
+}
+
 /** Mulai session dengan cookie aman. $remember hanya dipakai saat login. */
 function start_session(?bool $remember = null): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) return;
 
-    // Simpan session di folder sendiri supaya tidak ikut dibersihkan aplikasi lain
-    $dir = dirname(__DIR__) . '/storage/sessions';
-    if (!is_dir($dir)) @mkdir($dir, 0700, true);
-    if (is_dir($dir)) session_save_path($dir);
-
+    session_set_save_handler(new DbSessionHandler(), true);
     ini_set('session.gc_maxlifetime', (string)SESSION_REMEMBER_SECONDS);
     ini_set('session.use_strict_mode', '1');
 

@@ -242,6 +242,14 @@ CREATE TABLE pin_attempts (
   locked_until TIMESTAMP(0) NULL
 );
 
+-- Session login (pengganti file session; aman untuk hosting serverless)
+CREATE TABLE sessions (
+  id         VARCHAR(128) NOT NULL PRIMARY KEY,
+  data       TEXT         NOT NULL DEFAULT '',
+  expires_at TIMESTAMP(0) NOT NULL
+);
+CREATE INDEX idx_sessions_expires ON sessions (expires_at);
+
 -- updated_at otomatis
 CREATE TRIGGER trg_equipment_touch       BEFORE UPDATE ON equipment       FOR EACH ROW EXECUTE FUNCTION mh_touch_updated_at();
 CREATE TRIGGER trg_transactions_touch    BEFORE UPDATE ON transactions    FOR EACH ROW EXECUTE FUNCTION mh_touch_updated_at();
@@ -263,6 +271,7 @@ ALTER TABLE inventory_logs        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE leads                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lead_logs             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pin_attempts          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions              ENABLE ROW LEVEL SECURITY;
 
 -- =========================================================
 -- SEED DATA

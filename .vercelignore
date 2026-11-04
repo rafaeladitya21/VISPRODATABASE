@@ -1,0 +1,9 @@
+# Tidak diupload ke Vercel
+.env
+.env.*
+!.env.example
+tools/
+storage/
+Dockerfile
+.dockerignore
+*.md
