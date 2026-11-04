@@ -12,12 +12,22 @@ function dev_no_login(): bool
     return defined('DEV_NO_LOGIN') && DEV_NO_LOGIN === true;
 }
 
-// --- Konfigurasi (default XAMPP) ---
-const DB_HOST = '127.0.0.1';
-const DB_PORT = 3306;
-const DB_NAME = 'management_hub';
-const DB_USER = 'root';
-const DB_PASS = '';
+// --- Konfigurasi koneksi ---
+// Dibaca dari environment (Railway: MYSQLHOST, MYSQLPORT, MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD).
+// Bila tidak ada, pakai default XAMPP lokal.
+function env_str(array $keys, string $default): string
+{
+    foreach ($keys as $k) {
+        $v = getenv($k);
+        if ($v !== false && $v !== '') return $v;
+    }
+    return $default;
+}
+define('DB_HOST', env_str(['DB_HOST', 'MYSQLHOST'], '127.0.0.1'));
+define('DB_PORT', (int)env_str(['DB_PORT', 'MYSQLPORT'], '3306'));
+define('DB_NAME', env_str(['DB_NAME', 'MYSQLDATABASE'], 'management_hub'));
+define('DB_USER', env_str(['DB_USER', 'MYSQLUSER'], 'root'));
+define('DB_PASS', env_str(['DB_PASS', 'MYSQLPASSWORD'], ''));
 
 const SESSION_REMEMBER_SECONDS = 60 * 60 * 24 * 30; // "Ingat saya" = 30 hari
 
@@ -35,8 +45,33 @@ function db(): PDO
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
         $pdo->exec("SET time_zone = '+07:00'");
+        ensure_schema($pdo);
     }
     return $pdo;
+}
+
+/**
+ * Database baru (mis. MySQL Railway) masih kosong → buat tabel + seed dari database.sql.
+ * Hanya berjalan bila tabel `users` belum ada, jadi data yang sudah ada tidak tersentuh.
+ */
+function ensure_schema(PDO $pdo): void
+{
+    if ($pdo->query("SHOW TABLES LIKE 'users'")->fetchColumn() !== false) return;
+
+    $pdo->query("SELECT GET_LOCK('mhub_schema_init', 30)")->fetchColumn();
+    try {
+        if ($pdo->query("SHOW TABLES LIKE 'users'")->fetchColumn() !== false) return; // sudah dibuat proses lain
+        $sql = (string)file_get_contents(dirname(__DIR__) . '/database.sql');
+        // Pakai database dari koneksi, bukan nama database di file
+        $sql = preg_replace('/^\s*CREATE DATABASE[^;]*;/mi', '', $sql);
+        $sql = preg_replace('/^\s*USE\s+[^;]*;/mi', '', $sql);
+        $sql = preg_replace('/^\s*--.*$/m', '', $sql);
+        foreach (preg_split('/;\s*$/m', $sql) as $stmt) {
+            if (trim($stmt) !== '') $pdo->exec($stmt);
+        }
+    } finally {
+        $pdo->query("SELECT RELEASE_LOCK('mhub_schema_init')")->fetchColumn();
+    }
 }
 
 /** Mulai session dengan cookie aman. $remember hanya dipakai saat login. */
@@ -58,7 +93,7 @@ function start_session(?bool $remember = null): void
         'path'     => '/',
         'httponly' => true,
         'samesite' => 'Lax',
-        'secure'   => !empty($_SERVER['HTTPS']),
+        'secure'   => !empty($_SERVER['HTTPS']) || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https',
     ]);
     session_start();
 }

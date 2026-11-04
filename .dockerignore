@@ -1,0 +1,8 @@
+.git
+.claude
+.vscode
+.idea
+storage
+*.log
+Dockerfile
+.dockerignore
