@@ -79,3 +79,14 @@ Total sewa        = Harga sewa × Qty × Day
 - Nomor invoice `INV-{tahun}-{0001}` dan kode customer `CUST-001` dibuat server dengan kunci (`GET_LOCK`) sehingga tidak dobel.
 - "Unduh PDF" memakai dialog cetak browser → pilih **Simpan sebagai PDF**.
 - Menu **Laporan** dan link **Lupa?** belum memiliki halaman (belum ada di spesifikasi).
+
+## Deploy (Railway)
+
+- URL: https://visprodatabase-production.up.railway.app
+- Setiap `git push` ke `main` otomatis di-deploy ulang (lihat `Dockerfile`).
+- Database: service **MySQL** di project Railway yang sama. Koneksi lewat variabel `MYSQLHOST`, `MYSQLPORT`,
+  `MYSQLDATABASE`, `MYSQLUSER`, `MYSQLPASSWORD` (referensi ke service MySQL) — lihat `includes/db.php`.
+- Tabel + seed dibuat otomatis dari `database.sql` saat database masih kosong (tabel `users` belum ada).
+  Data yang sudah ada tidak pernah dihapus.
+- Login selalu aktif di Railway (`DEV_NO_LOGIN=false`). Lokal tetap tanpa login kecuali env `DEV_NO_LOGIN=false`.
+- Session disimpan di container: setiap deploy ulang semua pengguna perlu login lagi.
