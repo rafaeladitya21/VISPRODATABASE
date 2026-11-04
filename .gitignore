@@ -1,0 +1,13 @@
+# Session login (berisi data sesi pengguna) — jangan masuk repo
+storage/
+
+# Lingkungan lokal / editor / OS
+.env
+*.local.php
+.vscode/
+.idea/
+.claude/
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log

@@ -1,0 +1,5 @@
+# Blokir file non-publik
+<FilesMatch "\.(sql|md)$">
+  Require all denied
+</FilesMatch>
+Options -Indexes
