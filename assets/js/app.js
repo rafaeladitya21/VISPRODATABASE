@@ -388,22 +388,45 @@
     });
   }
 
-  MH.setTheme = function (theme, persist) {
+  /**
+   * Ganti tema. origin = {x, y} titik klik → tema baru "menyebar" berupa lingkaran dari titik itu.
+   * Pakai View Transitions bila ada (halus, di GPU); selain itu warna memudar biasa.
+   */
+  MH.setTheme = function (theme, persist, origin) {
     if (theme !== 'dark' && theme !== 'light') return;
-    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!reduce && root.getAttribute('data-theme') !== theme) {
-      root.classList.add('theme-anim');
-      clearTimeout(themeAnimTimer);
-      themeAnimTimer = setTimeout(function () { root.classList.remove('theme-anim'); }, 400);
-    }
-    root.setAttribute('data-theme', theme);
     if (persist) { try { localStorage.setItem(THEME_KEY, theme); } catch (e) {} }
-    syncThemeButtons();
+
+    var apply = function () { root.setAttribute('data-theme', theme); syncThemeButtons(); };
+    if (root.getAttribute('data-theme') === theme) { apply(); return; }
+
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { apply(); return; }
+
+    if (document.startViewTransition) {
+      var x = origin ? origin.x : window.innerWidth / 2;
+      var y = origin ? origin.y : window.innerHeight / 2;
+      var r = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+      var vt = document.startViewTransition(apply);
+      vt.ready.then(function () {
+        root.animate(
+          { clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + r + 'px at ' + x + 'px ' + y + 'px)'] },
+          { duration: 650, easing: 'cubic-bezier(.65, 0, .35, 1)', pseudoElement: '::view-transition-new(root)' }
+        );
+      }).catch(function () {});
+      return;
+    }
+
+    root.classList.add('theme-anim');
+    clearTimeout(themeAnimTimer);
+    apply();
+    themeAnimTimer = setTimeout(function () { root.classList.remove('theme-anim'); }, 350);
   };
 
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-theme-set]');
-    if (b) MH.setTheme(b.getAttribute('data-theme-set'), true);
+    if (!b) return;
+    var rect = b.getBoundingClientRect();
+    MH.setTheme(b.getAttribute('data-theme-set'), true, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
   });
 
   // Belum pernah memilih → ikut perubahan tema sistem
