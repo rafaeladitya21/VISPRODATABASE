@@ -39,7 +39,7 @@ CREATE TABLE users (
   password_hash        VARCHAR(255) NOT NULL,
   must_change_password TINYINT(1)   NOT NULL DEFAULT 0, -- 1 = masih pakai sandi default
   created_at           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------
 -- Customer
@@ -51,7 +51,7 @@ CREATE TABLE customers (
   vendor     VARCHAR(150) NULL,
   whatsapp   VARCHAR(30)  NULL,
   created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------
 -- Harga alat
@@ -65,7 +65,7 @@ CREATE TABLE equipment (
   updated_by   INT UNSIGNED NULL,
   KEY idx_equipment_category (category),
   CONSTRAINT fk_equipment_user FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------
 -- Transaksi (1 baris = 1 invoice / event)
@@ -113,7 +113,7 @@ CREATE TABLE transactions (
   KEY idx_tx_customer (customer_id),
   KEY idx_tx_event_date (event_date),
   CONSTRAINT fk_tx_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Biaya transport & akomodasi (11 pos tetap)
 CREATE TABLE transaction_transport (
@@ -124,7 +124,7 @@ CREATE TABLE transaction_transport (
   amount         BIGINT       NOT NULL DEFAULT 0,
   UNIQUE KEY uq_tx_item (transaction_id, item_key),
   CONSTRAINT fk_tt_tx FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. Gaji & honor crew
 CREATE TABLE transaction_crew (
@@ -136,7 +136,7 @@ CREATE TABLE transaction_crew (
   sort_order     INT          NOT NULL DEFAULT 0,
   KEY idx_tc_tx (transaction_id),
   CONSTRAINT fk_tc_tx FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 6. Sewa alat (unit_price = snapshot harga saat transaksi)
 CREATE TABLE transaction_equipment (
@@ -153,7 +153,7 @@ CREATE TABLE transaction_equipment (
   KEY idx_te_tx (transaction_id),
   CONSTRAINT fk_te_tx  FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
   CONSTRAINT fk_te_eq  FOREIGN KEY (equipment_id)   REFERENCES equipment(id)    ON DELETE SET NULL
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------
 -- Inventaris (stok & posisi alat; mulai kosong, tanpa seed)
@@ -258,7 +258,7 @@ CREATE TABLE pin_attempts (
   scope        VARCHAR(40) NOT NULL PRIMARY KEY,
   fails        INT         NOT NULL DEFAULT 0,
   locked_until DATETIME    NULL
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =========================================================
 -- SEED DATA
