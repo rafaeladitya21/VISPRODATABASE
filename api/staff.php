@@ -25,7 +25,7 @@ function staff_list(): array
 {
     $rows = db()->query("SELECT u.id, u.name, u.email, u.jabatan, u.tipe, u.gaji_pokok, u.aktif,
             u.divisi, u.magang_mulai, u.magang_selesai, u.jam_masuk, u.jam_pulang, u.mentor_id, m.name AS mentor_name,
-            u.whatsapp, u.sekolah, u.kelas, u.guru_id, g.name AS guru_name, g.whatsapp AS guru_wa,
+            u.whatsapp, u.sekolah, u.panggilan, u.kelas, u.guru_id, g.name AS guru_name, g.whatsapp AS guru_wa,
             (SELECT COUNT(*) FROM users x WHERE x.guru_id = u.id AND x.tipe = 'intern' AND x.aktif = 1) AS siswa,
             (SELECT COUNT(DISTINCT tc.transaction_id) FROM transaction_crew tc WHERE tc.user_id = u.id) AS jobs,
             (SELECT COUNT(*) FROM slip s WHERE s.user_id = u.id AND s.status = 'diajukan') AS pending
@@ -49,7 +49,7 @@ function staff_list(): array
         'kelas' => $r['kelas'], 'guru_id' => $r['guru_id'] === null ? null : (int)$r['guru_id'],
         'guru' => $r['guru_name'], 'guru_wa' => $r['guru_wa'], 'guru_wa_url' => wa_url($r['guru_wa']),
         // Guru pendamping
-        'whatsapp' => $r['whatsapp'], 'wa_url' => wa_url($r['whatsapp']), 'sekolah' => $r['sekolah'], 'siswa' => (int)$r['siswa'],
+        'whatsapp' => $r['whatsapp'], 'wa_url' => wa_url($r['whatsapp']), 'sekolah' => $r['sekolah'], 'panggilan' => $r['panggilan'], 'siswa' => (int)$r['siswa'],
     ], $rows);
 }
 
@@ -148,14 +148,16 @@ function staff_input(array $in, bool $create): array
                    'guru_id' => $guruId, 'kelas' => $kelas === '' ? null : $kelas];
     }
     // Guru pendamping: No. WhatsApp & asal sekolah (tanpa jabatan, gaji, tarif, jam kerja)
-    $guru = ['whatsapp' => null, 'sekolah' => null];
+    $guru = ['whatsapp' => null, 'sekolah' => null, 'panggilan' => null];
     if ($tipe === 'guru') {
         $wa = trim((string)($in['whatsapp'] ?? ''));
         $sekolah = trim(preg_replace('/\s+/u', ' ', (string)($in['sekolah'] ?? '')));
         if ($wa !== '' && !preg_match('/^\+?[0-9 ()-]{8,20}$/', $wa)) json_error('Nomor WhatsApp tidak valid (8–20 digit).', 422);
         if ($sekolah === '') json_error('Asal sekolah wajib diisi untuk guru pendamping.', 422);
         if (mb_strlen($sekolah) > 150) json_error('Asal sekolah maksimal 150 karakter.', 422);
-        $guru = ['whatsapp' => $wa === '' ? null : $wa, 'sekolah' => $sekolah];
+        $panggilan = (string)($in['panggilan'] ?? '');
+        if (!in_array($panggilan, ['', 'Pak', 'Bu'], true)) json_error('Panggilan harus Pak atau Bu.', 422);
+        $guru = ['whatsapp' => $wa === '' ? null : $wa, 'sekolah' => $sekolah, 'panggilan' => $panggilan === '' ? null : $panggilan];
         $jabatan = '';
     }
     return [
@@ -186,11 +188,11 @@ try {
         try {
             $st = db()->prepare("INSERT INTO users (name, email, password_hash, must_change_password, role, jabatan, tipe, gaji_pokok, aktif,
                                                     divisi, magang_mulai, magang_selesai, jam_masuk, jam_pulang, mentor_id,
-                                                    guru_id, kelas, whatsapp, sekolah)
-                                 VALUES (?, ?, ?, 0, 'karyawan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id");
+                                                    guru_id, kelas, whatsapp, sekolah, panggilan)
+                                 VALUES (?, ?, ?, 0, 'karyawan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id");
             $st->execute([$d['name'], $d['email'], password_hash($d['password'], PASSWORD_DEFAULT), $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif'],
                            $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id'],
-                           $d['guru_id'], $d['kelas'], $d['whatsapp'], $d['sekolah']]);
+                           $d['guru_id'], $d['kelas'], $d['whatsapp'], $d['sekolah'], $d['panggilan']]);
         } catch (PDOException $e) {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;
@@ -214,10 +216,10 @@ try {
             if ($d['guru_id'] === $id) json_error('Guru pendamping tidak boleh diri sendiri.', 422);
             db()->prepare('UPDATE users SET name = ?, email = ?, jabatan = ?, tipe = ?, gaji_pokok = ?, aktif = ?,
                              divisi = ?, magang_mulai = ?, magang_selesai = ?, jam_masuk = ?, jam_pulang = ?, mentor_id = ?,
-                             guru_id = ?, kelas = ?, whatsapp = ?, sekolah = ? WHERE id = ?')
+                             guru_id = ?, kelas = ?, whatsapp = ?, sekolah = ?, panggilan = ? WHERE id = ?')
                 ->execute([$d['name'], $d['email'], $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif'],
                            $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id'],
-                           $d['guru_id'], $d['kelas'], $d['whatsapp'], $d['sekolah'], $id]);
+                           $d['guru_id'], $d['kelas'], $d['whatsapp'], $d['sekolah'], $d['panggilan'], $id]);
             // Bukan guru lagi → lepaskan siswa yang tadinya dibimbing
             if ($d['tipe'] !== 'guru') db()->prepare('UPDATE users SET guru_id = NULL WHERE guru_id = ?')->execute([$id]);
         } catch (PDOException $e) {

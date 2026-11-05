@@ -166,6 +166,7 @@
     f.kelas.value = k && k.kelas ? k.kelas : '';
     f.whatsapp.value = k && k.whatsapp ? k.whatsapp : '';
     f.sekolah.value = k && k.sekolah ? k.sekolah : '';
+    f.panggilan.value = k && k.tipe === 'guru' ? (k.panggilan || '') : 'Pak';
     f.aktif.checked = k ? k.aktif : true;
     renderGurus(k);
     f.password.required = !k;
@@ -220,6 +221,7 @@
     if (tipe === 'guru') {
       data.whatsapp = f.whatsapp.value;
       data.sekolah = f.sekolah.value;
+      data.panggilan = f.panggilan.value;
     }
     save.disabled = true; save.classList.add('is-loading'); formErr.hidden = true;
     MH.api('api/staff.php', { method: id ? 'PUT' : 'POST', body: data })

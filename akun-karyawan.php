@@ -89,6 +89,13 @@ layout_start('Akun Karyawan', 'akun-karyawan');
       <legend class="field__label">Data guru pendamping</legend>
       <div class="grid2">
         <div class="field">
+          <label class="field__label" for="st-panggilan">Panggilan</label>
+          <select class="input" id="st-panggilan" name="panggilan">
+            <option value="Pak">Pak</option><option value="Bu">Bu</option><option value="">— Tanpa panggilan —</option>
+          </select>
+          <p class="field__hint">Dipakai di sapaan, mis. "Selamat Pagi, Pak Fauzi".</p>
+        </div>
+        <div class="field">
           <label class="field__label" for="st-wa">No. WhatsApp</label>
           <input class="input" id="st-wa" name="whatsapp" type="tel" maxlength="20" placeholder="0812xxxxxxx">
         </div>

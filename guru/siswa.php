@@ -34,7 +34,7 @@ layout_start('Siswa Magang', 'g-siswa');
 <header class="kb-hello g-hello fbu">
   <div>
     <p class="kb-hello__date"><?= e(tgl_id($today)) ?></p>
-    <h1 class="page-head__title"><?= e(sapaan((int)substr($now['jam'], 0, 2)) . ', ' . $guru['name']) ?></h1>
+    <h1 class="page-head__title"><?= e(sapaan((int)substr($now['jam'], 0, 2)) . ', ' . $guru['sapa']) ?></h1>
     <p class="kb-hello__quote">Memantau <?= $n ?> siswa<?= $sekolah !== '' ? ' ' . e($sekolah) : '' ?> yang magang di Visual Production</p>
   </div>
   <a class="btn btn--primary" href="guru/cetak?siswa=semua&amp;periode=<?= e(substr($today, 0, 7)) ?>" target="_blank" rel="noopener">

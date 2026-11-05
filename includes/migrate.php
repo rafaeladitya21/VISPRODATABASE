@@ -343,6 +343,11 @@ const MH_MIGRATIONS = [
         ALTER TABLE jurnal_komentar
           ADD COLUMN peran VARCHAR(10) NOT NULL DEFAULT 'admin' CHECK (peran IN ('admin', 'guru'));
         SQL,
+
+    // 12 — Panggilan guru pendamping (Pak / Bu) untuk sapaan
+    12 => <<<'SQL'
+        ALTER TABLE users ADD COLUMN panggilan VARCHAR(10) NULL CHECK (panggilan IN ('Pak', 'Bu'));
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

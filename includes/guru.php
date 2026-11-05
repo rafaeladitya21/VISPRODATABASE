@@ -27,10 +27,11 @@ function wa_url(?string $nomor): ?string
 /** Data akun guru (null bila bukan guru) */
 function guru_row(int $id): ?array
 {
-    $st = db()->prepare("SELECT id, name, email, sekolah, whatsapp, aktif FROM users WHERE id = ? AND role = 'karyawan' AND tipe = 'guru'");
+    $st = db()->prepare("SELECT id, name, email, sekolah, whatsapp, aktif, panggilan FROM users WHERE id = ? AND role = 'karyawan' AND tipe = 'guru'");
     $st->execute([$id]);
     $r = $st->fetch();
     return $r ? ['id' => (int)$r['id'], 'name' => $r['name'], 'email' => $r['email'], 'sekolah' => $r['sekolah'],
+                 'panggilan' => $r['panggilan'], 'sapa' => trim(($r['panggilan'] ?? '') . ' ' . $r['name']),   // "Pak Fauzi"
                  'whatsapp' => $r['whatsapp'], 'wa_url' => wa_url($r['whatsapp']), 'aktif' => (bool)$r['aktif']] : null;
 }
 
