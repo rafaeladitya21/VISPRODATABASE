@@ -174,13 +174,29 @@ function absen_map(int $userId, string $from, string $to): array
 }
 
 /**
- * Baris absen per hari kerja dalam periode magang ∩ [$from, $to], s.d. hari ini.
- * Hari lewat tanpa catatan → Alpa (tanpa absen); hari ini tanpa catatan → 'belum'.
- * Urut terbaru di atas.
+ * Mulai tanggal berapa hari kerja tanpa absen dihitung Alpa (pengaturan 'alpa_mulai', diatur lewat
+ * tombol "Reset Alpa" di halaman Absensi). Hari sebelum tanggal ini yang tanpa catatan = "Tidak dihitung".
  */
-function absen_rows(array $intern, string $from, string $to, ?string $today = null): array
+function alpa_mulai(): string
+{
+    static $v = null;
+    if ($v === null) {
+        $s = trim(setting('alpa_mulai'));
+        $v = preg_match('/^\d{4}-\d{2}-\d{2}$/', $s) ? $s : '0000-01-01';
+    }
+    return $v;
+}
+
+/**
+ * Baris absen per hari kerja dalam periode magang ∩ [$from, $to], s.d. hari ini.
+ * Hari lewat tanpa catatan → Alpa (sejak alpa_mulai(); sebelumnya "Tidak dihitung");
+ * hari ini tanpa catatan → 'belum'. Urut terbaru di atas.
+ * $alpaMulai = null → dari pengaturan.
+ */
+function absen_rows(array $intern, string $from, string $to, ?string $today = null, ?string $alpaMulai = null): array
 {
     $today ??= date('Y-m-d');
+    $alpaMulai ??= alpa_mulai();
     if (!$intern['mulai'] || !$intern['selesai']) return [];
     $from = max($from, $intern['mulai']);
     $to = min($to, $intern['selesai'], $today);
@@ -188,12 +204,12 @@ function absen_rows(array $intern, string $from, string $to, ?string $today = nu
     $map = absen_map($intern['id'], $from, $to);
     $rows = [];
     foreach (array_reverse(workdays($from, $to)) as $day) {
+        [$st, $lbl] = $day === $today ? ['belum', 'Belum absen'] : ($day >= $alpaMulai ? ['alpa', 'Alpa'] : ['tidak_dihitung', 'Tidak dihitung']);
         $rows[] = $map[$day] ?? [
             'id' => null, 'tanggal' => $day, 'jam_masuk' => null, 'jam_pulang' => null,
             'status_masuk' => null, 'status_pulang' => null,
-            'status_hari' => $day === $today ? 'belum' : 'alpa',
-            'status_label' => $day === $today ? 'Belum absen' : 'Alpa',
-            'dikoreksi' => false, 'alasan_koreksi' => null, 'tanpa_absen' => $day !== $today,
+            'status_hari' => $st, 'status_label' => $lbl,
+            'dikoreksi' => false, 'alasan_koreksi' => null, 'tanpa_absen' => $st === 'alpa',
         ];
     }
     return $rows;
@@ -440,7 +456,7 @@ function absensi_data(array $q): array
     }
     usort($rows, fn($a, $b) => [$b['tanggal'], $a['name']] <=> [$a['tanggal'], $b['name']]);
     return [
-        'from' => $from, 'to' => $to, 'bulan' => $bulan, 'bulan_label' => periode_label($bulan),
+        'from' => $from, 'to' => $to, 'bulan' => $bulan, 'bulan_label' => periode_label($bulan), 'alpa_mulai' => alpa_mulai(),
         'rows' => $rows, 'rekap' => $rekap,
         'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif']], $interns),
     ];

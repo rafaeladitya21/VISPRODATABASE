@@ -29,7 +29,7 @@
     return MH.HARI_PENDEK[d.getDay()] + ', ' + d.getDate() + ' ' + MH.BULAN_PENDEK[d.getMonth()] + ' ' + d.getFullYear();
   }
   function badge(r) {
-    var cls = { hadir: 'badge--solid', terlambat: '', izin: 'badge--muted', sakit: 'badge--muted', alpa: 'badge--danger', belum: 'badge--muted' }[r.status_hari] || '';
+    var cls = { hadir: 'badge--solid', terlambat: '', izin: 'badge--muted', sakit: 'badge--muted', alpa: 'badge--danger', belum: 'badge--muted', tidak_dihitung: 'badge--muted' }[r.status_hari] || '';
     return '<span class="badge ' + cls + '">' + esc(r.status_label) + '</span>' +
       (r.tanpa_absen ? ' <small class="muted">tanpa absen</small>' : '') +
       (r.dikoreksi ? ' <small class="muted" title="' + esc(r.alasan_koreksi || '') + '">dikoreksi</small>' : '');
@@ -51,6 +51,9 @@
       }).join(''));
     }
     $('#ab-rekap-title').textContent = 'Rekap ' + d.bulan_label;
+    $('#ab-rekap-sub').textContent = d.alpa_mulai && d.alpa_mulai > '0000-01-01'
+      ? 'Hari kerja tanpa absen dihitung Alpa mulai ' + MH.date(d.alpa_mulai) + ' (sebelumnya: Tidak dihitung).'
+      : 'Hari kerja yang lewat tanpa absen dihitung Alpa.';
     el.rekap.innerHTML = d.rekap.length ? d.rekap.map(function (r) {
       return '<tr><td><strong>' + esc(r.name) + '</strong>' + (r.divisi ? '<br><small class="muted">' + esc(r.divisi) + '</small>' : '') + '</td>' +
         '<td class="r">' + r.hadir + '</td><td class="r">' + r.terlambat + '</td><td class="r">' + r.izin + '</td><td class="r">' + r.sakit + '</td>' +
@@ -122,6 +125,23 @@
       .catch(function (e) { el.formErr.innerHTML = MH.errorHtml(e.message); el.formErr.hidden = false; })
       .finally(function () { btn.disabled = false; btn.classList.remove('is-loading'); });
   }
+  /* ---------- Reset hitungan Alpa ke 0 ---------- */
+  var rs = { modal: $('#ab-reset-modal'), form: $('#ab-reset-form'), alasan: $('#ab-reset-alasan'), err: $('#ab-reset-error'), ok: $('#ab-reset-ok') };
+  $('#ab-reset').addEventListener('click', function () {
+    rs.form.reset(); rs.err.hidden = true;
+    MH.openModal(rs.modal);
+    setTimeout(function () { rs.alasan.focus(); }, 40);
+  });
+  rs.form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!rs.alasan.value.trim()) { rs.err.innerHTML = MH.errorHtml('Alasan wajib diisi.'); rs.err.hidden = false; rs.alasan.focus(); return; }
+    rs.ok.disabled = true; rs.ok.classList.add('is-loading'); rs.err.hidden = true;
+    MH.api('api/absensi.php', { method: 'POST', body: { aksi: 'reset_alpa', alasan: rs.alasan.value } })
+      .then(function () { MH.closeModal(rs.modal); load(); })
+      .catch(function (err) { rs.err.innerHTML = MH.errorHtml(err.message); rs.err.hidden = false; })
+      .finally(function () { rs.ok.disabled = false; rs.ok.classList.remove('is-loading'); });
+  });
+
   el.form.addEventListener('submit', function (e) { e.preventDefault(); send('koreksi', el.save); });
   el.del.addEventListener('click', function () { send('hapus', el.del); });
 

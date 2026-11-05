@@ -103,6 +103,11 @@ if (in_array('--db', $argv, true)) {
         $rows = absen_rows($sal, $mulai, $today, $today);
         $past = array_values(array_filter($rows, fn($r) => $r['tanggal'] < $today));
         check('Hari kerja lewat tanpa absen = Alpa', $past ? $past[0]['status_hari'] : 'alpa', 'alpa');
+        $rows0 = absen_rows($sal, $mulai, $today, $today, $today);   // reset Alpa = hari ini
+        check('Reset Alpa: hari lewat tanpa absen tidak dihitung', array_values(array_unique(array_column(array_filter($rows0, fn($r) => $r['tanggal'] < $today && $r['id'] === null), 'status_hari'))), $past ? ['tidak_dihitung'] : []);
+        $rk = array_fill_keys(array_keys(ABSEN_HARI), 0);
+        foreach ($rows0 as $r) if (isset($rk[$r['status_hari']])) $rk[$r['status_hari']]++;
+        check('Reset Alpa: jumlah Alpa = 0', $rk['alpa'], 0);
 
         // Jurnal hari ini (Tes 6)
         $j = jurnal_save_today($sal, ['kegiatan' => ['Desain feed', 'Rapat konten', 'Edit reels'], 'keterangan' => 'proses',

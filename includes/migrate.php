@@ -232,6 +232,13 @@ const MH_MIGRATIONS = [
         ALTER TABLE jurnal_komentar ENABLE ROW LEVEL SECURITY;
         ALTER TABLE log_aktivitas   ENABLE ROW LEVEL SECURITY;
         SQL,
+
+    // 7 — Reset hitungan Alpa: hari kerja tanpa absen baru dihitung Alpa mulai tanggal ini (hari deploy).
+    //     Tidak ada data absen yang dihapus. Bisa di-reset lagi dari halaman Absensi.
+    7 => <<<'SQL'
+        INSERT INTO pengaturan (key, value) VALUES ('alpa_mulai', to_char(CURRENT_DATE, 'YYYY-MM-DD'))
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = LOCALTIMESTAMP(0);
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

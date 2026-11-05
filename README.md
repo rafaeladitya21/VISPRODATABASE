@@ -143,7 +143,8 @@ Total sewa        = Harga sewa × Qty × Day
 - **Absen** (`api/absen.php`): hanya `{aksi:'masuk'|'pulang'}`; jam = jam server database (Asia/Jakarta),
   jam dari browser ditolak 403. Sekali masuk & sekali pulang per hari, hanya hari kerja (Sen–Jum) dalam periode
   magang. Terlambat = jam:menit lewat jam masuk; pulang awal = sebelum jam pulang. IP & user-agent disimpan.
-  Hari kerja lewat tanpa catatan = Alpa. Koreksi/tandai Izin–Sakit–Alpa/hapus hanya Admin (Absensi), alasan wajib,
+  Hari kerja lewat tanpa catatan = Alpa, tapi hanya mulai `pengaturan.alpa_mulai` (sebelumnya "Tidak dihitung");
+  tombol "Reset Alpa ke 0" di Absensi menggeser tanggal itu ke hari ini (alasan wajib, tercatat di log). Koreksi/tandai Izin–Sakit–Alpa/hapus hanya Admin (Absensi), alasan wajib,
   tercatat di `log_aktivitas`. Rekap bulanan + ekspor CSV (Excel) / PDF.
 - **Jurnal** (`api/jurnal.php`): satu per hari, hanya untuk tanggal server hari ini (sampai 23.59) dalam periode
   magang; hari sebelumnya read-only. Admin (Jurnal Magang) membuka jurnal → `dilihat_at`, lalu bisa berkomentar.
