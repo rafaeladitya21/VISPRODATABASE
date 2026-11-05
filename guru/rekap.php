@@ -14,6 +14,11 @@ if (!$guru) { http_response_code(403); exit('Akun guru tidak ditemukan.'); }
 try {
     $today = server_now()['tanggal'];
     $d = guru_rekap_data($guru, (string)($_GET['siswa'] ?? 'semua'), (string)($_GET['periode'] ?? substr($today, 0, 7)), $today);
+    // Isi jurnal tiap siswa dalam periode (terbaru di atas) — sama dengan yang masuk ke PDF
+    if ($d !== null) {
+        foreach ($d['rows'] as &$r) $r['jurnal'] = $r['from'] <= min($r['to'], $today) ? siswa_jurnal($r['siswa']['id'], $r['from'], min($r['to'], $today), 400) : [];
+        unset($r);
+    }
 } catch (PDOException $e) {
     error_log('[guru/rekap] ' . $e->getMessage());
     http_response_code(500);
@@ -83,4 +88,35 @@ layout_start('Rekap & Laporan', 'g-rekap');
   </div>
 </section>
 <p class="footnote fbu">Kehadiran = (hadir + terlambat) ÷ hari kerja yang sudah berlalu (hadir, terlambat, izin, sakit, alpa). Jurnal = jurnal terkumpul ÷ hari kerja dalam periode magang s.d. hari ini.</p>
+
+<?php if ($d['rows']): ?>
+<section class="g-rj fbu" aria-label="Jurnal siswa">
+  <h2 class="g-rj__title">Jurnal siswa · <?= e($d['label']) ?></h2>
+  <?php foreach ($d['rows'] as $r): $s = $r['siswa']; ?>
+  <details class="card g-rj__siswa"<?= count($d['rows']) === 1 ? ' open' : '' ?>>
+    <summary><strong><?= e($s['name']) ?></strong> <span class="muted num"><?= count($r['jurnal']) ?> jurnal</span></summary>
+    <?php if (!$r['jurnal']): ?>
+      <p class="upc__empty" style="margin:0">Belum ada jurnal pada periode ini.</p>
+    <?php else: ?>
+    <div class="table-wrap">
+      <table class="table g-table">
+        <thead><tr><th>Tanggal</th><th>Kegiatan</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <?php foreach ($r['jurnal'] as $j): ?>
+          <tr>
+            <td class="nw num"><?= e(tgl_id($j['tanggal'], false)) ?></td>
+            <td><ol class="g-rj__list"><?php foreach ($j['kegiatan'] as $kg): ?><li><?= e($kg) ?></li><?php endforeach; ?></ol>
+              <?php if ($j['cerita']): ?><p class="g-rj__story"><?= e($j['cerita']) ?></p><?php endif; ?>
+              <?php if ($j['komentar']): ?><small class="muted"><?= count($j['komentar']) ?> catatan</small><?php endif; ?></td>
+            <td><?= e($j['keterangan_label']) ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php endif; ?>
+  </details>
+  <?php endforeach; ?>
+</section>
+<?php endif; ?>
 <?php layout_end(); ?>

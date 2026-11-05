@@ -77,7 +77,10 @@ function siswa_rekap(array $intern, string $from, string $to, string $today): ar
     $dasar = $rk['hadir'] + $rk['terlambat'] + $rk['izin'] + $rk['sakit'] + $rk['alpa'];
     $masuk = $rk['hadir'] + $rk['terlambat'];
     $hk = siswa_hari_kerja($intern, $from, $to, $today);
-    $jurnal = $hk ? count(jurnal_dates($intern['id'], max($from, (string)$intern['mulai']), min($to, $today))) : 0;
+    // Jurnal terkumpul dihitung langsung dari tabel jurnal dalam periode (tidak bergantung ada/tidaknya hari kerja)
+    $jf = max($from, (string)($intern['mulai'] ?? ''));
+    $jt = min($to, $today, (string)($intern['selesai'] ?: $to));
+    $jurnal = $jf <= $jt ? count(jurnal_dates($intern['id'], $jf, $jt)) : 0;
     return $rk + [
         'persen' => $dasar ? (int)round($masuk / $dasar * 100) : null,
         'jurnal' => $jurnal, 'hari_kerja' => count($hk),
