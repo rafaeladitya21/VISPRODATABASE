@@ -125,6 +125,10 @@ Total sewa        = Harga sewa × Qty × Day
   pekerjaan baru.
 - **Slip gaji**: total per baris = fee output × hari · Total Fee = Σ baris · Sub Total = Total Fee + Gaji Pokok
   (freelance: Sub Total = Total Fee).
+  **Beberapa slip per bulan** (`slip.nomor`, kode `SLIP-2026-11-HA-02`): setelah slip dibayar, pekerjaan baru di
+  bulan berjalan masuk ke Slip #2, #3, … Maksimal satu slip yang belum dibayar per karyawan per bulan (index unik
+  parsial `uq_slip_open`). In-house: gaji pokok hanya di Slip #1. Satu job jadwal hanya di satu slip. Laporan bulan
+  (Admin → Slip Gaji) dan grafik Beranda menjumlahkan semua slip.
   Alur: Draft → Diajukan → Disetujui → Dibayar. Selama Draft fee & gaji pokok mengikuti master terkini;
   sejak diajukan nilainya dibekukan (snapshot) sehingga perubahan tarif tidak mengubah slip lama.
   Bulan lalu hanya bisa dilihat (dan diajukan bila belum), kecuali slip yang dikembalikan Admin / ditarik.

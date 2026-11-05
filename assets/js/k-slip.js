@@ -9,7 +9,8 @@
   var D = window.MH_DATA || {};
   var STEPS = ['draft', 'diajukan', 'disetujui', 'dibayar'];
 
-  var state = { periode: D.periode, slip: null, tarif: [], busy: false };
+  // nomor = slip yang sedang dilihat (null → server memilih: slip yang belum dibayar, selain itu slip terakhir)
+  var state = { periode: D.periode, nomor: D.nomor || null, slip: null, tarif: [], busy: false };
 
   var el = {
     title: $('#sl-title'), prev: $('#sl-prev'), next: $('#sl-next'), now: $('#sl-now'),
@@ -35,14 +36,22 @@
   }
 
   /* ---------- Muat ---------- */
-  function load(periode, push) {
+  function syncUrl(s, push) {
+    var q = [];
+    if (!s.is_current) q.push('periode=' + s.periode);
+    if (state.nomor) q.push('nomor=' + state.nomor);
+    var url = 'karyawan/slip' + (q.length ? '?' + q.join('&') : '') + location.hash;
+    var st = { periode: s.periode, nomor: state.nomor };
+    if (push) history.pushState(st, '', url); else history.replaceState(st, '', url);
+  }
+
+  function load(periode, push, nomor) {
     state.periode = periode;
+    state.nomor = nomor || null;
     el.error.hidden = true;
-    return MH.api('api/myslip.php?periode=' + encodeURIComponent(periode)).then(function (d) {
+    return MH.api('api/myslip.php?periode=' + encodeURIComponent(periode) + (state.nomor ? '&nomor=' + state.nomor : '')).then(function (d) {
       render(d);
-      var url = 'karyawan/slip' + (d.slip.is_current ? '' : '?periode=' + d.slip.periode);
-      if (push) history.pushState({ periode: d.slip.periode }, '', url);
-      else history.replaceState({ periode: d.slip.periode }, '', url);
+      syncUrl(d.slip, push);
     }).catch(function (err) {
       el.error.innerHTML = '<div class="card">' + MH.errorHtml(err.message) + '</div>';
       el.error.hidden = false;
@@ -50,7 +59,7 @@
   }
 
   window.addEventListener('popstate', function (e) {
-    if (e.state && e.state.periode) load(e.state.periode, false);
+    if (e.state && e.state.periode) load(e.state.periode, false, e.state.nomor);
   });
 
   /* ---------- Render ---------- */
@@ -66,33 +75,74 @@
     el.next.onclick = function () { if (s.next) load(s.next, true); };
     el.now.hidden = s.is_current;
 
+    renderSlips(s);
     renderNotice(s);
     renderForm(s);
     renderTable(s);
     renderSummary(s);
   }
 
+  /* Riwayat slip bulan ini: [Slip #1 · Dibayar 5 Nov · Rp 500.000] [Slip #2 · Draft · Rp 250.000] */
+  var elSlips = $('#sl-slips');
+  function renderSlips(s) {
+    elSlips.hidden = s.slips.length < 2;
+    elSlips.innerHTML = s.slips.map(function (c) {
+      var st = c.returned ? 'Dikembalikan' : c.status === 'dibayar' && c.tanggal_transfer ? 'Dibayar ' + tglPendek(c.tanggal_transfer) : c.status_label;
+      var on = c.nomor === s.nomor;
+      return '<button type="button" class="ks-slip-chip' + (on ? ' is-active' : '') + (c.status === 'dibayar' ? ' is-paid' : '') + '" role="tab"' +
+        ' aria-selected="' + on + '" data-nomor="' + c.nomor + '">' +
+        '<strong>Slip #' + c.nomor + '</strong><span>' + esc(st) + '</span><span class="num">' + rp(c.sub_total) + '</span></button>';
+    }).join('') + (s.slips.length > 1 ? '<span class="ks-slips__total num">Total bulan ini ' + rp(s.bulan_total) + '</span>' : '');
+  }
+  elSlips.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-nomor]');
+    if (b && Number(b.dataset.nomor) !== state.slip.nomor) load(state.periode, true, Number(b.dataset.nomor));
+  });
+
   function renderNotice(s) {
     var h = '';
-    if (s.returned) {
+    if (s.status === 'dibayar') {
+      // Banner dibayar hanya saat melihat slip yang memang sudah dibayar
+      var act = '';
+      if (s.can_create && s.nomor === s.next_nomor - 1) {
+        act = '<button type="button" class="btn btn--primary" data-act="create">' + MH.icon('plus') + 'Buat slip baru</button>';
+      } else if (s.open_nomor) {
+        act = '<button type="button" class="btn btn--secondary" data-goto="' + s.open_nomor + '">Lihat Slip #' + s.open_nomor + '</button>';
+      }
+      h = '<div class="notice ks-notice ks-notice--paid">' + MH.icon('check') + '<div class="ks-notice__txt"><strong>Slip #' + s.nomor + ' sudah dibayar</strong>' +
+          (s.tanggal_transfer ? ' — ditransfer ' + esc(MH.date(s.tanggal_transfer)) : '') + '.' +
+          (s.can_create ? '<br><span class="muted">Job berikutnya bulan ini dicatat di slip baru (Slip #' + s.next_nomor + ').</span>' : '') +
+          '</div>' + act + '</div>';
+    } else if (s.returned) {
       h = '<div class="notice ks-notice">' + MH.icon('alert') + '<div><strong>Slip dikembalikan Admin.</strong> ' +
           esc(s.catatan_admin) + '<br><span class="muted">Perbaiki rincian lalu ajukan lagi.</span></div></div>';
     } else if (!s.editable && s.status === 'draft' && !s.is_current) {
       h = '<div class="notice ks-notice">' + MH.icon('alert') + '<span>Bulan sebelumnya hanya bisa dilihat. ' +
           (s.can_submit ? 'Slip ini belum diajukan — Anda masih bisa mengajukannya ke Admin.' : '') + '</span></div>';
     } else if (s.status !== 'draft') {
-      var txt = { diajukan: 'Slip sudah diajukan dan menunggu persetujuan Admin. Rincian terkunci.',
-                  disetujui: 'Slip sudah disetujui Admin dan menunggu pembayaran.',
-                  dibayar: 'Slip sudah dibayar' + (s.tanggal_transfer ? ' — ditransfer ' + MH.date(s.tanggal_transfer) : '') + '.' }[s.status];
-      h = '<div class="notice ks-notice">' + MH.icon(s.status === 'dibayar' ? 'check' : 'alert') + '<span>' + esc(txt) + '</span></div>';
+      var txt = { diajukan: 'Slip #' + s.nomor + ' sudah diajukan dan menunggu persetujuan Admin. Rincian terkunci.',
+                  disetujui: 'Slip #' + s.nomor + ' sudah disetujui Admin dan menunggu pembayaran.' }[s.status];
+      h = '<div class="notice ks-notice">' + MH.icon('alert') + '<span>' + esc(txt) + '</span></div>';
     }
     el.notice.innerHTML = h;
   }
+  el.notice.addEventListener('click', function (e) {
+    var g = e.target.closest('[data-goto]');
+    if (g) { load(state.periode, true, Number(g.dataset.goto)); return; }
+    var c = e.target.closest('[data-act="create"]');
+    if (!c || state.busy) return;
+    busy(c, true);
+    el.error.hidden = true;
+    post({ action: 'create' }).catch(showError).finally(function () { busy(null, false); });
+  });
 
   function renderForm(s) {
-    el.formCard.hidden = !s.editable;
-    if (!s.editable) return;
-    el.range.textContent = 'Tanggal dalam ' + s.periode_label;
+    // Form tampil bila slip ini masih Draft, atau semua slip sudah dibayar (baris baru → slip baru otomatis)
+    el.formCard.hidden = !s.can_add;
+    if (!s.can_add) return;
+    el.range.textContent = s.editable
+      ? 'Slip #' + s.nomor + ' · tanggal dalam ' + s.periode_label
+      : 'Akan masuk ke Slip #' + s.add_nomor + ' (dibuat otomatis)';
     el.date.min = s.periode_from;
     el.date.max = s.periode_to;
     if (!el.date.value || el.date.value < s.periode_from || el.date.value > s.periode_to) {
@@ -169,8 +219,11 @@
     // Freelance: baris gaji pokok tidak dibuat sama sekali (tipe dari snapshot slip)
     var gpRow = $('#ss-gp-row');
     gpRow.hidden = s.tipe === 'freelance';
-    gpRow.innerHTML = s.tipe === 'freelance' ? '' : '<span>Gaji Pokok</span><strong class="num">' + rp(s.gaji_pokok) + '</strong>';
-    el.period.textContent = 'Periode ' + s.periode_label + ' · ' + (s.tipe === 'freelance' ? 'Freelance' : 'In-house');
+    gpRow.innerHTML = s.tipe === 'freelance' ? ''
+      : s.gp_note ? '<span>Gaji Pokok</span><strong class="ks-sum__muted">' + esc(s.gp_note) + '</strong>'
+      : '<span>Gaji Pokok</span><strong class="num">' + rp(s.gaji_pokok) + '</strong>';
+    $('#ss-kode').textContent = s.kode;
+    el.period.textContent = 'Slip #' + s.nomor + ' · ' + s.periode_label + ' · ' + (s.tipe === 'freelance' ? 'Freelance' : 'In-house');
     el.total.textContent = rp(s.sub_total);
 
     var a = '';
@@ -182,7 +235,7 @@
       a += '<button type="button" class="btn btn--secondary btn--block" data-act="withdraw">' + MH.icon('retry') + 'Tarik kembali &amp; ubah</button>';
     }
     if (s.status === 'dibayar') {
-      a += '<a class="btn btn--primary btn--block" href="slip-cetak.php?periode=' + encodeURIComponent(s.periode) + '" target="_blank" rel="noopener">' +
+      a += '<a class="btn btn--primary btn--block" href="slip-cetak.php?periode=' + encodeURIComponent(s.periode) + '&nomor=' + s.nomor + '" target="_blank" rel="noopener">' +
            MH.icon('down') + 'Unduh slip (PDF)</a>';
     }
     el.actions.innerHTML = a;
@@ -221,7 +274,7 @@
     var s = state.slip;
     var d = el.date.value;
     var t = tarifById(el.output.value);
-    return !!(s && s.editable && d && d >= s.periode_from && d <= s.periode_to &&
+    return !!(s && s.can_add && d && d >= s.periode_from && d <= s.periode_to &&
       el.event.value.trim() && t && hariValue() >= 1 && hariValue() <= t.max);
   }
   function syncForm() {
@@ -282,7 +335,9 @@
   }
   function post(body) {
     body.periode = state.periode;
-    return MH.api('api/myslip.php', { method: 'POST', body: body }).then(function (d) { render(d); return d; });
+    // Hapus / ajukan / tarik: untuk slip yang sedang dilihat (server memeriksa nomornya)
+    if (body.action !== 'add' && body.action !== 'create') body.nomor = state.slip.nomor;
+    return MH.api('api/myslip.php', { method: 'POST', body: body }).then(function (d) { state.nomor = d.slip.nomor; render(d); syncUrl(d.slip, false); return d; });
   }
   function showError(err) {
     el.error.innerHTML = '<div class="card">' + MH.errorHtml(err.message) + '</div>';
@@ -305,11 +360,11 @@
     var s = state.slip;
     pendingAct = b.dataset.act;
     if (pendingAct === 'submit') {
-      el.dlgText.textContent = 'Ajukan slip ' + s.periode_label + ' sebesar ' + rp(s.sub_total) + '?';
+      el.dlgText.textContent = 'Ajukan Slip #' + s.nomor + ' ' + s.periode_label + ' sebesar ' + rp(s.sub_total) + '?';
       el.dlgSub.textContent = 'Setelah diajukan rincian terkunci. Anda masih bisa menarik kembali selama Admin belum menyetujui.';
       el.dlgOkLabel.textContent = 'Ajukan';
     } else {
-      el.dlgText.textContent = 'Tarik kembali slip ' + s.periode_label + '?';
+      el.dlgText.textContent = 'Tarik kembali Slip #' + s.nomor + ' ' + s.periode_label + '?';
       el.dlgSub.textContent = 'Slip kembali menjadi Draft supaya rinciannya bisa diubah, lalu ajukan lagi.';
       el.dlgOkLabel.textContent = 'Tarik kembali';
     }

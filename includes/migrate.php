@@ -140,6 +140,16 @@ const MH_MIGRATIONS = [
         ALTER TABLE tarif_khusus ALTER COLUMN fee DROP NOT NULL;   -- NULL = pakai tarif umum
         ALTER TABLE tarif_khusus ADD COLUMN tampil SMALLINT NOT NULL DEFAULT 1;
         SQL,
+
+    // 5 — Beberapa slip per karyawan per bulan (Slip #1, #2, …). Maksimal SATU slip yang belum dibayar
+    //     per karyawan per bulan (dijaga index unik parsial); slip yang sudah dibayar boleh banyak.
+    5 => <<<'SQL'
+        ALTER TABLE slip DROP CONSTRAINT IF EXISTS uq_slip_user_periode;
+        ALTER TABLE slip ADD COLUMN nomor INTEGER NOT NULL DEFAULT 1 CHECK (nomor >= 1);
+        ALTER TABLE slip ADD CONSTRAINT uq_slip_user_periode_nomor UNIQUE (user_id, periode, nomor);
+        CREATE UNIQUE INDEX uq_slip_open ON slip (user_id, periode) WHERE status <> 'dibayar';
+        CREATE INDEX idx_si_tx ON slip_item (transaction_id) WHERE transaction_id IS NOT NULL;
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

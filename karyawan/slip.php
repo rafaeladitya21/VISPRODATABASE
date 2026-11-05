@@ -1,7 +1,7 @@
 <?php
 /**
  * Slip Gaji — karyawan. Data & aksi lewat api/myslip.php (hanya slip milik sendiri).
- * URL: karyawan/slip?periode=2026-10
+ * URL: karyawan/slip?periode=2026-11&nomor=2  (nomor opsional: slip ke-berapa di bulan itu)
  */
 declare(strict_types=1);
 define('MH_AREA', 'karyawan');
@@ -36,6 +36,7 @@ layout_start('Slip Gaji', 'k-slip');
 </header>
 
 <div id="sl-error" hidden></div>
+<div class="ks-slips fbu" id="sl-slips" role="tablist" aria-label="Slip bulan ini" hidden></div>
 <div id="sl-notice"></div>
 
 <div class="ks-layout">
@@ -111,7 +112,7 @@ layout_start('Slip Gaji', 'k-slip');
       <img class="ks-sum__logo" src="assets/img/logo.png" alt="Visual Production.id">
       <span class="badge" id="ss-status">Draft</span>
     </div>
-    <p class="ks-sum__label">Slip gaji</p>
+    <p class="ks-sum__label num" id="ss-kode">Slip gaji</p>
     <h2 class="ks-sum__name" id="ss-name"><?= e($user['name']) ?></h2>
     <p class="ks-sum__period num" id="ss-period">&nbsp;</p>
 
@@ -154,4 +155,5 @@ layout_start('Slip Gaji', 'k-slip');
     </div>
   </div>
 </dialog>
-<?php layout_end(['k-slip.js'], ['periode' => $periode, 'now' => periode_now(), 'today' => date('Y-m-d')]); ?>
+<?php layout_end(['k-slip.js'], ['periode' => $periode, 'nomor' => filter_var($_GET['nomor'] ?? null, FILTER_VALIDATE_INT) ?: null,
+                               'now' => periode_now(), 'today' => date('Y-m-d')]); ?>

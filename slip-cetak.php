@@ -1,7 +1,8 @@
 <?php
 /**
  * Cetak slip gaji (A4) — tombol "Unduh slip (PDF)" membuka dialog cetak → Simpan sebagai PDF.
- *   Karyawan : slip-cetak.php?periode=2026-10   → hanya slip MILIK SENDIRI berstatus Dibayar
+ *   Karyawan : slip-cetak.php?periode=2026-11&nomor=2 → hanya slip MILIK SENDIRI berstatus Dibayar
+ *              (tanpa nomor: slip terakhir yang sudah dibayar di bulan itu)
  *   Admin    : slip-cetak.php?id=12             → slip mana pun (status apa pun)
  *   &noprint=1 → jangan buka dialog cetak otomatis
  */
@@ -22,7 +23,10 @@ try {
     if ($user['role'] === 'karyawan') {
         $p = (string)($_GET['periode'] ?? '');
         if (!periode_ok($p)) slip_fail(404, 'Periode tidak valid.');
-        $slip = slip_row((int)$user['id'], $p);           // user_id dari session → tidak bisa membuka slip orang lain
+        // user_id dari session → tidak bisa membuka slip orang lain
+        $n = filter_var($_GET['nomor'] ?? null, FILTER_VALIDATE_INT);
+        $paid = array_values(array_filter(slips_of((int)$user['id'], $p), fn($s) => $s['status'] === 'dibayar' && (!$n || (int)$s['nomor'] === $n)));
+        $slip = $paid ? end($paid) : null;
         if (!$slip || $slip['status'] !== 'dibayar') slip_fail(404, 'Slip belum dibayar, jadi belum bisa diunduh.');
     } else {
         $slip = slip_row_by_id((int)($_GET['id'] ?? 0));
@@ -36,7 +40,7 @@ try {
     slip_fail(500, 'Gagal mengakses database.');
 }
 
-$no = 'SLIP-' . str_replace('-', '', $s['periode']) . '-' . str_pad((string)$k['id'], 3, '0', STR_PAD_LEFT);
+$no = $s['kode'];   // SLIP-2026-11-HA-02
 $autoPrint = empty($_GET['noprint']);
 ?>
 <!doctype html>
@@ -117,7 +121,7 @@ $autoPrint = empty($_GET['noprint']);
 
     <div class="title">
       <h1>SLIP GAJI</h1>
-      <p>Periode <?= e($s['periode_label']) ?> · Status <?= e($s['status_label']) ?></p>
+      <p>Slip #<?= $s['nomor'] ?> · Periode <?= e($s['periode_label']) ?> · Status <?= e($s['status_label']) ?></p>
     </div>
 
     <div class="info">
@@ -159,7 +163,7 @@ $autoPrint = empty($_GET['noprint']);
         <h2>Ringkasan</h2>
         <div class="rows">
           <div><span>Total Fee</span><strong class="num"><?= e(rupiah($s['total_fee'])) ?></strong></div>
-          <?php if ($s['tipe'] !== 'freelance'): ?><div><span>Gaji Pokok</span><strong class="num"><?= e(rupiah($s['gaji_pokok'])) ?></strong></div><?php endif; ?>
+          <?php if ($s['tipe'] !== 'freelance'): ?><div><span>Gaji Pokok</span><strong class="num"><?= e($s['gp_note'] ?? rupiah($s['gaji_pokok'])) ?></strong></div><?php endif; ?>
         </div>
         <div class="grand"><span>Sub Total</span><span class="big num"><?= e(rupiah($s['sub_total'])) ?></span></div>
         <?php if ($s['status'] === 'dibayar'): ?>

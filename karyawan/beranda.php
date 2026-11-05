@@ -16,9 +16,12 @@ $now = periode_now();
 
 try {
     $jobs = kw_jobs($me['id'], $monthFrom);
-    $slipNow = slip_load($me, $now);
+    $slipNow = slip_month($me, $now);   // semua slip bulan ini (dibayar + berjalan)
     $prevPeriode = periode_shift($now, -1);
-    $slipPrev = slip_row($me['id'], $prevPeriode);
+    $prevSlips = slips_of($me['id'], $prevPeriode);
+    // Status bulan lalu = slip yang belum dibayar bila ada, selain itu slip terakhir
+    $slipPrev = slip_open_of($prevSlips) ?? ($prevSlips ? end($prevSlips) : null);
+    $prevTotal = array_sum(array_map(fn($s) => (int)$s['sub_total'], $prevSlips));
     $history = slip_history($me['id'], periode_shift($now, -5), $now);
     $pesan = trim(setting('pesan_semangat'));
     $info = trim(setting('info_admin'));
@@ -35,12 +38,12 @@ $monthJobs = array_filter($jobs, fn($j) => $j['periode'] === $now);
 $doneCount = count(array_filter($monthJobs, fn($j) => $j['state'] === 'selesai'));
 $todoCount = count($monthJobs) - $doneCount;
 
-// Grafik 6 bulan: bulan lalu = sub total slip (bila ada), bulan berjalan = estimasi
+// Grafik 6 bulan: total semua slip per bulan; bulan berjalan = estimasi
 $bars = [];
 for ($i = 5; $i >= 0; $i--) {
     $p = periode_shift($now, -$i);
     $v = $p === $now ? $slipNow['sub_total'] : ($history[$p]['sub_total'] ?? 0);
-    $bars[] = ['p' => $p, 'v' => $v, 'est' => $p === $now, 'status' => $p === $now ? null : ($history[$p]['status'] ?? null)];
+    $bars[] = ['p' => $p, 'v' => $v, 'est' => $p === $now];
 }
 $max = max(1, ...array_column($bars, 'v'));
 
@@ -113,12 +116,12 @@ layout_start('Beranda', 'k-beranda');
     </article>
     <a class="card kpi kb-kpi-link fbu" href="karyawan/slip?periode=<?= e($prevPeriode) ?>">
       <p class="kpi__label">Slip <?= e(periode_label($prevPeriode)) ?></p>
-      <p class="kpi__value"><?= e($slipPrev ? SLIP_STATUS[$slipPrev['status']] : 'Belum ada') ?></p>
+      <p class="kpi__value"><?= e($slipPrev ? SLIP_STATUS[$slipPrev['status']] . (count($prevSlips) > 1 ? ' · ' . count($prevSlips) . ' slip' : '') : 'Belum ada') ?></p>
       <p class="kpi__sub num">
         <?php if ($slipPrev && $slipPrev['status'] === 'dibayar' && $slipPrev['tanggal_transfer']): ?>
           Ditransfer <?= e(tgl_id($slipPrev['tanggal_transfer'], false)) ?>
         <?php elseif ($slipPrev): ?>
-          Sub total <?= e(rupiah((int)$slipPrev['sub_total'])) ?>
+          Total <?= e(rupiah($prevTotal)) ?>
         <?php else: ?>
           Tidak ada slip bulan lalu
         <?php endif; ?>

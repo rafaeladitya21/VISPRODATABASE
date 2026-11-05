@@ -3,16 +3,19 @@
  * API Slip Gaji — ADMIN
  *   GET ?status=diajukan|disetujui|dibayar|dikembalikan|semua [&periode=YYYY-MM]  → daftar slip
  *        (tiap baris membawa tipe = tipe_snapshot slip; filter In-house/Freelance dilakukan di halaman)
- *   GET ?id=12                                         → detail slip (rincian + ringkasan)
+ *        + ringkasan: laporan bulan (periode filter, default bulan berjalan) = SEMUA slip per karyawan
+ *   GET ?id=12                                         → detail slip (rincian + ringkasan + slip lain bulan itu)
  *   POST {action:'approve', id}                        → diajukan → disetujui
  *   POST {action:'return',  id, catatan}               → diajukan/disetujui → draft (+ catatan untuk karyawan)
  *   POST {action:'pay',     id, tanggal_transfer}      → disetujui → dibayar
+ *   DELETE ?id=12 {pin}                                → hapus slip (status apa pun), wajib kode sandi
  * Draft yang belum pernah diajukan tidak tampil.
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/slip.php';
+require_once __DIR__ . '/../includes/pin.php';
 
 const PAYROLL_FILTERS = [
     'diajukan'     => "s.status = 'diajukan'",
@@ -27,15 +30,16 @@ function payroll_list(string $filter, ?string $periode): array
     $where = PAYROLL_FILTERS[$filter];
     $args = [];
     if ($periode) { $where .= ' AND s.periode = ?'; $args[] = $periode; }
-    $st = db()->prepare("SELECT s.id, s.periode, s.status, s.total_fee, s.sub_total, s.gaji_pokok_snapshot, s.tipe_snapshot,
+    $st = db()->prepare("SELECT s.id, s.periode, s.nomor, s.status, s.total_fee, s.sub_total, s.gaji_pokok_snapshot, s.tipe_snapshot,
             s.diajukan_at, s.tanggal_transfer, s.catatan_admin, u.name, u.jabatan,
             (SELECT COUNT(*) FROM slip_item si WHERE si.slip_id = s.id) AS n,
             (SELECT COALESCE(SUM(hari), 0) FROM slip_item si WHERE si.slip_id = s.id AND si.satuan_snapshot = 'hari') AS hari
         FROM slip s JOIN users u ON u.id = s.user_id
-        WHERE $where ORDER BY s.periode DESC, s.diajukan_at DESC NULLS LAST, u.name LIMIT 500");
+        WHERE $where ORDER BY s.periode DESC, s.diajukan_at DESC NULLS LAST, u.name, s.nomor LIMIT 500");
     $st->execute($args);
     return array_map(fn($r) => [
         'id' => (int)$r['id'], 'periode' => $r['periode'], 'periode_label' => periode_label($r['periode']),
+        'nomor' => (int)$r['nomor'], 'kode' => slip_kode($r, (string)$r['name']),
         'status' => $r['status'], 'status_label' => SLIP_STATUS[$r['status']],
         'returned' => $r['status'] === 'draft',
         'name' => $r['name'], 'jabatan' => $r['jabatan'], 'tipe' => $r['tipe_snapshot'],
@@ -43,6 +47,32 @@ function payroll_list(string $filter, ?string $periode): array
         'total_fee' => (int)$r['total_fee'], 'gaji_pokok' => (int)$r['gaji_pokok_snapshot'], 'sub_total' => (int)$r['sub_total'],
         'diajukan_at' => $r['diajukan_at'], 'tanggal_transfer' => $r['tanggal_transfer'], 'catatan_admin' => $r['catatan_admin'],
     ], $st->fetchAll());
+}
+
+/**
+ * Ringkasan / laporan bulanan per karyawan: menjumlahkan SEMUA slip di bulan itu
+ * (dibayar + masih berjalan), bukan hanya slip pertama. Draft yang belum pernah diajukan ikut "berjalan".
+ */
+function payroll_ringkasan(string $periode): array
+{
+    $st = db()->prepare("SELECT u.id, u.name, u.jabatan, u.tipe, COUNT(*) AS n,
+            COALESCE(SUM(s.sub_total) FILTER (WHERE s.status = 'dibayar'), 0)  AS dibayar,
+            COALESCE(SUM(s.sub_total) FILTER (WHERE s.status <> 'dibayar'), 0) AS berjalan,
+            COALESCE(SUM(s.sub_total), 0) AS total,
+            string_agg('#' || s.nomor || ' ' || s.status, ', ' ORDER BY s.nomor) AS daftar
+        FROM slip s JOIN users u ON u.id = s.user_id
+        WHERE s.periode = ? GROUP BY u.id ORDER BY u.name");
+    $st->execute([$periode]);
+    $rows = array_map(fn($r) => [
+        'user_id' => (int)$r['id'], 'name' => $r['name'], 'jabatan' => $r['jabatan'], 'tipe' => $r['tipe'],
+        'slips' => (int)$r['n'], 'dibayar' => (int)$r['dibayar'], 'berjalan' => (int)$r['berjalan'], 'total' => (int)$r['total'],
+        'daftar' => $r['daftar'],
+    ], $st->fetchAll());
+    return [
+        'periode' => $periode, 'periode_label' => periode_label($periode), 'items' => $rows,
+        'total' => array_sum(array_column($rows, 'total')), 'dibayar' => array_sum(array_column($rows, 'dibayar')),
+        'berjalan' => array_sum(array_column($rows, 'berjalan')),
+    ];
 }
 
 function payroll_counts(): array
@@ -70,7 +100,22 @@ try {
         if (isset($_GET['id'])) json_response(['ok' => true, 'slip' => payroll_detail((int)$_GET['id'])]);
         $filter = array_key_exists($_GET['status'] ?? '', PAYROLL_FILTERS) ? $_GET['status'] : 'diajukan';
         $periode = periode_ok($_GET['periode'] ?? null) ? $_GET['periode'] : null;
-        json_response(['ok' => true, 'items' => payroll_list($filter, $periode), 'counts' => payroll_counts()]);
+        json_response(['ok' => true, 'items' => payroll_list($filter, $periode), 'counts' => payroll_counts(),
+                       'ringkasan' => payroll_ringkasan($periode ?? periode_now())]);
+    }
+
+    // Hapus slip (status apa pun, termasuk Dibayar) — wajib kode sandi yang sama dengan hapus customer.
+    // Rincian ikut terhapus (CASCADE). Nomor slip lain di bulan itu tidak diubah.
+    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        $id = (int)($_GET['id'] ?? 0);
+        $slip = slip_row_by_id($id);
+        if (!$slip) json_error('Slip tidak ditemukan.', 404);
+        require_pin('delete_slip', DELETE_CUSTOMER_PIN_HASH, read_json()['pin'] ?? null);
+        $k = karyawan_row((int)$slip['user_id']);
+        $kode = slip_kode($slip, (string)($k['name'] ?? ''));
+        db()->prepare('DELETE FROM slip WHERE id = ?')->execute([$id]);
+        error_log("[payroll] slip $kode (id $id, " . $slip['status'] . ', ' . $slip['sub_total'] . ") dihapus oleh user {$user['id']}");
+        json_response(['ok' => true, 'deleted' => $kode, 'counts' => payroll_counts()]);
     }
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_error('Metode tidak diizinkan.', 405);

@@ -2094,3 +2094,31 @@ td .tf-in.input--money { width: 140px; margin-left: auto; }
 .tk__show { min-height: 0; font-size: 12.5px; gap: 6px; }
 .ks-empty-tarif { color: var(--red); font-weight: 500; }
 @media (max-width: 480px) { .tk__row { grid-template-columns: minmax(0, 1fr) 120px; } .tk__show { grid-column: 1 / -1; } }
+
+/* Slip Gaji: beberapa slip per bulan (chip riwayat) */
+.ks-slips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.ks-slip-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 14px;
+  font: inherit; font-size: 13px; color: var(--text-2); text-align: left;
+  background: var(--white); border: 1px dashed var(--dash); border-radius: 999px; cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.ks-slip-chip strong { color: var(--ink); font-weight: 700; }
+.ks-slip-chip span + span::before { content: '·'; margin-right: 8px; color: var(--placeholder); }
+.ks-slip-chip.is-paid { border-style: solid; border-color: var(--line); }
+.ks-slip-chip:hover { border-color: var(--ink); }
+.ks-slip-chip.is-active { color: var(--white); background: var(--ink); border: 1px solid var(--ink); }
+.ks-slip-chip.is-active strong { color: var(--white); }
+.ks-slip-chip.is-active span + span::before { color: #737373; }
+.ks-slips__total { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--muted); }
+.ks-notice--paid { align-items: center; flex-wrap: wrap; }
+.ks-notice__txt { flex: 1; min-width: 200px; }
+.ks-notice--paid .btn { height: 40px; font-size: 13px; }
+.ks-sum__muted { font-weight: 500 !important; color: var(--muted); font-size: 12.5px; }
+.slip-detail__others { margin: 0 0 12px; }
+.pr-report { margin-top: 20px; }
+@media (max-width: 640px) { .ks-slips__total { margin-left: 0; width: 100%; } }
+
+/* Slip Gaji admin: kolom aksi (hapus + chevron) */
+.adm-actions .chev-icon { display: inline-grid; place-items: center; width: 24px; color: var(--dash); }
+.table tr.is-link:hover .chev-icon { color: var(--ink); }

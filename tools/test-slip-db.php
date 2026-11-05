@@ -191,6 +191,68 @@ try {
     check('Harga diubah → pekerjaan lama tetap (fee_snapshot)', slip_load($hafidz, '2026-10')['total_fee'], 1600000);
     check('In-house tetap 4.600.000', slip_load($andhika, '2026-10')['sub_total'], 4600000);
 
+    // --- Beberapa slip per bulan (Slip #1, #2, …) ---
+    $p = periode_now();
+    $markPaid = fn(int $id) => $pdo->prepare("UPDATE slip SET status = 'dibayar', dibayar_at = LOCALTIMESTAMP(0), tanggal_transfer = CURRENT_DATE WHERE id = ?")->execute([$id]);
+    $s1 = slip_ensure($fid, $p);
+    $ins2->execute([$s1['id'], "$p-02", 'BBCA', $ids['PHOTOGRAPHER'], 'PHOTOGRAPHER', 250000, 'hari', 1, 250000]);
+    $ins2->execute([$s1['id'], "$p-03", 'SBY', $ids['PHOTOGRAPHER'], 'PHOTOGRAPHER', 250000, 'hari', 1, 250000]);
+    slip_sync((int)$s1['id']);
+    $markPaid((int)$s1['id']);
+    $v = slip_load($hafidz, $p);
+    check('Tes 1: Slip #1 dibayar Rp 500.000 → tombol "+ Buat slip baru"', [$v['nomor'], $v['status'], $v['sub_total'], $v['can_create'], $v['can_add']],
+        [1, 'dibayar', 500000, true, true]);
+    check('Tes 1: kode slip', $v['kode'], "SLIP-$p-HA-01");
+    check('Tes 1: rincian slip dibayar read-only', $v['editable'], false);
+
+    $s2 = slip_create($fid, $p);
+    $ins2->execute([$s2['id'], "$p-04", 'WISUDA', $ids['PHOTOGRAPHER'], 'PHOTOGRAPHER', 250000, 'hari', 1, 250000]);
+    $v = slip_load($hafidz, $p);
+    check('Tes 2: terbentuk Slip #2 Draft Rp 250.000', [$v['nomor'], $v['status'], $v['sub_total'], $v['editable'], $v['kode']],
+        [2, 'draft', 250000, true, "SLIP-$p-HA-02"]);
+    $v1 = slip_load($hafidz, $p, 1);
+    check('Tes 2: Slip #1 tetap Rp 500.000 & read-only', [$v1['sub_total'], $v1['editable'], $v1['can_add']], [500000, false, false]);
+    check('Tes 2: riwayat chip #1 & #2', array_map(fn($c) => [$c['nomor'], $c['status'], $c['sub_total']], $v['slips']),
+        [[1, 'dibayar', 500000], [2, 'draft', 250000]]);
+
+    try { slip_create($fid, $p); $msg = 'tidak ditolak'; } catch (SlipError $e) { $msg = $e->getMessage(); }
+    check('Tes 3: slip ketiga saat #2 Draft → ditolak', str_starts_with($msg, 'Selesaikan Slip #2 dulu'), true);
+    try {
+        $pdo->exec('SAVEPOINT sp_open');
+        $pdo->prepare("INSERT INTO slip (user_id, periode, nomor) VALUES (?, ?, 9)")->execute([$fid, $p]);
+        $dup = 'lolos';
+    } catch (PDOException $e) { $dup = is_unique_violation($e) ? 'ditolak' : $e->getMessage(); }
+    $pdo->exec('ROLLBACK TO SAVEPOINT sp_open');
+    check('Tes 3: database menolak 2 slip belum dibayar (index uq_slip_open)', $dup, 'ditolak');
+
+    // Tes 4: in-house — gaji pokok hanya di Slip #1
+    $pa = '2026-09';
+    $a1 = slip_ensure($uid, $pa);
+    $pdo->prepare('INSERT INTO slip_item (slip_id, tanggal, event, tarif_output_id, output_nama, fee_snapshot, satuan_snapshot, hari, total)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')->execute([$a1['id'], "$pa-05", 'EVENT A', $tarif['TAKE VIDIO']['id'], 'TAKE VIDIO', 150000, 'hari', 2, 300000]);
+    slip_sync((int)$a1['id']);
+    $markPaid((int)$a1['id']);
+    $a2 = slip_create($uid, $pa);
+    $pdo->prepare('INSERT INTO slip_item (slip_id, tanggal, event, tarif_output_id, output_nama, fee_snapshot, satuan_snapshot, hari, total)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')->execute([$a2['id'], "$pa-20", 'EVENT B', $tarif['TAKE VIDIO']['id'], 'TAKE VIDIO', 150000, 'hari', 1, 150000]);
+    slip_sync((int)$a2['id']);
+    $andhika = karyawan_row($uid);
+    $x1 = slip_load($andhika, $pa, 1);
+    $x2 = slip_load($andhika, $pa, 2);
+    check('Tes 4: in-house Slip #1 = fee + gaji pokok', [$x1['total_fee'], $x1['gaji_pokok'], $x1['sub_total']], [300000, 1000000, 1300000]);
+    check('Tes 4: in-house Slip #2 = fee saja', [$x2['total_fee'], $x2['gaji_pokok'], $x2['sub_total'], $x2['gp_note']],
+        [150000, 0, 150000, 'sudah dibayar di Slip #1']);
+
+    // Tes 5: laporan bulan = SEMUA slip
+    $m = slip_month($hafidz, $p);
+    check('Tes 5: total bulan Hafidz = Slip #1 + Slip #2', [$m['sub_total'], count($m['slips'])], [750000, 2]);
+    check('Tes 5: total bulan in-house = 1.300.000 + 150.000', slip_month($andhika, $pa)['sub_total'], 1450000);
+    check('Tes 5: grafik menjumlahkan semua slip', slip_history($fid, $p, $p)[$p]['sub_total'], 750000);
+
+    // Satu job hanya di satu slip
+    $pdo->prepare('UPDATE slip_item SET transaction_id = ? WHERE slip_id = ? AND event = ?')->execute([$tx, $s1['id'], 'BBCA']);
+    check('Job yang tercatat di Slip #1 dikenali (tombol cepat disembunyikan)', slip_recorded_jobs($fid)[(int)$tx]['nomor'] ?? null, 1);
+
     // Slip karyawan lain terpisah
     check('Slip karyawan lain kosong', slip_load(karyawan_row($other), '2026-10')['jumlah_pekerjaan'], 0);
 
