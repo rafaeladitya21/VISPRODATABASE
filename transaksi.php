@@ -193,7 +193,7 @@ layout_start('Transaksi', 'transaksi');
         </div>
         <!-- Saran nama crew dari akun karyawan: nama yang sama → job tampil di Jadwal Saya karyawan -->
         <datalist id="karyawan-names">
-          <?php foreach (db()->query("SELECT name, jabatan FROM users WHERE role = 'karyawan' AND aktif = 1 ORDER BY name") as $k): ?>
+          <?php foreach (db()->query("SELECT name, jabatan FROM users WHERE role = 'karyawan' AND tipe <> 'intern' AND aktif = 1 ORDER BY name") as $k): ?>
             <option value="<?= e($k['name']) ?>"><?= e($k['jabatan'] ?: 'Karyawan') ?></option>
           <?php endforeach; ?>
         </datalist>

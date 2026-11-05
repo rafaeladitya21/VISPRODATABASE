@@ -1,14 +1,14 @@
 <?php
 /**
  * API Pengaturan karyawan — ADMIN
- *   GET                                   → {pesan_semangat, info_admin}
+ *   GET                                   → {pesan_semangat, pesan_semangat_intern, info_admin}
  *   PUT {pesan_semangat?, info_admin?}    → simpan (teks kosong = disembunyikan di Beranda)
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
 
-const SETTING_KEYS = ['pesan_semangat' => 300, 'info_admin' => 2000];   // key => panjang maks.
+const SETTING_KEYS = ['pesan_semangat' => 300, 'pesan_semangat_intern' => 300, 'info_admin' => 2000];   // key => panjang maks.
 
 function settings_all(): array
 {

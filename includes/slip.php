@@ -125,6 +125,7 @@ function periode_shift(string $p, int $months): string
  */
 function tarif_for_user(array $user, ?int $id = null): array|null
 {
+    if (($user['tipe'] ?? 'inhouse') === 'intern') return $id !== null ? null : [];   // anak magang tidak punya tarif
     $sql = "SELECT t.id, t.nama, t.satuan, t.fee_per_hari AS fee_umum, tk.fee AS fee_khusus,
                    COALESCE(tk.fee, t.fee_per_hari) AS fee
             FROM tarif_output t

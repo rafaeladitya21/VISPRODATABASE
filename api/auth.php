@@ -2,7 +2,7 @@
 /**
  * POST api/auth.php — login.
  * Body: form-data / JSON { email, password, remember }
- * Admin → dashboard.php, karyawan → karyawan/beranda.
+ * Admin → dashboard.php, karyawan → karyawan/beranda, anak magang (intern) → magang/beranda.
  */
 declare(strict_types=1);
 require_once __DIR__ . '/../includes/db.php';
@@ -19,7 +19,7 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) {
 }
 
 try {
-    $stmt = db()->prepare('SELECT id, name, email, password_hash, must_change_password, role, jabatan, aktif
+    $stmt = db()->prepare('SELECT id, name, email, password_hash, must_change_password, role, jabatan, tipe, divisi, aktif
                            FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $row = $stmt->fetch();
@@ -49,6 +49,8 @@ $_SESSION['user'] = [
     'email'   => (string)$row['email'],
     'role'    => $row['role'] === 'karyawan' ? 'karyawan' : 'admin',
     'jabatan' => $row['jabatan'],
+    'tipe'    => in_array($row['tipe'], ['freelance', 'intern'], true) ? $row['tipe'] : 'inhouse',
+    'divisi'  => $row['divisi'],
     'must_change_password' => (bool)$row['must_change_password'],
 ];
 

@@ -23,6 +23,7 @@ layout_start('Akun Karyawan', 'akun-karyawan');
   <button type="button" class="seg__btn is-active" role="tab" aria-selected="true" data-tipe="semua">Semua <small class="num" data-count="semua">0</small></button>
   <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="inhouse">In-house <small class="num" data-count="inhouse">0</small></button>
   <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="freelance">Freelance <small class="num" data-count="freelance">0</small></button>
+  <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="intern">Intern <small class="num" data-count="intern">0</small></button>
 </div>
 
 <div id="st-error" hidden></div>
@@ -68,6 +69,42 @@ layout_start('Akun Karyawan', 'akun-karyawan');
           <small>Dibayar per job saja. Tanpa gaji pokok.</small>
         </span>
       </label>
+      <label class="tipe-pick__opt">
+        <input type="radio" name="tipe" value="intern">
+        <span class="tipe-pick__card">
+          <strong>Intern</strong>
+          <small>Anak magang. Absen &amp; jurnal harian, tanpa slip gaji.</small>
+        </span>
+      </label>
+    </fieldset>
+    <fieldset class="adm-intern" id="st-intern" hidden>
+      <legend class="field__label">Data magang</legend>
+      <div class="field">
+        <label class="field__label" for="st-divisi">Divisi</label>
+        <input class="input" id="st-divisi" name="divisi" maxlength="100" placeholder="mis. Marketing">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label class="field__label" for="st-mulai">Mulai magang</label>
+          <input class="input" id="st-mulai" name="magang_mulai" type="date">
+        </div>
+        <div class="field">
+          <label class="field__label" for="st-selesai">Selesai magang</label>
+          <input class="input" id="st-selesai" name="magang_selesai" type="date">
+        </div>
+        <div class="field">
+          <label class="field__label" for="st-jm">Jam masuk</label>
+          <input class="input" id="st-jm" name="jam_masuk" type="time" value="08:00">
+        </div>
+        <div class="field">
+          <label class="field__label" for="st-jp">Jam pulang</label>
+          <input class="input" id="st-jp" name="jam_pulang" type="time" value="16:00">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="st-mentor">Mentor</label>
+        <select class="input" id="st-mentor" name="mentor_id"></select>
+      </div>
     </fieldset>
     <div class="field">
       <label class="field__label" for="st-name">Nama lengkap</label>
@@ -79,7 +116,7 @@ layout_start('Akun Karyawan', 'akun-karyawan');
       <input class="input" id="st-email" name="email" type="email" maxlength="190" required autocomplete="off">
     </div>
     <div class="grid2">
-      <div class="field">
+      <div class="field" id="st-jabatan-field">
         <label class="field__label" for="st-jabatan">Jabatan</label>
         <input class="input" id="st-jabatan" name="jabatan" maxlength="100" placeholder="mis. Videografer">
       </div>

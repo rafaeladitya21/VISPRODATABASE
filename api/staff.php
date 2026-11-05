@@ -6,7 +6,8 @@
  *   PUT  {id, name, email, jabatan, tipe, gaji_pokok, aktif, password?} → ubah (password kosong = tidak diganti)
  *   tarif_khusus: {tarif_output_id: {fee, tampil}} (opsional, freelance saja) → harga khusus orang ini
  *                 (kosong = tarif umum) dan tampil=false untuk menyembunyikan tarif itu dari orang ini
- * Tipe: 'inhouse' (gaji pokok wajib, > 0) atau 'freelance' (gaji pokok disimpan 0).
+ * Tipe: 'inhouse' (gaji pokok wajib, > 0), 'freelance' (gaji pokok 0), atau 'intern' (anak magang: gaji 0, tanpa
+ *       tarif; wajib magang_mulai/magang_selesai; divisi, jam_masuk (08:00), jam_pulang (16:00), mentor_id opsional).
  * Akun tidak dihapus (slip lama tetap utuh) — cukup dinonaktifkan; akun nonaktif tidak bisa login
  * dan session yang masih ada langsung berakhir (lihat auth-check.php).
  * Setelah simpan, baris crew transaksi dengan nama sama otomatis ditautkan ke akun ini.
@@ -19,9 +20,11 @@ require_once __DIR__ . '/../includes/slip.php';
 function staff_list(): array
 {
     $rows = db()->query("SELECT u.id, u.name, u.email, u.jabatan, u.tipe, u.gaji_pokok, u.aktif,
+            u.divisi, u.magang_mulai, u.magang_selesai, u.jam_masuk, u.jam_pulang, u.mentor_id, m.name AS mentor_name,
             (SELECT COUNT(DISTINCT tc.transaction_id) FROM transaction_crew tc WHERE tc.user_id = u.id) AS jobs,
             (SELECT COUNT(*) FROM slip s WHERE s.user_id = u.id AND s.status = 'diajukan') AS pending
-        FROM users u WHERE u.role = 'karyawan' ORDER BY u.aktif DESC, u.name")->fetchAll();
+        FROM users u LEFT JOIN users m ON m.id = u.mentor_id
+        WHERE u.role = 'karyawan' ORDER BY u.aktif DESC, u.name")->fetchAll();
     $khusus = [];
     foreach (db()->query('SELECT user_id, tarif_output_id, fee, tampil FROM tarif_khusus') as $r) {
         $khusus[(int)$r['user_id']][(string)$r['tarif_output_id']] = [
@@ -33,6 +36,10 @@ function staff_list(): array
         'tipe' => $r['tipe'], 'gaji_pokok' => (int)$r['gaji_pokok'], 'aktif' => (bool)$r['aktif'],
         'jobs' => (int)$r['jobs'], 'pending' => (int)$r['pending'],
         'tarif_khusus' => (object)($khusus[(int)$r['id']] ?? []),   // {tarif_output_id: {fee, tampil}}
+        // Anak magang
+        'divisi' => $r['divisi'], 'magang_mulai' => $r['magang_mulai'], 'magang_selesai' => $r['magang_selesai'],
+        'jam_masuk' => $r['jam_masuk'] ? substr($r['jam_masuk'], 0, 5) : null, 'jam_pulang' => $r['jam_pulang'] ? substr($r['jam_pulang'], 0, 5) : null,
+        'mentor_id' => $r['mentor_id'] === null ? null : (int)$r['mentor_id'], 'mentor' => $r['mentor_name'],
     ], $rows);
 }
 
@@ -70,7 +77,7 @@ function save_tarif_khusus(int $userId, string $tipe, mixed $map): void
 
 function staff_response(int $status = 200): never
 {
-    json_response(['ok' => true, 'items' => staff_list(), 'tarif_freelance' => freelance_tarif()], $status);
+    json_response(['ok' => true, 'items' => staff_list(), 'tarif_freelance' => freelance_tarif(), 'mentors' => mentor_options()], $status);
 }
 
 function staff_input(array $in, bool $create): array
@@ -90,12 +97,48 @@ function staff_input(array $in, bool $create): array
         if ($gp <= 0) json_error('Gaji pokok wajib diisi untuk karyawan in-house.', 422);
     }
     if (($create || $password !== '') && strlen($password) < 8) json_error('Kata sandi minimal 8 karakter.', 422);
+
+    // Anak magang: divisi, periode (wajib), jam kerja, mentor (admin / in-house aktif). Tanpa gaji & tarif.
+    $intern = ['divisi' => null, 'mulai' => null, 'selesai' => null, 'jam_masuk' => null, 'jam_pulang' => null, 'mentor_id' => null];
+    if ($tipe === 'intern') {
+        $date = fn($v) => is_string($v) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) && checkdate((int)$m[2], (int)$m[3], (int)$m[1]) ? $v : null;
+        $time = fn($v, $def) => is_string($v) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $v) ? $v : ($v === null || $v === '' ? $def : false);
+        $divisi = trim((string)($in['divisi'] ?? ''));
+        if (mb_strlen($divisi) > 100) json_error('Divisi maksimal 100 karakter.', 422);
+        $mulai = $date($in['magang_mulai'] ?? null);
+        $selesai = $date($in['magang_selesai'] ?? null);
+        if (!$mulai || !$selesai) json_error('Isi tanggal mulai dan selesai magang.', 422);
+        if ($selesai < $mulai) json_error('Tanggal selesai magang harus sesudah tanggal mulai.', 422);
+        $jm = $time($in['jam_masuk'] ?? null, '08:00');
+        $jp = $time($in['jam_pulang'] ?? null, '16:00');
+        if ($jm === false || $jp === false) json_error('Format jam tidak valid (JJ:MM).', 422);
+        if ($jp <= $jm) json_error('Jam pulang harus sesudah jam masuk.', 422);
+        $mentor = null;
+        if (!empty($in['mentor_id'])) {
+            $st = db()->prepare("SELECT id FROM users WHERE id = ? AND aktif = 1 AND (role = 'admin' OR (role = 'karyawan' AND tipe = 'inhouse'))");
+            $st->execute([(int)$in['mentor_id']]);
+            $mentor = $st->fetchColumn();
+            if ($mentor === false) json_error('Mentor harus akun admin atau karyawan in-house yang aktif.', 422);
+            $mentor = (int)$mentor;
+        }
+        $intern = ['divisi' => $divisi === '' ? null : $divisi, 'mulai' => $mulai, 'selesai' => $selesai,
+                   'jam_masuk' => $jm, 'jam_pulang' => $jp, 'mentor_id' => $mentor];
+    }
     return [
         'name' => $name, 'email' => $email, 'jabatan' => $jabatan === '' ? null : $jabatan,
         'tipe' => $tipe, 'gaji_pokok' => $gp,
         'aktif' => !isset($in['aktif']) || !empty($in['aktif']) ? 1 : 0,
         'password' => $password,
-    ];
+    ] + $intern;
+}
+
+/** Calon mentor: admin & karyawan in-house yang aktif */
+function mentor_options(): array
+{
+    $rows = db()->query("SELECT id, name, role, jabatan FROM users
+                         WHERE aktif = 1 AND (role = 'admin' OR (role = 'karyawan' AND tipe = 'inhouse')) ORDER BY role, name")->fetchAll();
+    return array_map(fn($r) => ['id' => (int)$r['id'], 'name' => $r['name'],
+                                'label' => $r['role'] === 'admin' ? 'Admin' : ($r['jabatan'] ?: 'In-house')], $rows);
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -107,9 +150,11 @@ try {
         $in = read_json();
         $d = staff_input($in, true);
         try {
-            $st = db()->prepare("INSERT INTO users (name, email, password_hash, must_change_password, role, jabatan, tipe, gaji_pokok, aktif)
-                                 VALUES (?, ?, ?, 0, 'karyawan', ?, ?, ?, ?) RETURNING id");
-            $st->execute([$d['name'], $d['email'], password_hash($d['password'], PASSWORD_DEFAULT), $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif']]);
+            $st = db()->prepare("INSERT INTO users (name, email, password_hash, must_change_password, role, jabatan, tipe, gaji_pokok, aktif,
+                                                    divisi, magang_mulai, magang_selesai, jam_masuk, jam_pulang, mentor_id)
+                                 VALUES (?, ?, ?, 0, 'karyawan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id");
+            $st->execute([$d['name'], $d['email'], password_hash($d['password'], PASSWORD_DEFAULT), $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif'],
+                           $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id']]);
         } catch (PDOException $e) {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;
@@ -129,8 +174,11 @@ try {
         if (!$chk->fetchColumn()) json_error('Karyawan tidak ditemukan.', 404);
         try {
             // Slip draft ikut tipe & gaji pokok baru saat dibuka berikutnya; slip yang sudah diajukan memakai snapshot
-            db()->prepare('UPDATE users SET name = ?, email = ?, jabatan = ?, tipe = ?, gaji_pokok = ?, aktif = ? WHERE id = ?')
-                ->execute([$d['name'], $d['email'], $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif'], $id]);
+            if ($d['mentor_id'] === $id) json_error('Mentor tidak boleh diri sendiri.', 422);
+            db()->prepare('UPDATE users SET name = ?, email = ?, jabatan = ?, tipe = ?, gaji_pokok = ?, aktif = ?,
+                             divisi = ?, magang_mulai = ?, magang_selesai = ?, jam_masuk = ?, jam_pulang = ?, mentor_id = ? WHERE id = ?')
+                ->execute([$d['name'], $d['email'], $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif'],
+                           $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id'], $id]);
         } catch (PDOException $e) {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;

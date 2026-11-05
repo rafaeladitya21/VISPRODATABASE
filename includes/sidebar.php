@@ -16,12 +16,19 @@ const SIDEBAR_ICONS = [
     'badge'    => '<rect x="4" y="3.5" width="16" height="17" rx="2"/><circle cx="12" cy="10" r="2.8"/><path d="M7.5 17c.8-2 2.4-3 4.5-3s3.7 1 4.5 3"/>',
     'receipt'  => '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
     'sliders'  => '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    'clock'    => '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    'book'     => '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5zM9 7.5h7M9 11h5"/>',
 ];
-
-/** Menu per role. key => [label, href|null, ikon]; section label => item */
-function sidebar_menu(string $role): array
+/** Menu per area (admin / karyawan / magang). key => [label, href|null, ikon]; section label => item */
+function sidebar_menu(string $area): array
 {
-    if ($role === 'karyawan') {
+    if ($area === 'magang') {
+        return ['MENU' => [
+            'm-beranda' => ['Beranda & Absen', 'magang/beranda', 'clock'],
+            'm-jurnal'  => ['Jurnal & Tugas',  'magang/jurnal',  'book'],
+        ]];
+    }
+    if ($area === 'karyawan') {
         return ['MENU' => [
             'k-beranda' => ['Beranda',     'karyawan/beranda', 'home'],
             'k-jadwal'  => ['Jadwal Saya', 'karyawan/jadwal',  'calendar'],
@@ -42,6 +49,8 @@ function sidebar_menu(string $role): array
         'KARYAWAN' => [
             'akun-karyawan' => ['Akun Karyawan', 'akun-karyawan.php', 'badge'],
             'slip-gaji'     => ['Slip Gaji',     'slip-gaji.php',     'receipt'],
+            'absensi'       => ['Absensi',       'absensi.php',       'clock'],
+            'jurnal-magang' => ['Jurnal Magang', 'jurnal-magang.php', 'book'],
             'pengaturan'    => ['Pengaturan',    'pengaturan.php',    'sliders'],
         ],
     ];
@@ -49,11 +58,13 @@ function sidebar_menu(string $role): array
 
 function render_sidebar(string $active, array $user): void
 {
-    $role = $user['role'] ?? 'admin';
-    $isKaryawan = $role === 'karyawan';
-    $roleLabel = $isKaryawan
-        ? (trim((string)($user['jabatan'] ?? '')) !== '' ? $user['jabatan'] . ' · ' : '') . tipe_label($user['tipe'] ?? null)
-        : 'Admin';
+    $area = user_area($user);
+    $isKaryawan = $area !== 'admin';
+    $roleLabel = match ($area) {
+        'magang'   => (trim((string)($user['divisi'] ?? '')) !== '' ? $user['divisi'] . ' · ' : '') . 'Intern',
+        'karyawan' => (trim((string)($user['jabatan'] ?? '')) !== '' ? $user['jabatan'] . ' · ' : '') . tipe_label($user['tipe'] ?? null),
+        default    => 'Admin',
+    };
     ?>
     <aside class="sidebar" aria-label="Navigasi utama">
       <a class="sidebar__logo" href="<?= e(home_path($user)) ?>">
@@ -61,7 +72,7 @@ function render_sidebar(string $active, array $user): void
       </a>
 
       <nav class="sidebar__nav">
-        <?php foreach (sidebar_menu($role) as $section => $items): ?>
+        <?php foreach (sidebar_menu($area) as $section => $items): ?>
         <p class="sidebar__label"><?= e($section) ?></p>
         <ul class="sidebar__list">
           <?php foreach ($items as $key => [$label, $href, $icon]): ?>
@@ -97,7 +108,11 @@ function render_sidebar(string $active, array $user): void
       <?php if ($isKaryawan): ?>
       <div class="sidebar__info">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>
+        <?php if ($area === 'magang'): ?>
+        <p><strong>Akses magang.</strong> Anda hanya melihat absen &amp; jurnal milik Anda sendiri.</p>
+        <?php else: ?>
         <p><strong>Akses karyawan.</strong> Anda hanya melihat jadwal &amp; gaji milik Anda sendiri.</p>
+        <?php endif; ?>
       </div>
       <?php endif; ?>
 

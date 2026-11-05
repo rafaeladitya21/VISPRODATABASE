@@ -56,6 +56,11 @@ layout_start('Pengaturan', 'pengaturan');
         <p class="field__hint">Tampil di bawah sapaan Beranda semua karyawan. Kosongkan untuk menyembunyikan.</p>
       </div>
       <div class="field">
+        <label class="field__label" for="ps-semangat-intern">Pesan penyemangat untuk anak magang</label>
+        <input class="input" id="ps-semangat-intern" name="pesan_semangat_intern" maxlength="300" placeholder="mis. Semangat belajar hari ini, jangan lupa isi jurnal!">
+        <p class="field__hint">Tampil di Beranda &amp; Absen anak magang. Kosong = memakai pesan penyemangat karyawan di atas.</p>
+      </div>
+      <div class="field">
         <label class="field__label" for="ps-info">Info dari Admin</label>
         <textarea class="input" id="ps-info" name="info_admin" rows="5" maxlength="2000" placeholder="mis. Slip Oktober dibayar tanggal 5. Briefing event Blimbing hari Jumat 19.00."></textarea>
         <p class="field__hint">Tampil di kartu "Info dari Admin" di Beranda.</p>

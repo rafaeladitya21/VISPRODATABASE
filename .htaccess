@@ -4,10 +4,10 @@
 </FilesMatch>
 Options -Indexes
 
-# Halaman karyawan tanpa .php: /karyawan/beranda → karyawan/beranda.php
+# Halaman karyawan / magang tanpa .php: /karyawan/beranda → karyawan/beranda.php, /magang/jurnal → magang/jurnal.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^karyawan/([a-z-]+)$ karyawan/$1.php [L]
+  RewriteRule ^(karyawan|magang)/([a-z-]+)$ $1/$2.php [L]
 </IfModule>

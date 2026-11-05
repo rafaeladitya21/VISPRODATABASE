@@ -7,7 +7,7 @@
  *   &noprint=1 → jangan buka dialog cetak otomatis
  */
 declare(strict_types=1);
-define('MH_AREA', 'any');
+define('MH_AREA', 'admin,karyawan');   // anak magang tidak punya slip
 require __DIR__ . '/includes/auth-check.php';
 require_once __DIR__ . '/includes/slip.php';
 

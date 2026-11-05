@@ -141,9 +141,57 @@
     return '<p class="field__error">' + MH.icon('alert') + '<span>' + MH.esc(msg) + '</span></p>';
   };
 
-  /** Badge tipe karyawan: In-house = hitam solid, Freelance = putih dengan border putus-putus */
+  /** Badge tipe karyawan: In-house = hitam solid, Freelance = putih border putus-putus, Intern = putih border hitam */
   MH.tipeBadge = function (t) {
+    if (t === 'intern') return '<span class="badge badge--outline">Intern</span>';
     return t === 'freelance' ? '<span class="badge badge--muted">Freelance</span>' : '<span class="badge badge--solid">In-house</span>';
+  };
+
+  /* --- Jurnal magang (dipakai halaman magang & admin) --- */
+  /** Nama chip link hasil kerja (sama dengan link_label() di includes/magang.php) */
+  MH.linkLabel = function (url) {
+    var h = '';
+    try { h = new URL(url).hostname.toLowerCase().replace(/^www\./, ''); } catch (e) { return 'Link'; }
+    var end = function (d) { return h === d || h.slice(-(d.length + 1)) === '.' + d; };
+    if (end('drive.google.com') || end('docs.google.com')) return 'Google Drive';
+    if (end('instagram.com')) return 'Instagram';
+    if (end('tiktok.com')) return 'TikTok';
+    if (end('youtube.com') || h === 'youtu.be') return 'YouTube';
+    return 'Link';
+  };
+  MH.linkOk = function (url) { return /^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(url) && url.length <= 500; };
+  MH.KET_JURNAL = { selesai: 'Selesai', proses: 'Masih proses', kendala: 'Ada kendala' };
+  MH.ketBadge = function (k) {
+    var cls = k === 'selesai' ? 'badge--solid' : k === 'kendala' ? 'badge--danger' : '';
+    return '<span class="badge ' + cls + '">' + MH.esc(MH.KET_JURNAL[k] || k) + '</span>';
+  };
+  /**
+   * Kartu jurnal: tanggal, jumlah kegiatan, badge keterangan, daftar kegiatan, cerita, chip link,
+   * komentar mentor/admin (atau "Menunggu dilihat mentor" / "Dilihat").
+   * opts.head = HTML tambahan di header (mis. nama intern di halaman admin)
+   */
+  MH.jurnalCard = function (j, opts) {
+    opts = opts || {};
+    var esc = MH.esc;
+    var d = new Date(j.tanggal + 'T00:00:00');
+    var tgl = MH.HARI[d.getDay()] + ', ' + d.getDate() + ' ' + MH.BULAN[d.getMonth()] + ' ' + d.getFullYear();
+    var links = (j.links || []).map(function (l) {
+      return '<a class="jr-chip" href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer" title="' + esc(l.url) + '">' +
+        MH.icon('ext') + '<span>' + esc(l.label || MH.linkLabel(l.url)) + '</span></a>';
+    }).join('');
+    var kom = (j.komentar || []).map(function (k) {
+      return '<li><strong>' + esc(k.nama) + '</strong> <small class="muted">' + esc(MH.when(k.created_at)) + '</small><p>' + esc(k.isi) + '</p></li>';
+    }).join('');
+    var foot = kom ? '<ul class="jr-kom">' + kom + '</ul>'
+      : '<p class="jr-seen">' + (j.dilihat_at ? MH.icon('check') + 'Dilihat ' + esc(MH.when(j.dilihat_at)) : 'Menunggu dilihat mentor') + '</p>';
+    return '<article class="card jr-card">' +
+      '<header class="jr-card__head"><div>' + (opts.head || '') + '<h3 class="jr-card__date">' + esc(tgl) + '</h3>' +
+        '<p class="card__sub num">' + j.kegiatan.length + ' kegiatan</p></div>' + MH.ketBadge(j.keterangan) + '</header>' +
+      '<ol class="jr-card__list">' + j.kegiatan.map(function (k) { return '<li>' + esc(k) + '</li>'; }).join('') + '</ol>' +
+      (j.cerita ? '<p class="jr-card__story">' + esc(j.cerita) + '</p>' : '') +
+      (links ? '<div class="jr-card__links">' + links + '</div>' : '') +
+      '<footer class="jr-card__foot">' + foot + '</footer>' +
+    '</article>';
   };
 
   /* --- Input rupiah: pemisah ribuan otomatis, kursor tetap di posisi wajar --- */

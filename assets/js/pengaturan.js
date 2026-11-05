@@ -152,6 +152,7 @@
   var ps = $('#ps-form'), pe = ps.elements, psSave = $('#ps-save'), psErr = $('#ps-error'), saved = $('#ps-saved');
   function fillSettings(s) {
     pe.pesan_semangat.value = s.pesan_semangat || '';
+    pe.pesan_semangat_intern.value = s.pesan_semangat_intern || '';
     pe.info_admin.value = s.info_admin || '';
     saved.textContent = s.updated_at ? 'Terakhir disimpan ' + MH.when(s.updated_at) + (s.updated_by ? ' oleh ' + s.updated_by : '') : '';
   }
@@ -160,7 +161,7 @@
   ps.addEventListener('submit', function (e) {
     e.preventDefault();
     psSave.disabled = true; psSave.classList.add('is-loading'); psErr.hidden = true;
-    MH.api('api/settings.php', { method: 'PUT', body: { pesan_semangat: pe.pesan_semangat.value, info_admin: pe.info_admin.value } })
+    MH.api('api/settings.php', { method: 'PUT', body: { pesan_semangat: pe.pesan_semangat.value, pesan_semangat_intern: pe.pesan_semangat_intern.value, info_admin: pe.info_admin.value } })
       .then(function (d) { fillSettings(d.settings); })
       .catch(function (err) { showErr(psErr, err); })
       .finally(function () { psSave.disabled = false; psSave.classList.remove('is-loading'); });

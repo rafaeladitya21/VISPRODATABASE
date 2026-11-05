@@ -135,6 +135,21 @@ Total sewa        = Harga sewa × Qty × Day
 - Admin: **Slip Gaji** (Setujui / Kembalikan + catatan / Tandai Dibayar + tanggal transfer) dan
   **Pengaturan** (master tarif output, pesan penyemangat, info dari Admin).
 
+## Anak magang (tipe Intern)
+
+- `users.tipe = 'intern'` (dibuat di Akun Karyawan: divisi, periode magang wajib, jam masuk/pulang, mentor).
+  Masuk ke `/magang/beranda`; menu hanya **Beranda & Absen** dan **Jurnal & Tugas**. Area `magang` di
+  `auth-check.php` → semua halaman/API admin & karyawan membalas 403 untuk intern (dan sebaliknya).
+- **Absen** (`api/absen.php`): hanya `{aksi:'masuk'|'pulang'}`; jam = jam server database (Asia/Jakarta),
+  jam dari browser ditolak 403. Sekali masuk & sekali pulang per hari, hanya hari kerja (Sen–Jum) dalam periode
+  magang. Terlambat = jam:menit lewat jam masuk; pulang awal = sebelum jam pulang. IP & user-agent disimpan.
+  Hari kerja lewat tanpa catatan = Alpa. Koreksi/tandai Izin–Sakit–Alpa/hapus hanya Admin (Absensi), alasan wajib,
+  tercatat di `log_aktivitas`. Rekap bulanan + ekspor CSV (Excel) / PDF.
+- **Jurnal** (`api/jurnal.php`): satu per hari, hanya untuk tanggal server hari ini (sampai 23.59) dalam periode
+  magang; hari sebelumnya read-only. Admin (Jurnal Magang) membuka jurnal → `dilihat_at`, lalu bisa berkomentar.
+- Pesan penyemangat khusus magang: Pengaturan → `pesan_semangat_intern` (kosong = pesan karyawan).
+- Uji: `tools/test-magang.php` (aturan) dan `tools/test-magang.php --db` (database, di-ROLLBACK).
+
 ### Migrasi skema
 
 `database.sql` hanya untuk database kosong. Perubahan sesudahnya ada di `includes/migrate.php` (berversi,

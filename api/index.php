@@ -9,10 +9,12 @@
 declare(strict_types=1);
 
 const MH_PAGES = ['index', 'login', 'logout', 'dashboard', 'transaksi', 'customer', 'harga-alat',
-                  'inventaris', 'jadwal', 'leads', 'spk', 'akun-karyawan', 'slip-gaji', 'pengaturan', 'slip-cetak'];
+                  'inventaris', 'jadwal', 'leads', 'spk', 'akun-karyawan', 'slip-gaji', 'pengaturan', 'slip-cetak',
+                  'absensi', 'absensi-cetak', 'jurnal-magang'];
 const MH_KARYAWAN_PAGES = ['index', 'beranda', 'jadwal', 'slip'];
+const MH_MAGANG_PAGES   = ['index', 'beranda', 'jurnal'];
 const MH_APIS  = ['auth', 'customers', 'equipment', 'inventory', 'leads', 'schedule', 'summary', 'transactions',
-                  'myslip', 'staff', 'tarif', 'settings', 'payroll'];
+                  'myslip', 'staff', 'tarif', 'settings', 'payroll', 'absen', 'jurnal', 'absensi', 'jurnalmagang'];
 
 $root = dirname(__DIR__);
 $path = (string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
@@ -32,6 +34,11 @@ if ($path === '/' || $path === '') {
     $file = "$root/{$m[1]}.php";
 } elseif (preg_match('#^/karyawan/([a-z-]*)(?:\.php)?$#', $path, $m) && in_array($m[1] ?: 'index', MH_KARYAWAN_PAGES, true)) {
     $file = "$root/karyawan/" . ($m[1] ?: 'index') . '.php';
+} elseif ($path === '/magang') {
+    header('Location: /magang/beranda');
+    exit;
+} elseif (preg_match('#^/magang/([a-z-]*)(?:\.php)?$#', $path, $m) && in_array($m[1] ?: 'index', MH_MAGANG_PAGES, true)) {
+    $file = "$root/magang/" . ($m[1] ?: 'index') . '.php';
 } elseif (preg_match('#^/api/([a-z]+)(?:\.php)?$#', $path, $m) && in_array($m[1], MH_APIS, true)) {
     $file = "$root/api/{$m[1]}.php";
 }

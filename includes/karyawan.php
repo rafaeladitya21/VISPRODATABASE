@@ -56,7 +56,7 @@ function name_key(?string $n): string
 function crew_link_user(int $userId): void
 {
     db()->prepare("UPDATE transaction_crew tc SET user_id = u.id FROM users u
-                   WHERE u.id = ? AND u.role = 'karyawan' AND tc.user_id IS NULL
+                   WHERE u.id = ? AND u.role = 'karyawan' AND u.tipe <> 'intern' AND tc.user_id IS NULL
                      AND lower(regexp_replace(btrim(tc.name::text), '\\s+', ' ', 'g'))
                        = lower(regexp_replace(btrim(u.name::text), '\\s+', ' ', 'g'))")
         ->execute([$userId]);
@@ -66,7 +66,7 @@ function crew_link_user(int $userId): void
 function karyawan_name_map(): array
 {
     $map = [];
-    foreach (db()->query("SELECT id, name FROM users WHERE role = 'karyawan' AND aktif = 1 ORDER BY id") as $r) {
+    foreach (db()->query("SELECT id, name FROM users WHERE role = 'karyawan' AND tipe <> 'intern' AND aktif = 1 ORDER BY id") as $r) {
         $map[name_key($r['name'])] ??= (int)$r['id'];
     }
     return $map;

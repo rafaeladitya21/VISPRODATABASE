@@ -50,7 +50,7 @@ try {
         try {
             if ($method === 'POST') {
                 $tipe = (string)($in['tipe'] ?? '');
-                if (!array_key_exists($tipe, TIPE_KARYAWAN)) json_error('Tipe tarif tidak valid.', 422);
+                if (!in_array($tipe, TIPE_BERGAJI, true)) json_error('Tipe tarif tidak valid.', 422);
                 db()->prepare('INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan, aktif, sort_order)
                                VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM tarif_output))')
                     ->execute([$tipe, $nama, $fee, $satuan, $aktif]);

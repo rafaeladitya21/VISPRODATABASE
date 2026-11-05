@@ -253,14 +253,38 @@ function app_base(): string
 
 function app_url(string $path): string { return app_base() . $path; }
 
-/** Halaman awal sesuai role */
-function home_path(?array $user): string
+/**
+ * Area aplikasi milik user: 'admin' | 'karyawan' (in-house & freelance) | 'magang' (tipe intern).
+ * Setiap halaman/API menyatakan area yang boleh (MH_AREA, lihat auth-check.php).
+ */
+function user_area(?array $user): string
 {
-    return ($user['role'] ?? 'admin') === 'karyawan' ? 'karyawan/beranda' : 'dashboard.php';
+    if (($user['role'] ?? 'admin') !== 'karyawan') return 'admin';
+    return ($user['tipe'] ?? 'inhouse') === 'intern' ? 'magang' : 'karyawan';
 }
 
-/** Tipe karyawan: in-house (gaji pokok + fee per job) / freelance (fee per job saja) */
-const TIPE_KARYAWAN = ['inhouse' => 'In-house', 'freelance' => 'Freelance'];
+/** Halaman awal sesuai area */
+function home_path(?array $user): string
+{
+    return match (user_area($user)) {
+        'karyawan' => 'karyawan/beranda',
+        'magang'   => 'magang/beranda',
+        default    => 'dashboard.php',
+    };
+}
+
+/** Catat aksi Admin ke log_aktivitas (mis. koreksi absen). $detail = array → disimpan sebagai JSON. */
+function log_activity(int $userId, string $aksi, string $objek, ?int $objekId, array|string|null $detail = null): void
+{
+    db()->prepare('INSERT INTO log_aktivitas (user_id, aksi, objek, objek_id, detail) VALUES (?, ?, ?, ?, ?)')
+        ->execute([$userId, $aksi, $objek, $objekId,
+                   is_array($detail) ? json_encode($detail, JSON_UNESCAPED_UNICODE) : $detail]);
+}
+
+/** Tipe karyawan: in-house (gaji pokok + fee per job) / freelance (fee per job saja) / intern (anak magang: absen + jurnal) */
+const TIPE_KARYAWAN = ['inhouse' => 'In-house', 'freelance' => 'Freelance', 'intern' => 'Intern'];
+/** Tipe yang dibayar lewat slip gaji (punya tarif output) */
+const TIPE_BERGAJI = ['inhouse', 'freelance'];
 
 function tipe_label(?string $t): string { return TIPE_KARYAWAN[$t ?? 'inhouse'] ?? 'In-house'; }
 
