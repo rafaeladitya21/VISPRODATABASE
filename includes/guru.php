@@ -75,19 +75,19 @@ function guru_siswa_get(int $guruId, int $internId): ?array
     return $i && $i['aktif'] && $i['guru_id'] === $guruId ? $i : null;
 }
 
-/** Hari kerja dalam periode magang ∩ [$from, $to], s.d. $today */
+/** Hari kerja yang dihitung (sejak mulai magang / akun dibuat, yang paling akhir) ∩ [$from, $to], s.d. $today */
 function siswa_hari_kerja(array $intern, string $from, string $to, string $today): array
 {
     if (!$intern['mulai'] || !$intern['selesai']) return [];
-    $from = max($from, $intern['mulai']);
+    $from = max($from, absen_mulai_hitung($intern));
     $to = min($to, $intern['selesai'], $today);
     return $from > $to ? [] : workdays($from, $to);
 }
 
 /**
  * Rekap kehadiran & jurnal satu siswa dalam [$from, $to] (s.d. hari ini).
- * persen = (hadir + terlambat) / hari yang sudah punya status (hadir, terlambat, izin, sakit, alpa) — hari ini yang
- * belum absen tidak dihitung. null bila belum ada hari yang dihitung.
+ * persen = (hadir + terlambat) / hari kerja yang dihitung (hadir, terlambat, izin, sakit, alpa) — hari ini yang
+ * belum absen belum masuk pembagi. null bila belum ada hari yang dihitung.
  */
 function siswa_rekap(array $intern, string $from, string $to, string $today): array
 {
@@ -96,7 +96,7 @@ function siswa_rekap(array $intern, string $from, string $to, string $today): ar
     $masuk = $rk['hadir'] + $rk['terlambat'];
     $hk = siswa_hari_kerja($intern, $from, $to, $today);
     // Jurnal terkumpul dihitung langsung dari tabel jurnal dalam periode (tidak bergantung ada/tidaknya hari kerja)
-    $jf = max($from, (string)($intern['mulai'] ?? ''));
+    $jf = max($from, $intern['mulai'] ? absen_mulai_hitung($intern) : '');
     $jt = min($to, $today, (string)($intern['selesai'] ?: $to));
     $jurnal = $jf <= $jt ? count(jurnal_dates($intern['id'], $jf, $jt)) : 0;
     return $rk + [

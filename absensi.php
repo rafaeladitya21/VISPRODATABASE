@@ -131,7 +131,7 @@ layout_start('Absensi', 'absensi');
   </div>
   <form class="window__body adm-form" id="ab-reset-form" novalidate>
     <h2 class="modal__title" id="ab-reset-title">Reset hitungan Alpa ke 0?</h2>
-    <p class="card__sub">Hari kerja tanpa absen <strong>sebelum hari ini</strong> tidak dihitung Alpa lagi (tampil "Tidak dihitung").
+    <p class="card__sub">Hari kerja tanpa absen <strong>sebelum hari ini</strong> tidak dihitung Alpa lagi dan tidak ditampilkan.
       Mulai hari ini, hari tanpa absen kembali dihitung Alpa. Tidak ada data absen yang dihapus; Alpa yang ditandai manual tetap ada.</p>
     <div class="field">
       <label class="field__label" for="ab-reset-alasan">Alasan (wajib)</label>

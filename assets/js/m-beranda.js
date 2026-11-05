@@ -100,12 +100,7 @@
       .finally(function () { ok.disabled = false; ok.classList.remove('is-loading'); });
   });
 
-  /* --- Riwayat: lihat semua --- */
-  var all = $('#mg-hist-all');
-  if (all) all.addEventListener('click', function () {
-    var open = all.getAttribute('aria-expanded') !== 'true';
-    $$('.mg-more').forEach(function (tr) { tr.hidden = !open; });
-    all.setAttribute('aria-expanded', open ? 'true' : 'false');
-    all.textContent = open ? 'Tampilkan 5 terakhir' : 'Lihat semua';
-  });
+  /* --- Riwayat absen: daftar (5 terakhir, lihat semua per 20) --- */
+  var hist = $('#mg-hist');
+  if (hist) MH.absenHistory(hist, (window.MH_DATA || {}).riwayat || []);
 })();

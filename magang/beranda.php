@@ -19,7 +19,6 @@ try {
     $blocked = absen_blocked($me, $today);
     $sum = magang_summary($me, $today);
     $riwayatAll = $me['mulai'] ? absen_rows($me, $me['mulai'], $today, $today) : [];
-    $riwayat = array_slice($riwayatAll, 0, 5);
     $jurnalToday = jurnal_get($me['id'], $today);
     $radius = radius_intern();
     $nextJob = job_berikutnya(jadwal_saya($me['id'], false));   // sumber sama dengan Jadwal Saya
@@ -43,15 +42,6 @@ $dot = fn(?string $hm) => $hm ? str_replace(':', '.', $hm) : '—';
 $p = $sum['progress'];
 $R = 52; $C = 2 * M_PI * $R;   // lingkaran progres
 
-function status_badge(array $r): string
-{
-    $cls = match ($r['status_hari']) {
-        'hadir' => 'badge--solid', 'terlambat' => 'badge', 'izin', 'sakit' => 'badge--muted',
-        'alpa' => 'badge--danger', default => 'badge--muted',
-    };
-    return '<span class="badge ' . $cls . '">' . e($r['status_label']) . '</span>';
-}
-
 /** "Di Kantor 1 · 40 m" + badge Lokasi sesuai (kotak absen) */
 function loc_line(?array $l): string
 {
@@ -60,14 +50,12 @@ function loc_line(?array $l): string
         . ' <span class="badge badge--light mg-loc__ok">Lokasi sesuai</span></span>';
 }
 
-/** Kolom Lokasi riwayat: kantor masuk & pulang (boleh berbeda) */
-function loc_cell(array $r): string
+/** Riwayat absen untuk MH.absenHistory (daftar di m-beranda.js) */
+function riwayat_js(array $r): array
 {
-    $m = $r['masuk_lokasi']['nama'] ?? null;
-    $p = $r['pulang_lokasi']['nama'] ?? null;
-    if (!$m && !$p) return '<span class="muted">—</span>';
-    if ($m === $p || !$p) return e($m ?? '—');
-    return '<small class="muted">Masuk</small> ' . e($m ?? '—') . '<br><small class="muted">Pulang</small> ' . e($p);
+    return ['tanggal' => $r['tanggal'], 'jam_masuk' => $r['jam_masuk'], 'jam_pulang' => $r['jam_pulang'],
+            'status_hari' => $r['status_hari'], 'status_label' => $r['status_label'], 'dikoreksi' => $r['dikoreksi'],
+            'lokasi_masuk' => $r['masuk_lokasi']['nama'] ?? null, 'lokasi_pulang' => $r['pulang_lokasi']['nama'] ?? null];
 }
 
 layout_start('Beranda & Absen', 'm-beranda');
@@ -188,28 +176,8 @@ layout_start('Beranda & Absen', 'm-beranda');
         <h2 class="card__title" id="mg-hist-title">Riwayat absen</h2>
         <p class="card__sub"><?= MH_LOCK ?> Hanya Admin yang bisa mengubah</p>
       </div>
-      <?php if (count($riwayatAll) > 5): ?>
-        <button class="btn btn--secondary" type="button" id="mg-hist-all" aria-expanded="false">Lihat semua</button>
-      <?php endif; ?>
     </div>
-    <div class="table-wrap">
-      <table class="table">
-        <thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Lokasi</th><th>Status</th></tr></thead>
-        <tbody id="mg-hist-body">
-          <?php foreach ($riwayatAll as $i => $r): ?>
-          <tr<?= $i >= 5 ? ' class="mg-more" hidden' : '' ?>>
-            <td class="nw"><?= e(tgl_id($r['tanggal'])) ?></td>
-            <td class="num"><?= e($dot($r['jam_masuk'])) ?><?= $r['status_masuk'] === 'terlambat' ? ' <small class="muted">terlambat</small>' : '' ?></td>
-            <td class="num"><?= e($dot($r['jam_pulang'])) ?><?= $r['status_pulang'] === 'awal' ? ' <small class="muted">pulang awal</small>' : '' ?></td>
-            <td><?= loc_cell($r) ?></td>
-            <td><?= $r['status_hari'] === 'belum' ? '<span class="badge badge--muted">Belum absen</span>' : status_badge($r) ?>
-                <?= $r['dikoreksi'] ? '<small class="muted" title="' . e($r['alasan_koreksi']) . '">dikoreksi</small>' : '' ?></td>
-          </tr>
-          <?php endforeach; ?>
-          <?php if (!$riwayatAll): ?><tr><td colspan="5" class="empty">Belum ada riwayat absen.</td></tr><?php endif; ?>
-        </tbody>
-      </table>
-    </div>
+    <div class="ah-wrap" id="mg-hist"><p class="upc__empty" style="margin:0">Memuat…</p></div>
   </section>
 
   <div class="mg-side">
@@ -244,4 +212,4 @@ layout_start('Beranda & Absen', 'm-beranda');
     </div>
   </div>
 </dialog>
-<?php layout_end(['m-beranda.js'], ['perlu_setuju' => $me['setuju_lokasi_at'] === null]); ?>
+<?php layout_end(['m-beranda.js'], ['perlu_setuju' => $me['setuju_lokasi_at'] === null, 'riwayat' => array_map('riwayat_js', $riwayatAll)]); ?>

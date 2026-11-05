@@ -8,45 +8,17 @@
   var $ = MH.$, $$ = MH.$$, esc = MH.esc;
   var D = window.MH_DATA || {};
   var detail = $('#g-detail');
-  var st = { siswa: null, tab: 'kehadiran', semua: false, full: false };
-  var LBL_MASUK = { tepat: 'Tepat waktu', terlambat: 'Terlambat' };
+  var st = { siswa: null, tab: 'kehadiran' };
 
-  function dot(hm) { return hm ? hm.replace(':', '.') : '—'; }
   function tgl(s) {
     var d = new Date(s + 'T00:00:00');
     return MH.HARI_PENDEK[d.getDay()] + ', ' + d.getDate() + ' ' + MH.BULAN_PENDEK[d.getMonth()];
   }
-  function badge(r) {
-    var cls = { hadir: 'badge--solid', terlambat: '', izin: 'badge--muted', sakit: 'badge--muted', alpa: 'badge--danger', belum: 'badge--muted', tidak_dihitung: 'badge--muted' }[r.status_hari] || '';
-    return '<span class="badge ' + cls + '">' + esc(r.status_label) + '</span>' + (r.dikoreksi ? ' <small class="muted">dikoreksi Admin</small>' : '');
-  }
-  function lokasi(r) {
-    var m = r.lokasi_masuk, p = r.lokasi_pulang;
-    if (!m && !p) return '<span class="muted">—</span>';
-    if (!p || m === p) return esc(cap(m || p));
-    return '<small class="muted">Masuk</small> ' + esc(cap(m || '—')) + '<br><small class="muted">Pulang</small> ' + esc(cap(p));
-  }
-  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
-  function kehadiran(s) {
-    // Hari kerja terbaru di atas; default 5 hari kerja terakhir.
-    // Hari "Tidak dihitung" (sebelum tanggal mulai hitung) disembunyikan kecuali "Tampilkan full".
-    var hidden = s.absen.filter(function (r) { return r.status_hari === 'tidak_dihitung'; }).length;
-    var rows = st.full ? s.absen : s.absen.filter(function (r) { return r.status_hari !== 'tidak_dihitung'; });
-    var show = st.semua ? rows : rows.slice(0, 5);
-    var body = show.length ? show.map(function (r) {
-      return '<tr><td class="nw">' + esc(tgl(r.tanggal)) + '</td>' +
-        '<td class="num">' + dot(r.jam_masuk) + (r.status_masuk ? '<br><small class="muted">' + LBL_MASUK[r.status_masuk] + '</small>' : '') + '</td>' +
-        '<td class="num">' + dot(r.jam_pulang) + '</td>' +
-        '<td>' + lokasi(r) + '</td><td>' + badge(r) + '</td></tr>';
-    }).join('') : '<tr><td colspan="5" class="empty">Belum ada riwayat absen.</td></tr>';
+  // Daftar riwayat diisi MH.absenHistory setelah render (lihat render())
+  function kehadiran() {
     return '<p class="g-readonly">' + MH.icon('lock') + 'Hanya lihat. Data absen tercatat otomatis dan hanya bisa dikoreksi Admin.</p>' +
-      '<div class="table-wrap"><table class="table g-table"><thead><tr><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Lokasi</th><th>Status</th></tr></thead>' +
-      '<tbody>' + body + '</tbody></table></div>' +
-      (rows.length > 5 ? '<button type="button" class="btn btn--secondary btn--block" id="g-all">' + (st.semua ? 'Tampilkan 5 hari terakhir' : 'Lihat semua (' + rows.length + ' hari)') + '</button>' : '') +
-      (hidden ? '<button type="button" class="btn btn--secondary btn--block" id="g-full">' + (st.full
-        ? 'Sembunyikan ' + hidden + ' hari tidak dihitung'
-        : 'Tampilkan full (' + s.absen.length + ' hari, termasuk ' + hidden + ' hari tidak dihitung)') + '</button>' : '');
+      '<div id="g-absen"></div>';
   }
 
   function jurnal(s) {
@@ -81,9 +53,10 @@
             '<button type="button" class="seg__btn' + (st.tab === 'kehadiran' ? ' is-active' : '') + '" role="tab" aria-selected="' + (st.tab === 'kehadiran') + '" data-gtab="kehadiran">Kehadiran</button>' +
             '<button type="button" class="seg__btn' + (st.tab === 'jurnal' ? ' is-active' : '') + '" role="tab" aria-selected="' + (st.tab === 'jurnal') + '" data-gtab="jurnal">Jurnal <small class="num">' + s.jurnal.length + '</small></button>' +
           '</div>' +
-          (st.tab === 'kehadiran' ? kehadiran(s) : jurnal(s)) +
+          (st.tab === 'kehadiran' ? kehadiran() : jurnal(s)) +
         '</div>' +
       '</div>';
+    if (st.tab === 'kehadiran') MH.absenHistory($('#g-absen'), s.absen);
   }
 
   function open(id) {
@@ -94,7 +67,7 @@
     });
     detail.innerHTML = '<div class="card"><p class="empty">Memuat…</p></div>';
     MH.api('api/guru.php?id=' + id).then(function (d) {
-      st.siswa = d.siswa; st.semua = false; st.full = false;
+      st.siswa = d.siswa;
       render();
     }).catch(function (e) { detail.innerHTML = '<div class="card">' + MH.errorHtml(e.message) + '</div>'; });
   }
@@ -108,8 +81,6 @@
     }
     var t = e.target.closest('[data-gtab]');
     if (t && st.siswa) { st.tab = t.dataset.gtab; render(); return; }
-    if (e.target.closest('#g-all') && st.siswa) { st.semua = !st.semua; render(); return; }
-    if (e.target.closest('#g-full') && st.siswa) { st.full = !st.full; st.semua = st.full; render(); return; }
     var del = e.target.closest('[data-del-kom]');
     if (del && st.siswa) {
       del.disabled = true;

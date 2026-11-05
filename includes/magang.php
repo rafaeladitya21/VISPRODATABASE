@@ -126,7 +126,7 @@ function server_now(): array
 function intern_row(int $userId): ?array
 {
     $st = db()->prepare("SELECT u.id, u.name, u.email, u.divisi, u.magang_mulai, u.magang_selesai, u.jam_masuk, u.jam_pulang,
-                                u.mentor_id, m.name AS mentor_name, u.aktif, u.setuju_lokasi_at, u.kelas,
+                                u.mentor_id, m.name AS mentor_name, u.aktif, u.setuju_lokasi_at, u.kelas, u.created_at,
                                 u.guru_id, g.name AS guru_name, g.whatsapp AS guru_wa, g.sekolah AS guru_sekolah
                          FROM users u LEFT JOIN users m ON m.id = u.mentor_id LEFT JOIN users g ON g.id = u.guru_id
                          WHERE u.id = ? AND u.role = 'karyawan' AND u.tipe = 'intern'");
@@ -136,6 +136,7 @@ function intern_row(int $userId): ?array
     return [
         'id' => (int)$r['id'], 'name' => $r['name'], 'email' => $r['email'], 'divisi' => $r['divisi'],
         'mulai' => $r['magang_mulai'], 'selesai' => $r['magang_selesai'],
+        'dibuat' => substr((string)$r['created_at'], 0, 10),   // tanggal akun dibuat
         'jam_masuk' => substr((string)($r['jam_masuk'] ?? INTERN_JAM_MASUK), 0, 5),
         'jam_pulang' => substr((string)($r['jam_pulang'] ?? INTERN_JAM_PULANG), 0, 5),
         'mentor_id' => $r['mentor_id'] === null ? null : (int)$r['mentor_id'], 'mentor' => $r['mentor_name'],
@@ -214,7 +215,7 @@ function absen_map(int $userId, string $from, string $to): array
 
 /**
  * Mulai tanggal berapa hari kerja tanpa absen dihitung Alpa (pengaturan 'alpa_mulai', diatur lewat
- * tombol "Reset Alpa" di halaman Absensi). Hari sebelum tanggal ini yang tanpa catatan = "Tidak dihitung".
+ * tombol "Reset Alpa" di halaman Absensi). Hari sebelum tanggal ini yang tanpa catatan tidak ditampilkan.
  */
 function alpa_mulai(): string
 {
@@ -227,17 +228,26 @@ function alpa_mulai(): string
 }
 
 /**
- * Baris absen per hari kerja dalam periode magang ∩ [$from, $to], s.d. hari ini.
- * Hari lewat tanpa catatan → Alpa (sejak alpa_mulai(); sebelumnya "Tidak dihitung");
- * hari ini tanpa catatan → 'belum'. Urut terbaru di atas.
- * $alpaMulai = null → dari pengaturan.
+ * Hari pertama yang dihitung: yang paling akhir antara mulai magang dan tanggal akun dibuat.
+ * Sebelum tanggal ini tidak ada hari kerja yang ditampilkan atau dihitung.
+ */
+function absen_mulai_hitung(array $intern): string
+{
+    return max((string)$intern['mulai'], (string)($intern['dibuat'] ?? ''));
+}
+
+/**
+ * Baris absen per HARI KERJA (Sen–Jum) dari absen_mulai_hitung() ∩ [$from, $to], s.d. hari ini (tidak ada hari depan).
+ * Hari lewat tanpa catatan → Alpa; hari ini tanpa catatan → 'belum' (Belum absen).
+ * Hari lewat tanpa catatan sebelum alpa_mulai() ("Reset Alpa") tidak ditampilkan sama sekali.
+ * Catatan di Sabtu/Minggu (job event) tetap tampil. Urut terbaru di atas. $alpaMulai = null → dari pengaturan.
  */
 function absen_rows(array $intern, string $from, string $to, ?string $today = null, ?string $alpaMulai = null): array
 {
     $today ??= date('Y-m-d');
     $alpaMulai ??= alpa_mulai();
     if (!$intern['mulai'] || !$intern['selesai']) return [];
-    $from = max($from, $intern['mulai']);
+    $from = max($from, absen_mulai_hitung($intern));
     $to = min($to, $intern['selesai'], $today);
     if ($from > $to) return [];
     $map = absen_map($intern['id'], $from, $to);
@@ -245,7 +255,8 @@ function absen_rows(array $intern, string $from, string $to, ?string $today = nu
     $days = array_unique(array_merge(workdays($from, $to), array_keys($map)));   // + Sabtu/Minggu yang ada absennya (job event)
     sort($days);
     foreach (array_reverse($days) as $day) {
-        [$st, $lbl] = $day === $today ? ['belum', 'Belum absen'] : ($day >= $alpaMulai ? ['alpa', 'Alpa'] : ['tidak_dihitung', 'Tidak dihitung']);
+        if (!isset($map[$day]) && $day !== $today && $day < $alpaMulai) continue;
+        [$st, $lbl] = $day === $today ? ['belum', 'Belum absen'] : ['alpa', 'Alpa'];
         $rows[] = $map[$day] ?? [
             'id' => null, 'tanggal' => $day, 'jam_masuk' => null, 'jam_pulang' => null,
             'status_masuk' => null, 'status_pulang' => null,

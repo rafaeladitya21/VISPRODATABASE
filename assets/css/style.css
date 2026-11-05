@@ -2478,3 +2478,21 @@ a.jr-chip:hover { border-color: var(--ink); }
 .g-bimb__list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; background: var(--soft); border-radius: 8px; font-size: 14px; }
 .g-bimb__pick { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; }
 .g-bimb__pick .btn { align-self: flex-end; }
+/* Riwayat kehadiran (MH.absenHistory): daftar per hari, tanpa scroll horizontal */
+.g-detail, .g-panel, .g-panel .agenda__body, #g-absen, .ah-wrap { min-width: 0; overflow-x: hidden; }
+.ah-wrap { padding: 0 16px 16px; }
+.ah-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ah-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; padding: 8px; border: 1px solid var(--line-2); border-radius: 10px; }
+.ah-date { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none; width: 46px; height: 46px; background: var(--soft); border-radius: 8px; line-height: 1.1; }
+.ah-date small { font-size: 11px; color: var(--muted); }
+.ah-date strong { font-family: var(--font-display); font-size: 17px; }
+.ah-main { display: flex; flex-direction: column; gap: 2px; flex: 1 1 140px; min-width: 0; }
+.ah-jam { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.ah-sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.ah-sub .icon { margin-right: 2px; }
+.ah-badge { flex: none; margin-left: auto; }
+.ah-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.ah-pager .btn { height: 36px; padding: 0 14px; }
+.ah-more { display: block; width: 100%; min-height: 44px; margin-top: 12px; padding: 10px 16px; font: 600 14px/1.35 var(--font-body); color: var(--ink);
+  text-align: center; white-space: normal; background: var(--white); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.ah-more:hover { background: var(--soft); border-color: var(--dash); }

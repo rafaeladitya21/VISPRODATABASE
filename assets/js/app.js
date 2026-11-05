@@ -226,6 +226,58 @@
     '</article>';
   };
 
+  /*
+   * Riwayat kehadiran (daftar, bukan tabel — tanpa scroll horizontal). Dipakai panel guru & Beranda magang.
+   * rows = baris absen_rows() terbaru di atas. Default 5 hari terakhir; "Lihat semua riwayat" → halaman per 20.
+   */
+  var ABSEN_CLS = { hadir: 'badge--solid', terlambat: '', izin: 'badge--muted', sakit: 'badge--muted', alpa: 'badge--danger', belum: 'badge--ghost' };
+  MH.absenHistory = function (box, rows) {
+    var esc = MH.esc, PER = 20, st = { all: false, page: 1 };
+    function dot(hm) { return hm ? hm.replace(':', '.') : null; }
+    function item(r) {
+      var d = new Date(r.tanggal + 'T00:00:00');
+      var full = MH.HARI[d.getDay()] + ', ' + d.getDate() + ' ' + MH.BULAN[d.getMonth()] + ' ' + d.getFullYear();
+      var jam = r.jam_masuk
+        ? 'Masuk ' + dot(r.jam_masuk) + (r.jam_pulang ? ' · Pulang ' + dot(r.jam_pulang) : '')
+        : (r.status_hari === 'belum' ? 'Belum absen' : r.status_hari === 'alpa' ? 'Tidak ada absen' : 'Ditandai Admin');
+      // Lokasi: objek masuk_lokasi/pulang_lokasi (absen_rows) atau string lokasi_masuk/lokasi_pulang (api/guru.php)
+      var m = r.masuk_lokasi ? r.masuk_lokasi.nama : r.lokasi_masuk, p = r.pulang_lokasi ? r.pulang_lokasi.nama : r.lokasi_pulang;
+      var lok = m || p ? (m && p && m !== p ? m + ' → ' + p : m || p) : '';
+      return '<li class="ah-row">' +
+        '<span class="ah-date" title="' + esc(full) + '"><small>' + MH.HARI_PENDEK[d.getDay()] + '</small><strong class="num">' + d.getDate() + '</strong>' +
+          '<span class="sr-only">' + esc(full) + '</span></span>' +
+        '<span class="ah-main"><span class="ah-jam num">' + esc(jam) + '</span>' +
+          '<small class="ah-sub">' + MH.BULAN_PENDEK[d.getMonth()] + ' ' + d.getFullYear() +
+          (lok ? ' · ' + MH.icon('pin', 'icon--sm') + esc(lok.charAt(0).toUpperCase() + lok.slice(1)) : '') +
+          (r.dikoreksi ? ' · dikoreksi Admin' : '') + '</small></span>' +
+        '<span class="badge ah-badge ' + (ABSEN_CLS[r.status_hari] || 'badge--muted') + '">' + esc(r.status_label) + '</span>' +
+      '</li>';
+    }
+    function render() {
+      if (!rows.length) { box.innerHTML = '<p class="upc__empty" style="margin:0">Belum ada riwayat absen.</p>'; return; }
+      var pages = Math.max(1, Math.ceil(rows.length / PER));
+      st.page = Math.min(Math.max(1, st.page), pages);
+      var show = st.all ? rows.slice((st.page - 1) * PER, st.page * PER) : rows.slice(0, 5);
+      var pager = st.all && pages > 1
+        ? '<div class="ah-pager"><button type="button" class="btn btn--secondary" data-ah="prev"' + (st.page === 1 ? ' disabled' : '') + '>Sebelumnya</button>' +
+          '<span class="num">' + ((st.page - 1) * PER + 1) + '–' + Math.min(st.page * PER, rows.length) + ' dari ' + rows.length + '</span>' +
+          '<button type="button" class="btn btn--secondary" data-ah="next"' + (st.page === pages ? ' disabled' : '') + '>Berikutnya</button></div>' : '';
+      box.innerHTML = '<ul class="ah-list">' + show.map(item).join('') + '</ul>' + pager +
+        (rows.length > 5 ? '<button type="button" class="ah-more" data-ah="toggle">' +
+          (st.all ? 'Tampilkan lebih sedikit' : 'Lihat semua riwayat (' + rows.length + ' hari kerja)') + '</button>' : '');
+    }
+    box.onclick = function (e) {
+      var b = e.target.closest('[data-ah]');
+      if (!b) return;
+      var a = b.dataset.ah;
+      if (a === 'toggle') { st.all = !st.all; st.page = 1; }
+      else st.page += a === 'next' ? 1 : -1;
+      render();
+      if (a !== 'toggle' || !st.all) box.scrollIntoView({ block: 'nearest' });
+    };
+    render();
+  };
+
   /* --- Input rupiah: pemisah ribuan otomatis, kursor tetap di posisi wajar --- */
   MH.moneyInput = function (input) {
     if (input.dataset.money) return;

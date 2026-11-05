@@ -31,7 +31,7 @@
     return MH.HARI_PENDEK[d.getDay()] + ', ' + d.getDate() + ' ' + MH.BULAN_PENDEK[d.getMonth()] + ' ' + d.getFullYear();
   }
   function badge(r) {
-    var cls = { hadir: 'badge--solid', terlambat: '', izin: 'badge--muted', sakit: 'badge--muted', alpa: 'badge--danger', belum: 'badge--muted', tidak_dihitung: 'badge--muted' }[r.status_hari] || '';
+    var cls = { hadir: 'badge--solid', terlambat: '', izin: 'badge--muted', sakit: 'badge--muted', alpa: 'badge--danger', belum: 'badge--muted' }[r.status_hari] || '';
     return '<span class="badge ' + cls + '">' + esc(r.status_label) + '</span>' +
       (r.tanpa_absen ? ' <small class="muted">tanpa absen</small>' : '') +
       (r.dikoreksi ? ' <small class="muted" title="' + esc(r.alasan_koreksi || '') + '">dikoreksi</small>' : '');
@@ -60,7 +60,7 @@
     $('#ab-radius').textContent = 'Radius absen ' + d.radius + ' m';
     $('#ab-rekap-title').textContent = 'Rekap ' + d.bulan_label;
     $('#ab-rekap-sub').textContent = d.alpa_mulai && d.alpa_mulai > '0000-01-01'
-      ? 'Hari kerja tanpa absen dihitung Alpa mulai ' + MH.date(d.alpa_mulai) + ' (sebelumnya: Tidak dihitung).'
+      ? 'Hari kerja tanpa absen dihitung Alpa mulai ' + MH.date(d.alpa_mulai) + ' (hari sebelumnya tanpa absen tidak ditampilkan).'
       : 'Hari kerja yang lewat tanpa absen dihitung Alpa.';
     el.rekap.innerHTML = d.rekap.length ? d.rekap.map(function (r) {
       return '<tr><td><strong>' + esc(r.name) + '</strong>' + (r.divisi ? '<br><small class="muted">' + esc(r.divisi) + '</small>' : '') + '</td>' +
