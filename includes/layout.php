@@ -20,6 +20,7 @@ function layout_start(string $title, string $active): void
 <html lang="id">
 <head>
   <meta charset="utf-8">
+  <?php if (app_base() !== ''): ?><base href="<?= e(app_base()) ?>"><?php endif; ?>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
   <title><?= e($title) ?> — Management Hub</title>

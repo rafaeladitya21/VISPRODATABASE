@@ -2,6 +2,7 @@
 /**
  * POST api/auth.php — login.
  * Body: form-data / JSON { email, password, remember }
+ * Admin → dashboard.php, karyawan → karyawan/beranda.
  */
 declare(strict_types=1);
 require_once __DIR__ . '/../includes/db.php';
@@ -18,7 +19,8 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) {
 }
 
 try {
-    $stmt = db()->prepare('SELECT id, name, email, password_hash, must_change_password FROM users WHERE email = ? LIMIT 1');
+    $stmt = db()->prepare('SELECT id, name, email, password_hash, must_change_password, role, jabatan, aktif
+                           FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $row = $stmt->fetch();
 } catch (PDOException $e) {
@@ -28,6 +30,9 @@ try {
 
 if (!$row || !password_verify($password, $row['password_hash'])) {
     json_error('Email atau kata sandi salah.', 401);
+}
+if (!(int)$row['aktif']) {
+    json_error('Akun ini sudah dinonaktifkan. Hubungi Admin.', 403);
 }
 
 // Perbarui hash bila algoritma default PHP berubah
@@ -39,10 +44,12 @@ if (password_needs_rehash($row['password_hash'], PASSWORD_DEFAULT)) {
 start_session($remember);
 session_regenerate_id(true);
 $_SESSION['user'] = [
-    'id'    => (int)$row['id'],
-    'name'  => $row['name'],
-    'email' => $row['email'],
+    'id'      => (int)$row['id'],
+    'name'    => (string)$row['name'],
+    'email'   => (string)$row['email'],
+    'role'    => $row['role'] === 'karyawan' ? 'karyawan' : 'admin',
+    'jabatan' => $row['jabatan'],
     'must_change_password' => (bool)$row['must_change_password'],
 ];
 
-json_response(['ok' => true, 'redirect' => 'dashboard.php']);
+json_response(['ok' => true, 'redirect' => home_path($_SESSION['user'])]);

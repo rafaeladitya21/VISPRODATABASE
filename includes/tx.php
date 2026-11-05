@@ -6,6 +6,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/calc.php';
+require_once __DIR__ . '/karyawan.php';
 
 const TX_PREP    = ['Belum dimulai', 'Persiapan', 'Siap'];
 const TX_TERMIN  = ['Belum DP', 'Termin Berjalan', 'Lunas'];
@@ -98,6 +99,7 @@ function tx_full(int $id): ?array
         'prep_status'       => $t['prep_status'],
         'tech_notes'        => $t['tech_notes'],
         'documentation_url' => $t['documentation_url'],
+        'dress_code'        => $t['dress_code'],
         'revenue'           => $rev,
         'dp'                => $dp,
         'payment_method'    => $t['payment_method'],
@@ -180,7 +182,12 @@ function tx_save(int $id, array $in): array
         $totalTransport += $amt;
     }
 
-    // 5. Crew (baris kosong tidak disimpan)
+    // 5. Crew (baris kosong tidak disimpan). Nama yang sama dengan akun karyawan aktif → ditautkan
+    //    (user_id) supaya job muncul di Jadwal Saya; tautan lama untuk nama yang sama dipertahankan.
+    $karyawan = karyawan_name_map();
+    $st = $pdo->prepare('SELECT name, user_id FROM transaction_crew WHERE transaction_id = ? AND user_id IS NOT NULL');
+    $st->execute([$id]);
+    foreach ($st as $r) $karyawan[name_key($r['name'])] = (int)$r['user_id'];
     $crew = [];
     $totalCrew = 0;
     foreach (array_slice((array)($in['crew'] ?? []), 0, 100) as $row) {
@@ -188,7 +195,7 @@ function tx_save(int $id, array $in): array
         $role = v_str($row['role'] ?? null, 100);
         $honor = to_rupiah($row['honor'] ?? 0);
         if ($name === null && $role === null && $honor === 0) continue;
-        $crew[] = [$name, $role, $honor];
+        $crew[] = [$name, $role, $honor, $name === null ? null : ($karyawan[name_key($name)] ?? null)];
         $totalCrew += $honor;
     }
 
@@ -226,12 +233,13 @@ function tx_save(int $id, array $in): array
     $totalOps = $totalTransport + $totalCrew + $totalEquipment;
     $net = $revenue - $totalOps;
 
-    $pdo->beginTransaction();
+    $own = !$pdo->inTransaction();   // dipanggil di dalam transaksi lain (mis. uji) → ikut transaksi itu
+    if ($own) $pdo->beginTransaction();
     try {
         $pdo->prepare('UPDATE transactions SET
                 customer_id = ?, whatsapp = ?, event_name = ?, event_date = ?, location = ?, pic = ?,
                 standby_time = ?, shareloc = ?, load_in_time = ?,
-                tech_notes = ?, documentation_url = ?,
+                tech_notes = ?, documentation_url = ?, dress_code = ?,
                 revenue = ?, dp = ?, payment_method = ?, termin_status = ?, status = ?,
                 total_transport = ?, total_crew = ?, total_equipment = ?, total_operational = ?, net_profit = ?,
                 updated_at = NOW()
@@ -249,6 +257,7 @@ function tx_save(int $id, array $in): array
             // kolomnya dibiarkan di database (tidak diubah saat menyimpan).
             v_str($in['tech_notes'] ?? null, 5000),
             v_str($in['documentation_url'] ?? null, 500),
+            v_str($in['dress_code'] ?? null, 150),
             $revenue, $dp,
             v_enum($in['payment_method'] ?? null, array_keys(payment_methods_flat()), null),
             v_enum($in['termin_status'] ?? null, TX_TERMIN, 'Belum DP'),
@@ -265,17 +274,17 @@ function tx_save(int $id, array $in): array
         $ins = $pdo->prepare('INSERT INTO transaction_transport (transaction_id, item_key, label, amount) VALUES (?, ?, ?, ?)');
         foreach ($transport as $key => $amt) $ins->execute([$id, $key, TRANSPORT_ITEMS[$key], $amt]);
 
-        $ins = $pdo->prepare('INSERT INTO transaction_crew (transaction_id, name, role, honor, sort_order) VALUES (?, ?, ?, ?, ?)');
-        foreach ($crew as $i => $c) $ins->execute([$id, $c[0], $c[1], $c[2], $i]);
+        $ins = $pdo->prepare('INSERT INTO transaction_crew (transaction_id, name, role, honor, user_id, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+        foreach ($crew as $i => $c) $ins->execute([$id, $c[0], $c[1], $c[2], $c[3], $i]);
 
         $ins = $pdo->prepare('INSERT INTO transaction_equipment
             (transaction_id, equipment_id, equipment_name, tier, unit_price, qty, days, total, sort_order)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($equipment as $i => $q) $ins->execute([$id, ...$q, $i]);
 
-        $pdo->commit();
+        if ($own) $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($own) $pdo->rollBack();
         throw $e;
     }
 

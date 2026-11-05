@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { // hanya lewat tombol (form POST)
-    header('Location: dashboard.php');
+    header('Location: index.php');
     exit;
 }
 

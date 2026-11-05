@@ -4,6 +4,7 @@
 --
 -- Tidak perlu dijalankan manual: aplikasi membuatnya otomatis saat database masih kosong
 -- (tabel `users` belum ada) — lihat ensure_schema() di includes/db.php.
+-- Perubahan SESUDAH skema awal ini ada di includes/migrate.php (dijalankan otomatis, berversi).
 -- Manual: Supabase → SQL Editor → tempel isi file ini → Run (hanya di database KOSONG).
 --
 -- Catatan:

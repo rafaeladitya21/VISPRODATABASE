@@ -3,3 +3,11 @@
   Require all denied
 </FilesMatch>
 Options -Indexes
+
+# Halaman karyawan tanpa .php: /karyawan/beranda → karyawan/beranda.php
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^karyawan/([a-z-]+)$ karyawan/$1.php [L]
+</IfModule>

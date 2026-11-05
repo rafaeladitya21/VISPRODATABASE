@@ -10,17 +10,7 @@ declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
 require_once __DIR__ . '/includes/tx.php';
 
-const HARI  = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli',
-               'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-/** "2026-11-14" → "Sabtu, 14 November 2026" */
-function tgl_id(?string $ymd, bool $withDay = true): string
-{
-    if (!$ymd || !($ts = strtotime($ymd))) return '—';
-    $s = date('j', $ts) . ' ' . BULAN[(int)date('n', $ts) - 1] . ' ' . date('Y', $ts);
-    return $withDay ? HARI[(int)date('w', $ts)] . ', ' . $s : $s;
-}
+// tgl_id() ("2026-11-14" → "Sabtu, 14 November 2026") ada di includes/karyawan.php (dimuat lewat tx.php)
 function jam(?string $hm): string { return $hm ? str_replace(':', '.', $hm) . ' WIB' : '—'; }
 function dash(?string $s): string { return ($s === null || trim($s) === '') ? '—' : e($s); }
 function rp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); }

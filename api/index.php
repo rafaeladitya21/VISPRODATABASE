@@ -3,13 +3,16 @@
  * Router untuk hosting Vercel (vercel-php): semua request selain /assets diarahkan ke sini
  * (lihat vercel.json), lalu diteruskan ke halaman / endpoint yang DIDAFTAR di bawah.
  * Selain itu → 404, jadi file internal (includes/, database.sql, tools/, …) tidak pernah terbuka.
- * Di XAMPP / Apache file ini tidak dipakai — Apache langsung menjalankan file .php-nya.
+ * Di XAMPP / Apache file ini tidak dipakai — Apache langsung menjalankan file .php-nya
+ * (/karyawan/beranda tanpa .php ditangani .htaccess).
  */
 declare(strict_types=1);
 
 const MH_PAGES = ['index', 'login', 'logout', 'dashboard', 'transaksi', 'customer', 'harga-alat',
-                  'inventaris', 'jadwal', 'leads', 'spk'];
-const MH_APIS  = ['auth', 'customers', 'equipment', 'inventory', 'leads', 'schedule', 'summary', 'transactions'];
+                  'inventaris', 'jadwal', 'leads', 'spk', 'akun-karyawan', 'slip-gaji', 'pengaturan', 'slip-cetak'];
+const MH_KARYAWAN_PAGES = ['index', 'beranda', 'jadwal', 'slip'];
+const MH_APIS  = ['auth', 'customers', 'equipment', 'inventory', 'leads', 'schedule', 'summary', 'transactions',
+                  'myslip', 'staff', 'tarif', 'settings', 'payroll'];
 
 $root = dirname(__DIR__);
 $path = (string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
@@ -22,8 +25,13 @@ unset($_GET['__route']);
 $file = null;
 if ($path === '/' || $path === '') {
     $file = "$root/index.php";
+} elseif ($path === '/karyawan') {
+    header('Location: /karyawan/beranda');   // tanpa garis miring: URL relatif di halaman jadi salah
+    exit;
 } elseif (preg_match('#^/([a-z-]+)(?:\.php)?$#', $path, $m) && in_array($m[1], MH_PAGES, true)) {
     $file = "$root/{$m[1]}.php";
+} elseif (preg_match('#^/karyawan/([a-z-]*)(?:\.php)?$#', $path, $m) && in_array($m[1] ?: 'index', MH_KARYAWAN_PAGES, true)) {
+    $file = "$root/karyawan/" . ($m[1] ?: 'index') . '.php';
 } elseif (preg_match('#^/api/([a-z]+)(?:\.php)?$#', $path, $m) && in_array($m[1], MH_APIS, true)) {
     $file = "$root/api/{$m[1]}.php";
 }

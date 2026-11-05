@@ -2,9 +2,9 @@
 declare(strict_types=1);
 require_once __DIR__ . '/includes/db.php';
 
-// Sudah login → langsung ke dashboard
+// Sudah login → langsung ke beranda sesuai role
 // (mode development: halaman login tetap bisa dibuka, tombol Masuk langsung ke dashboard)
-if (!dev_no_login() && current_user()) { header('Location: dashboard.php'); exit; }
+if (!dev_no_login() && ($u = current_user())) { header('Location: ' . home_path($u)); exit; }
 ?>
 <!doctype html>
 <html lang="id" class="no-js">

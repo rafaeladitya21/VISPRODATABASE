@@ -26,6 +26,7 @@ function load_dotenv(string $file): void
 load_dotenv(dirname(__DIR__) . '/.env');   // sebelum config.php: DEV_NO_LOGIN bisa diatur dari .env
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/migrate.php';
 
 /** true bila mode development tanpa login aktif (lihat includes/config.php) */
 function dev_no_login(): bool
@@ -87,6 +88,7 @@ function db(): PDO
         // Waktu Jakarta; citext ada di schema "extensions" (Supabase)
         $pdo->exec("SET TIME ZONE 'Asia/Jakarta'; SET search_path TO public, extensions");
         ensure_schema($pdo);
+        run_migrations($pdo);
     }
     return $pdo;
 }
@@ -231,6 +233,48 @@ function current_user(): ?array
 {
     start_session();
     return $_SESSION['user'] ?? null;
+}
+
+/**
+ * Awalan relatif dari halaman yang sedang berjalan ke root aplikasi:
+ * '' untuk dashboard.php, '../' untuk karyawan/beranda.php. Dipakai untuk redirect dan <base href>,
+ * sehingga semua URL relatif (assets/…, api/…, login.php) tetap benar di XAMPP maupun Vercel.
+ */
+function app_base(): string
+{
+    static $base = null;
+    if ($base !== null) return $base;
+    $norm = fn(string $p) => rtrim(str_replace('\\', '/', $p), '/');
+    $root = $norm((string)realpath(dirname(__DIR__)));
+    $dir  = $norm((string)(realpath(dirname((string)($_SERVER['SCRIPT_FILENAME'] ?? ''))) ?: $root));
+    $rel  = str_starts_with($dir, $root) ? trim(substr($dir, strlen($root)), '/') : '';
+    return $base = $rel === '' ? '' : str_repeat('../', substr_count($rel, '/') + 1);
+}
+
+function app_url(string $path): string { return app_base() . $path; }
+
+/** Halaman awal sesuai role */
+function home_path(?array $user): string
+{
+    return ($user['role'] ?? 'admin') === 'karyawan' ? 'karyawan/beranda' : 'dashboard.php';
+}
+
+/** Inisial (maks. 2 huruf) untuk avatar */
+function initials(string $name): string
+{
+    $out = '';
+    foreach (preg_split('/\s+/u', trim($name)) as $part) {
+        if ($part !== '' && mb_strlen($out) < 2) $out .= mb_strtoupper(mb_substr($part, 0, 1));
+    }
+    return $out;
+}
+
+/** Nilai pengaturan (tabel pengaturan); '' bila belum ada */
+function setting(string $key): string
+{
+    $st = db()->prepare('SELECT value FROM pengaturan WHERE key = ?');
+    $st->execute([$key]);
+    return (string)($st->fetchColumn() ?: '');
 }
 
 /** Kirim JSON lalu hentikan script. */

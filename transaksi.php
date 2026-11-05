@@ -156,6 +156,10 @@ layout_start('Transaksi', 'transaksi');
             <input class="input" id="f-doc" data-f="documentation_url" type="url" placeholder="https://drive…" maxlength="500">
           </div>
           <div class="field span2">
+            <label class="field__label" for="f-dress">Dress Code Crew</label>
+            <input class="input" id="f-dress" data-f="dress_code" maxlength="150" placeholder="mis. Hitam polos, sepatu tertutup">
+          </div>
+          <div class="field span2">
             <label class="field__label" for="f-notes">Catatan Teknis</label>
             <textarea class="input" id="f-notes" data-f="tech_notes" rows="3" maxlength="5000"></textarea>
           </div>
@@ -187,6 +191,12 @@ layout_start('Transaksi', 'transaksi');
             <tbody id="crew-body"></tbody>
           </table>
         </div>
+        <!-- Saran nama crew dari akun karyawan: nama yang sama → job tampil di Jadwal Saya karyawan -->
+        <datalist id="karyawan-names">
+          <?php foreach (db()->query("SELECT name, jabatan FROM users WHERE role = 'karyawan' AND aktif = 1 ORDER BY name") as $k): ?>
+            <option value="<?= e($k['name']) ?>"><?= e($k['jabatan'] ?: 'Karyawan') ?></option>
+          <?php endforeach; ?>
+        </datalist>
         <div class="rowfoot">
           <button class="btn btn--dashed" type="button" id="crew-add">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah crew

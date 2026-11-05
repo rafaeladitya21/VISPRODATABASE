@@ -61,15 +61,23 @@ C:\xampp\php\php.exe tools\migrate-from-mysql.php --commit   # HAPUS isi Supabas
 ## Struktur
 
 ```
-index.php            redirect ke login / dashboard
+index.php            redirect ke login / beranda sesuai role
 login.php            halaman masuk (animasi + efek selendang)
 logout.php           keluar (POST)
 dashboard.php        Ringkasan
 transaksi.php        Transaksi (cari, buat, edit, autosave)
 customer.php         Customer + drawer detail, invoice, PDF
 harga-alat.php       Harga Alat
-api/                 endpoint JSON (auth, transactions, customers, equipment, summary)
-includes/            db.php, auth-check.php, layout.php, sidebar.php, calc.php, tx.php
+api/                 endpoint JSON (admin: transactions, customers, …, staff, tarif, settings, payroll;
+                     karyawan: myslip)
+karyawan/            halaman karyawan: beranda, jadwal, slip
+akun-karyawan.php    Akun Karyawan (admin)
+slip-gaji.php        Persetujuan slip gaji (admin)
+pengaturan.php       Tarif output + pesan karyawan (admin)
+slip-cetak.php       Cetak slip gaji (PDF)
+tools/               test-slip.php, test-slip-db.php, migrate-from-mysql.php
+includes/            db.php, migrate.php, auth-check.php, layout.php, sidebar.php, calc.php, tx.php,
+                     karyawan.php, slip.php
 assets/              css/style.css, js/*.js, img/logo.png, fonts/Satoshi-Bold.woff2
 storage/sessions/    file session PHP (diblokir dari web)
 database.sql         struktur + seed data
@@ -92,6 +100,39 @@ Total sewa        = Harga sewa × Qty × Day
   Harga baru hanya dipakai bila alat atau tarif pada baris tersebut diganti.
 - Ringkasan & Customer tidak menghitung transaksi berstatus **Batal**.
 - Grafik bulanan dikelompokkan berdasarkan **tanggal event**; bila tanggal event kosong, dipakai tanggal transaksi dibuat.
+
+## Role karyawan
+
+- Dua role di `users.role`: `admin` dan `karyawan`. Admin membuat akun di menu **Akun Karyawan**
+  (nama, email, jabatan, gaji pokok, aktif/nonaktif, kata sandi awal).
+- Karyawan masuk ke `/karyawan/beranda` dan hanya punya 3 menu: **Beranda**, **Jadwal Saya**, **Slip Gaji**.
+- Proteksi di server (`includes/auth-check.php`): setiap halaman/API menyatakan area lewat `MH_AREA`;
+  tanpa itu = **admin**. Jadi semua halaman & API admin (termasuk yang baru) otomatis ditolak untuk karyawan
+  (halaman → dialihkan ke beranda, API → 403). Data akun dibaca ulang tiap request: akun yang dinonaktifkan
+  langsung keluar.
+- Semua data karyawan difilter dengan `user_id` dari session (`api/myslip.php`, `karyawan/*.php`).
+- **Jadwal karyawan** = transaksi **Confirmed/Selesai** yang mencantumkan karyawan sebagai crew (form Transaksi
+  bagian 5, kolom nama menyarankan nama akun). Nama crew yang sama dengan nama akun otomatis ditautkan
+  (`transaction_crew.user_id`). Transaksi Draft tidak tampil ke karyawan.
+- **Slip gaji**: total per baris = fee output × hari · Total Fee = Σ baris · Sub Total = Total Fee + Gaji Pokok.
+  Alur: Draft → Diajukan → Disetujui → Dibayar. Selama Draft fee & gaji pokok mengikuti master terkini;
+  sejak diajukan nilainya dibekukan (snapshot) sehingga perubahan tarif tidak mengubah slip lama.
+  Bulan lalu hanya bisa dilihat (dan diajukan bila belum), kecuali slip yang dikembalikan Admin / ditarik.
+- Admin: **Slip Gaji** (Setujui / Kembalikan + catatan / Tandai Dibayar + tanggal transfer) dan
+  **Pengaturan** (master tarif output, pesan penyemangat, info dari Admin).
+
+### Migrasi skema
+
+`database.sql` hanya untuk database kosong. Perubahan sesudahnya ada di `includes/migrate.php` (berversi,
+dicatat di tabel `schema_migrations`) dan dijalankan otomatis saat aplikasi pertama kali terhubung.
+Migrasi hanya menambah tabel/kolom; jangan ubah migrasi yang sudah dirilis — tambahkan versi baru.
+
+### Pengujian
+
+```
+C:\xampp\php\php.exe tools\test-slip.php      # rumus slip + test case Oktober 2026 (tanpa database)
+C:\xampp\php\php.exe tools\test-slip-db.php   # alur slip & jadwal di database, selalu di-ROLLBACK
+```
 
 ## Catatan
 

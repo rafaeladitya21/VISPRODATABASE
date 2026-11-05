@@ -289,7 +289,7 @@
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td class="c muted num" data-no></td>' +
-      '<td><input class="input" data-c="name" maxlength="150" aria-label="Nama crew"></td>' +
+      '<td><input class="input" data-c="name" maxlength="150" list="karyawan-names" autocomplete="off" aria-label="Nama crew"></td>' +
       '<td><select class="input" data-c="role" aria-label="Role">' + roleOptions(c.role) + '</select></td>' +
       '<td><input class="input input--money" data-c="honor" placeholder="0" aria-label="Honor + UM"></td>' +
       '<td><button type="button" class="btn-icon" data-del aria-label="Hapus baris crew">' + MH.icon('trash') + '</button></td>';
