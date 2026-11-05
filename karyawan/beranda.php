@@ -7,6 +7,7 @@ declare(strict_types=1);
 define('MH_AREA', 'karyawan');
 require __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/slip.php';
+require_once __DIR__ . '/../includes/pengumuman.php';
 require __DIR__ . '/../includes/layout.php';
 
 $me = karyawan_row((int)$user['id']);
@@ -25,7 +26,7 @@ try {
     $prevTotal = array_sum(array_map(fn($s) => (int)$s['sub_total'], $prevSlips));
     $history = slip_history($me['id'], periode_shift($now, -5), $now);
     $pesan = trim(setting('pesan_semangat'));
-    $info = trim(setting('info_admin'));
+
 } catch (PDOException $e) {
     error_log('[beranda] ' . $e->getMessage());
     http_response_code(500);
@@ -177,16 +178,6 @@ layout_start('Beranda', 'k-beranda');
     </ul>
   </section>
 
-  <section class="card kb-info fbu" aria-labelledby="kb-info-title">
-    <div class="card__head">
-      <h2 class="card__title" id="kb-info-title">Info dari Admin</h2>
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4a1 1 0 0 0 1 1h2l5 4V5L7 9H5a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>
-    </div>
-    <?php if ($info !== ''): ?>
-      <p class="kb-info__text"><?= nl2br(e($info)) ?></p>
-    <?php else: ?>
-      <p class="upc__empty" style="margin-top:0">Belum ada info dari Admin.</p>
-    <?php endif; ?>
-  </section>
+  <?php pengumuman_card($me['tipe'] ?? (string)$user['tipe']); ?>
 </div>
 <?php layout_end(); ?>

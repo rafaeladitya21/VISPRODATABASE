@@ -10,11 +10,11 @@ declare(strict_types=1);
 
 const MH_PAGES = ['index', 'login', 'logout', 'dashboard', 'transaksi', 'customer', 'harga-alat',
                   'inventaris', 'jadwal', 'leads', 'spk', 'akun-karyawan', 'slip-gaji', 'pengaturan', 'slip-cetak',
-                  'absensi', 'absensi-cetak', 'jurnal-magang'];
+                  'absensi', 'absensi-cetak', 'jurnal-magang', 'pengumuman'];
 const MH_KARYAWAN_PAGES = ['index', 'beranda', 'jadwal', 'slip'];
 const MH_MAGANG_PAGES   = ['index', 'beranda', 'jurnal', 'jadwal'];
 const MH_APIS  = ['auth', 'customers', 'equipment', 'inventory', 'leads', 'schedule', 'summary', 'transactions',
-                  'myslip', 'staff', 'tarif', 'settings', 'payroll', 'absen', 'jurnal', 'absensi', 'jurnalmagang', 'lokasi'];
+                  'myslip', 'staff', 'tarif', 'settings', 'payroll', 'absen', 'jurnal', 'absensi', 'jurnalmagang', 'lokasi', 'pengumuman'];
 
 $root = dirname(__DIR__);
 $path = (string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');

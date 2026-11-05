@@ -246,6 +246,19 @@
     });
   };
 
+  /* --- Tombol "Lihat semua": <button data-expand="#list"> membuka/menutup [data-more] di dalam #list --- */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-expand]');
+    if (!b) return;
+    var list = document.querySelector(b.dataset.expand);
+    if (!list) return;
+    var open = b.getAttribute('aria-expanded') !== 'true';
+    MH.$$('[data-more]', list).forEach(function (el) { el.hidden = !open; });
+    b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!b.dataset.labelClosed) b.dataset.labelClosed = b.textContent;
+    b.textContent = open ? (b.dataset.labelOpen || 'Tutup') : b.dataset.labelClosed;
+  });
+
   /* --- Peta (Leaflet + OpenStreetMap), dimuat saat dibutuhkan --- */
   var leafletP = null;
   MH.leaflet = function () {

@@ -8,6 +8,7 @@ declare(strict_types=1);
 define('MH_AREA', 'magang');
 require __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/magang.php';
+require_once __DIR__ . '/../includes/pengumuman.php';
 require __DIR__ . '/../includes/layout.php';
 
 $me = intern_row((int)$user['id']);
@@ -211,6 +212,7 @@ layout_start('Beranda & Absen', 'm-beranda');
     </div>
   </section>
 
+  <div class="mg-side">
   <!-- Checklist -->
   <section class="card fbu" aria-labelledby="mg-todo-title">
     <h2 class="card__title" id="mg-todo-title">Jangan lupa hari ini</h2>
@@ -221,6 +223,9 @@ layout_start('Beranda & Absen', 'm-beranda');
     </ul>
     <a class="btn btn--primary btn--block" href="magang/jurnal"><?= $jurnalToday ? 'Lihat jurnal hari ini' : 'Isi jurnal hari ini' ?></a>
   </section>
+
+  <?php pengumuman_card('intern'); ?>
+  </div>
 </div>
 <dialog class="modal" id="mg-consent" aria-labelledby="mg-consent-title">
   <div class="window__bar">

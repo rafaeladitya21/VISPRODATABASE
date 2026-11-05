@@ -138,7 +138,11 @@ Total sewa        = Harga sewa × Qty × Day
   sejak diajukan nilainya dibekukan (snapshot) sehingga perubahan tarif tidak mengubah slip lama.
   Bulan lalu hanya bisa dilihat (dan diajukan bila belum), kecuali slip yang dikembalikan Admin / ditarik.
 - Admin: **Slip Gaji** (Setujui / Kembalikan + catatan / Tandai Dibayar + tanggal transfer) dan
-  **Pengaturan** (master tarif output, pesan penyemangat, info dari Admin).
+  **Pengaturan** (master tarif output, pesan penyemangat).
+- **Pengumuman** (menu Admin → KARYAWAN, tabel `pengumuman`, migrasi 10): judul (maks. 80), isi (maks. 300), target
+  Semua / In-house / Freelance / Intern, tandai penting, periode tampil (sampai kosong = tanpa batas), hapus = soft delete.
+  Kartu "Info dari Admin" di Beranda karyawan & magang (`pengumuman_card()` di `includes/pengumuman.php`): aktif &
+  target cocok, penting dulu lalu terbaru, 3 teratas + "Lihat semua". Uji: `tools/test-pengumuman.php [--db]`.
 
 ## Anak magang (tipe Intern)
 

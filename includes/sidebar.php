@@ -17,6 +17,7 @@ const SIDEBAR_ICONS = [
     'receipt'  => '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
     'sliders'  => '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
     'clock'    => '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    'megaphone' => '<path d="M4 10v4a1 1 0 0 0 1 1h2l5 4V5L7 9H5a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
     'book'     => '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5zM9 7.5h7M9 11h5"/>',
 ];
 /** Menu per area (admin / karyawan / magang). key => [label, href|null, ikon]; section label => item */
@@ -52,6 +53,7 @@ function sidebar_menu(string $area): array
             'slip-gaji'     => ['Slip Gaji',     'slip-gaji.php',     'receipt'],
             'absensi'       => ['Absensi',       'absensi.php',       'clock'],
             'jurnal-magang' => ['Jurnal Magang', 'jurnal-magang.php', 'book'],
+            'pengumuman'    => ['Pengumuman',    'pengumuman.php',    'megaphone'],
             'pengaturan'    => ['Pengaturan',    'pengaturan.php',    'sliders'],
         ],
     ];

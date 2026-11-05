@@ -61,11 +61,7 @@ layout_start('Pengaturan', 'pengaturan');
         <input class="input" id="ps-semangat-intern" name="pesan_semangat_intern" maxlength="300" placeholder="mis. Semangat belajar hari ini, jangan lupa isi jurnal!">
         <p class="field__hint">Tampil di Beranda &amp; Absen anak magang. Kosong = memakai pesan penyemangat karyawan di atas.</p>
       </div>
-      <div class="field">
-        <label class="field__label" for="ps-info">Info dari Admin</label>
-        <textarea class="input" id="ps-info" name="info_admin" rows="5" maxlength="2000" placeholder="mis. Slip Oktober dibayar tanggal 5. Briefing event Blimbing hari Jumat 19.00."></textarea>
-        <p class="field__hint">Tampil di kartu "Info dari Admin" di Beranda.</p>
-      </div>
+      <p class="field__hint">Kartu "Info dari Admin" di Beranda kini diatur di menu <a href="pengumuman.php"><strong>Pengumuman</strong></a>.</p>
       <div id="ps-error" hidden></div>
       <div class="modal__actions" style="justify-content:space-between;align-items:center">
         <span class="adm-saved" id="ps-saved"></span>
