@@ -30,6 +30,8 @@ echo "\nWhatsApp & perhatian\n";
 check('0812… → wa.me/62812…', wa_url('0812-3456-789'), 'https://wa.me/628123456789');
 check('+62 812… tetap', wa_url('+62 812 3456 789'), 'https://wa.me/628123456789');
 check('Kosong → null', wa_url(''), null);
+check('Sekolah dinormalisasi', sekolah_norm('  SMKN 2   Singosari '), 'smkn 2 singosari');
+check('Sekolah kosong', sekolah_norm(null), '');
 $rk = fn(?int $p, int $alpa) => ['persen' => $p, 'alpa' => $alpa];
 check('Kehadiran 79% → perlu perhatian', siswa_perlu_perhatian($rk(79, 0)), true);
 check('Alpa 2 kali → perlu perhatian', siswa_perlu_perhatian($rk(95, 2)), true);

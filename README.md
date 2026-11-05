@@ -183,7 +183,9 @@ Total sewa        = Harga sewa × Qty × Day
   `/magang/*` → 403. Satu-satunya tulis: catatan jurnal (`jurnal_komentar.peran = 'guru'`, tampil "Nama · Guru
   Pendamping"), hanya catatan sendiri yang bisa dihapus (`api/guru.php`).
 - Perlu perhatian: kehadiran bulan ini < 80% atau alpa ≥ 2. Laporan PDF: `guru/cetak` (kop, data siswa, rekap,
-  jurnal, tanda tangan Mentor & Guru). Admin: nama guru + tombol
+  jurnal, tanda tangan Mentor & Guru). Guru pendamping wajib untuk intern; kosong → otomatis
+  ke satu-satunya guru dengan asal sekolah sama (`tools/backfill-guru.php [--apply]` untuk intern lama). Form guru:
+  Siswa bimbingan + Tautkan siswa. Admin: nama guru + tombol
   Chat WA di baris intern (Akun Karyawan) dan kartu jurnal.
 - Uji: `tools/test-guru.php [--db]`.
 

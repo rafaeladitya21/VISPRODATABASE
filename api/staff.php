@@ -8,7 +8,8 @@
  *                 (kosong = tarif umum) dan tampil=false untuk menyembunyikan tarif itu dari orang ini
  * Tipe: 'inhouse' (gaji pokok wajib, > 0), 'freelance' (gaji pokok 0), atau 'intern' (anak magang: gaji 0, tanpa
  *       tarif; wajib magang_mulai/magang_selesai; divisi, jam_masuk (08:00), jam_pulang (16:00), mentor_id opsional).
- *       Intern juga: guru_id (akun bertipe guru, opsional) & kelas (kelas / jurusan).
+ *       Intern juga: guru_id (akun bertipe guru, WAJIB — kosong → otomatis bila tepat satu guru dengan sekolah sama),
+ *       sekolah (asal sekolah) & kelas (kelas / jurusan). Guru: siswa_ids [] → daftar siswa bimbingan.
  *       'guru' (guru pendamping sekolah): hanya nama, email, whatsapp, sekolah — tanpa gaji, tarif, jam kerja;
  *       bukan crew, tanpa slip / absen / jadwal. Satu guru → banyak intern; satu intern → satu guru.
  * Akun tidak dihapus (slip lama tetap utuh) — cukup dinonaktifkan; akun nonaktif tidak bisa login
@@ -111,7 +112,7 @@ function staff_input(array $in, bool $create): array
 
     // Anak magang: divisi, periode (wajib), jam kerja, mentor (admin / in-house aktif). Tanpa gaji & tarif.
     $intern = ['divisi' => null, 'mulai' => null, 'selesai' => null, 'jam_masuk' => null, 'jam_pulang' => null, 'mentor_id' => null,
-               'guru_id' => null, 'kelas' => null];
+               'guru_id' => null, 'kelas' => null, 'intern_sekolah' => null];
     if ($tipe === 'intern') {
         $date = fn($v) => is_string($v) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) && checkdate((int)$m[2], (int)$m[3], (int)$m[1]) ? $v : null;
         $time = fn($v, $def) => is_string($v) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $v) ? $v : ($v === null || $v === '' ? $def : false);
@@ -143,9 +144,14 @@ function staff_input(array $in, bool $create): array
         }
         $kelas = trim((string)($in['kelas'] ?? ''));
         if (mb_strlen($kelas) > 100) json_error('Kelas/Jurusan maksimal 100 karakter.', 422);
+        $iSekolah = trim(preg_replace('/\s+/u', ' ', (string)($in['sekolah'] ?? '')));
+        if (mb_strlen($iSekolah) > 150) json_error('Asal sekolah maksimal 150 karakter.', 422);
+        // Guru pendamping wajib: kosong → tautkan otomatis ke satu-satunya guru dari sekolah yang sama
+        $guruId ??= guru_by_sekolah($iSekolah);
+        if ($guruId === null) json_error('Pilih guru pendamping (atau isi asal sekolah yang sama dengan satu akun guru).', 422);
         $intern = ['divisi' => $divisi === '' ? null : $divisi, 'mulai' => $mulai, 'selesai' => $selesai,
                    'jam_masuk' => $jm, 'jam_pulang' => $jp, 'mentor_id' => $mentor,
-                   'guru_id' => $guruId, 'kelas' => $kelas === '' ? null : $kelas];
+                   'guru_id' => $guruId, 'kelas' => $kelas === '' ? null : $kelas, 'intern_sekolah' => $iSekolah === '' ? null : $iSekolah];
     }
     // Guru pendamping: No. WhatsApp & asal sekolah (tanpa jabatan, gaji, tarif, jam kerja)
     $guru = ['whatsapp' => null, 'sekolah' => null, 'panggilan' => null];
@@ -159,13 +165,36 @@ function staff_input(array $in, bool $create): array
         if (!in_array($panggilan, ['', 'Pak', 'Bu'], true)) json_error('Panggilan harus Pak atau Bu.', 422);
         $guru = ['whatsapp' => $wa === '' ? null : $wa, 'sekolah' => $sekolah, 'panggilan' => $panggilan === '' ? null : $panggilan];
         $jabatan = '';
+        // Siswa bimbingan dari form guru (opsional): hanya id akun intern
+        if (isset($in['siswa_ids']) && is_array($in['siswa_ids'])) {
+            $guru['siswa_ids'] = array_values(array_unique(array_filter(array_map('intval', $in['siswa_ids']), fn($v) => $v > 0)));
+        }
     }
+    // Intern: users.sekolah = asal sekolah siswa (dipakai penautan otomatis ke guru)
+    if ($tipe === 'intern') $guru['sekolah'] = $intern['intern_sekolah'];
     return [
         'name' => $name, 'email' => $email, 'jabatan' => $jabatan === '' ? null : $jabatan,
         'tipe' => $tipe, 'gaji_pokok' => $gp,
         'aktif' => !isset($in['aktif']) || !empty($in['aktif']) ? 1 : 0,
         'password' => $password,
     ] + $intern + $guru;
+}
+
+/**
+ * Siswa bimbingan dari form guru: intern di $ids ditautkan ke guru ini (pindah dari guru lain bila ada);
+ * intern yang tadinya tertaut tapi tidak ada di daftar dilepas. Tanpa siswa_ids (null) → tidak diubah.
+ */
+function save_siswa_bimbingan(int $guruId, ?array $ids): void
+{
+    if ($ids === null) return;
+    $pdo = db();
+    if ($ids) {
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $pdo->prepare("UPDATE users SET guru_id = NULL WHERE guru_id = ? AND id NOT IN ($in)")->execute([$guruId, ...$ids]);
+        $pdo->prepare("UPDATE users SET guru_id = ? WHERE id IN ($in) AND role = 'karyawan' AND tipe = 'intern'")->execute([$guruId, ...$ids]);
+    } else {
+        $pdo->prepare('UPDATE users SET guru_id = NULL WHERE guru_id = ?')->execute([$guruId]);
+    }
 }
 
 /** Calon mentor: admin & karyawan in-house yang aktif */
@@ -200,6 +229,7 @@ try {
         $newId = (int)$st->fetchColumn();
         save_tarif_khusus($newId, $d['tipe'], $in['tarif_khusus'] ?? null);
         crew_link_user($newId);
+        if ($d['tipe'] === 'guru') save_siswa_bimbingan($newId, $d['siswa_ids'] ?? null);
         staff_response(201);
     }
 
@@ -222,6 +252,7 @@ try {
                            $d['guru_id'], $d['kelas'], $d['whatsapp'], $d['sekolah'], $d['panggilan'], $id]);
             // Bukan guru lagi → lepaskan siswa yang tadinya dibimbing
             if ($d['tipe'] !== 'guru') db()->prepare('UPDATE users SET guru_id = NULL WHERE guru_id = ?')->execute([$id]);
+            else save_siswa_bimbingan($id, $d['siswa_ids'] ?? null);
         } catch (PDOException $e) {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;

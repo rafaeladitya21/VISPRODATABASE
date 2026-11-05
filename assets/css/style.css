@@ -2471,3 +2471,10 @@ a.jr-chip:hover { border-color: var(--ink); }
 .g-rj__siswa > .upc__empty { padding: 14px 16px; }
 .g-rj__list { margin: 0; padding-left: 18px; }
 .g-rj__story { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+/* Akun Karyawan → form guru: Siswa bimbingan */
+.g-bimb { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.g-bimb__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.g-bimb__list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.g-bimb__list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; background: var(--soft); border-radius: 8px; font-size: 14px; }
+.g-bimb__pick { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line-2); border-radius: 8px; }
+.g-bimb__pick .btn { align-self: flex-end; }

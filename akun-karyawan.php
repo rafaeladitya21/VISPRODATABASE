@@ -34,7 +34,7 @@ layout_start('Akun Karyawan', 'akun-karyawan');
     <table class="table">
       <thead>
         <tr>
-          <th>Karyawan</th><th>Jabatan</th><th>Tipe</th><th class="r">Gaji Pokok</th><th class="r">Job</th><th>Slip</th><th>Status</th>
+          <th>Karyawan</th><th>Jabatan</th><th id="st-guru-col" hidden>Guru pendamping</th><th>Tipe</th><th class="r">Gaji Pokok</th><th class="r">Job</th><th>Slip</th><th>Status</th>
           <th style="width:90px"><span class="sr-only">Aksi</span></th>
         </tr>
       </thead>
@@ -105,6 +105,14 @@ layout_start('Akun Karyawan', 'akun-karyawan');
         </div>
       </div>
       <p class="field__hint">Guru hanya melihat absen &amp; jurnal siswa yang ditautkan ke akunnya, dan bisa memberi catatan jurnal.</p>
+      <div class="field g-bimb">
+        <div class="g-bimb__head">
+          <span class="field__label">Siswa bimbingan</span>
+          <button type="button" class="btn btn--secondary" id="st-tautkan">+ Tautkan siswa</button>
+        </div>
+        <ul class="g-bimb__list" id="st-bimb-list"></ul>
+        <div class="g-bimb__pick" id="st-bimb-pick" hidden></div>
+      </div>
     </fieldset>
     <fieldset class="adm-intern" id="st-intern" hidden>
       <legend class="field__label">Data magang</legend>
@@ -140,10 +148,17 @@ layout_start('Akun Karyawan', 'akun-karyawan');
           <input class="input" id="st-kelas" name="kelas" maxlength="100" placeholder="mis. XII Multimedia">
         </div>
       </div>
-      <div class="field">
-        <label class="field__label" for="st-guru-id">Guru pendamping</label>
-        <select class="input" id="st-guru-id" name="guru_id"></select>
+      <div class="grid2">
+        <div class="field">
+          <label class="field__label" for="st-isekolah">Asal sekolah</label>
+          <input class="input" id="st-isekolah" name="sekolah_intern" maxlength="150" placeholder="mis. SMKN 2 Singosari">
+        </div>
+        <div class="field">
+          <label class="field__label" for="st-guru-id">Guru pendamping</label>
+          <select class="input" id="st-guru-id" name="guru_id"></select>
+        </div>
       </div>
+      <p class="field__hint">Wajib. Bila dikosongkan dan asal sekolah sama dengan tepat satu akun guru, guru itu dipilih otomatis.</p>
     </fieldset>
     <div class="field">
       <label class="field__label" for="st-name">Nama lengkap</label>

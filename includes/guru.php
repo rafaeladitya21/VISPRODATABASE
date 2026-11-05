@@ -24,6 +24,24 @@ function wa_url(?string $nomor): ?string
     return 'https://wa.me/' . $d;
 }
 
+/** Nama sekolah dinormalisasi untuk penautan otomatis: huruf kecil, spasi dirapikan */
+function sekolah_norm(?string $s): string
+{
+    return mb_strtolower(trim((string)preg_replace('/\s+/u', ' ', (string)$s)));
+}
+
+/** id guru bila ada TEPAT SATU akun guru dengan sekolah sama (dinormalisasi); selain itu null */
+function guru_by_sekolah(?string $sekolah): ?int
+{
+    $n = sekolah_norm($sekolah);
+    if ($n === '') return null;
+    $st = db()->prepare("SELECT id FROM users WHERE role = 'karyawan' AND tipe = 'guru'
+                         AND lower(btrim(regexp_replace(sekolah::text, '\s+', ' ', 'g'))) = ?");
+    $st->execute([$n]);
+    $ids = $st->fetchAll(PDO::FETCH_COLUMN);
+    return count($ids) === 1 ? (int)$ids[0] : null;
+}
+
 /** Data akun guru (null bila bukan guru) */
 function guru_row(int $id): ?array
 {
