@@ -145,13 +145,6 @@ function intern_row(int $userId): ?array
     ];
 }
 
-/** Guru pendamping untuk filter Admin: [{id, name, sekolah}] */
-function guru_options(): array
-{
-    return array_map(fn($r) => ['id' => (int)$r['id'], 'name' => $r['name'], 'sekolah' => $r['sekolah']],
-        db()->query("SELECT id, name, sekolah FROM users WHERE role = 'karyawan' AND tipe = 'guru' ORDER BY name")->fetchAll());
-}
-
 /** Semua intern aktif (untuk filter & ringkasan admin) */
 function interns_all(bool $activeOnly = true): array
 {
@@ -541,9 +534,7 @@ function absensi_data(array $q): array
     $uid = (int)($q['user_id'] ?? 0);
     $status = (string)($q['status'] ?? '');
     $lokasiId = (int)($q['lokasi_id'] ?? 0);
-    $guruId = (int)($q['guru_id'] ?? 0);
-    $allInterns = interns_all(false);
-    $interns = $guruId ? array_values(array_filter($allInterns, fn($i) => $i['guru_id'] === $guruId)) : $allInterns;
+    $interns = interns_all(false);
     $ditolak = absen_ditolak_list($from, $to, $uid);
     $rows = [];
     $rekap = [];
@@ -587,11 +578,9 @@ function absensi_data(array $q): array
     return [
         'from' => $from, 'to' => $to, 'bulan' => $bulan, 'bulan_label' => periode_label($bulan), 'alpa_mulai' => alpa_mulai(),
         'rows' => $rows, 'rekap' => $rekap,
-        'ditolak' => array_values(array_filter($ditolak, fn($d) => (!$lokasiId || $d['lokasi_id'] === $lokasiId)
-            && (!$guruId || in_array($d['user_id'], array_column($interns, 'id'), true)))),
+        'ditolak' => array_values(array_filter($ditolak, fn($d) => !$lokasiId || $d['lokasi_id'] === $lokasiId)),
         'lokasi' => lokasi_all(), 'radius' => radius_intern(),
-        'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif'], 'guru_id' => $i['guru_id']], $allInterns),
-        'gurus' => guru_options(),
+        'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif']], $interns),
     ];
 }
 

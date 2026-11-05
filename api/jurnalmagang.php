@@ -1,7 +1,7 @@
 <?php
 /**
  * API Jurnal Magang — ADMIN
- *   GET  [?user_id=][&guru_id=][&from=YYYY-MM-DD][&to=YYYY-MM-DD][&page=N]
+ *   GET  [?user_id=][&from=YYYY-MM-DD][&to=YYYY-MM-DD][&page=N]
  *        → daftar jurnal semua anak magang (terbaru di atas, 10 per halaman) + ringkasan
  *          "belum mengisi jurnal hari ini" + jumlah yang belum dilihat
  *   GET  ?id=12            → detail jurnal; menandai dilihat_at (pertama kali dibuka)
@@ -19,7 +19,6 @@ function jm_list(array $q): array
     $where = ["u.tipe = 'intern'"];
     $args = [];
     if (!empty($q['user_id'])) { $where[] = 'j.user_id = ?'; $args[] = (int)$q['user_id']; }
-    if (!empty($q['guru_id'])) { $where[] = 'u.guru_id = ?'; $args[] = (int)$q['guru_id']; }
     $date = fn($v) => is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) ? $v : null;
     if ($f = $date($q['from'] ?? null)) { $where[] = 'j.tanggal >= ?'; $args[] = $f; }
     if ($t = $date($q['to'] ?? null)) { $where[] = 'j.tanggal <= ?'; $args[] = $t; }
@@ -68,7 +67,7 @@ try {
         if (isset($_GET['id'])) json_response(['ok' => true, 'jurnal' => jm_detail((int)$_GET['id'], true)]);
         $unseen = (int)db()->query("SELECT COUNT(*) FROM jurnal j JOIN users u ON u.id = j.user_id WHERE u.tipe = 'intern' AND j.dilihat_at IS NULL")->fetchColumn();
         json_response(['ok' => true, 'list' => jm_list($_GET), 'belum' => jm_belum(), 'unseen' => $unseen,
-                       'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name']], interns_all(false)), 'gurus' => guru_options()]);
+                       'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name']], interns_all(false))]);
     }
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_error('Metode tidak diizinkan.', 405);

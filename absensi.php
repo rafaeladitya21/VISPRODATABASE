@@ -31,7 +31,6 @@ layout_start('Absensi', 'absensi');
   </div>
   <label class="year-select"><span class="sr-only">Bulan</span><input class="input" type="month" id="ab-bulan"></label>
   <label class="year-select" hidden id="ab-tgl-wrap"><span class="sr-only">Tanggal</span><input class="input" type="date" id="ab-tgl"></label>
-<label><span class="sr-only">Guru pendamping</span><select class="input ab-select" id="ab-guru"><option value="">Semua guru pendamping</option></select></label>
   <label><span class="sr-only">Nama</span><select class="input ab-select" id="ab-user"><option value="">Semua anak magang</option></select></label>
   <label><span class="sr-only">Status</span>
     <select class="input ab-select" id="ab-status">
