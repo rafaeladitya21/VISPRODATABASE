@@ -28,7 +28,7 @@ try {
                        'blocked' => absen_blocked($me, $now['tanggal']), 'perlu_setuju' => $me['setuju_lokasi_at'] === null]);
     }
 
-    if ($method !== 'POST') json_error('Absen tidak bisa diubah atau dihapus. Hubungi Admin.', 403);
+    if ($method !== 'POST') json_error('Absen tidak bisa diubah atau dihapus. Hubungi HR.', 403);
 
     $in = read_json();
     // Jam dari browser tidak pernah dipakai; permintaan yang mencoba mengirim jam ditolak tegas
