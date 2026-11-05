@@ -2414,3 +2414,7 @@ a.jr-chip:hover { border-color: var(--ink); }
   .modal .window__body.pg-editor { grid-template-columns: minmax(0, 1fr); }
   .pg-preview { position: static; }
 }
+/* Pengumuman sebagai bagian halaman Pengaturan */
+#pengumuman { margin-top: 20px; }
+.seg.pg-tabs { margin: 0 20px 12px; }
+.pg-foot { margin: 0; padding: 12px 20px 16px; }
