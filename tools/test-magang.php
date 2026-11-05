@@ -118,6 +118,25 @@ check('Mencurigakan: lompatan > 50 km dalam sehari (Malang → Surabaya)', isset
 $fl = lokasi_flags([['tanggal' => '2026-11-05', 'lat' => -7.9666, 'lng' => 112.6326, 'akurasi' => 12.0],
                     ['tanggal' => '2026-11-05', 'lat' => -7.9670, 'lng' => 112.6330, 'akurasi' => 0.0]]);
 check('Wajar: akurasi tidak selalu 0, tanpa lompatan', [$fl['akurasi_nol'], $fl['lompat']], [false, []]);
+
+echo "\nAbsen di lokasi event (hari H job intern)\n";
+$venue = ['lat' => -7.8710, 'lng' => 112.5260];   // jauh (± 15 km) dari kedua kantor
+$EV = array_merge($K, [['id' => null, 'tx_id' => 61, 'jenis' => 'event', 'event' => 'Closing TPQ', 'nama' => 'lokasi event Closing TPQ',
+                        'aktif' => true] + $venue]);
+[$la, $ln] = $north($venue, 50);
+$c = lokasi_cek($EV, $la, $ln, 10, 100);
+check('Tes 5: 50 m dari venue → diterima "Di lokasi event Closing TPQ · 50 m"',
+      [$c['hasil'], $c['kantor']['nama'], $c['jarak_label'], $c['kantor']['tx_id']], ['ok', 'lokasi event Closing TPQ', '50 m', 61]);
+[$la, $ln] = $north($venue, 300);
+$c = lokasi_cek($EV, $la, $ln, 10, 100) + ['ada_event' => true];
+check('Tes 5: 300 m dari venue & jauh dari kantor → ditolak', [$c['hasil'], $c['jarak']], ['ditolak', 300]);
+check('Tes 5: pesan menyebut lokasi event', lokasi_pesan($c),
+      'Absen ditolak. Kamu berada 300 m dari lokasi event Closing TPQ. Absen hanya bisa dilakukan dalam radius 100 m dari kantor atau lokasi event hari ini.');
+[$la, $ln] = $north($K[0], 40);
+check('Hari H: kantor tetap diterima', lokasi_cek($EV, $la, $ln, 10, 100)['kantor']['nama'], 'Kantor 1');
+[$la, $ln] = $north($venue, 50);
+check('Tanpa job / tanpa koordinat event: 50 m dari venue → ditolak (aturan kantor)', lokasi_cek($K, $la, $ln, 10, 100)['hasil'], 'ditolak');
+
 check('Link Maps hanya domain Google yang di-follow', [maps_host_ok('https://share.google/x'), maps_host_ok('https://maps.app.goo.gl/x'), maps_host_ok('http://169.254.169.254/'), maps_host_ok('https://evil.com/google.com')], [true, true, false, false]);
 
 if (in_array('--db', $argv, true)) {

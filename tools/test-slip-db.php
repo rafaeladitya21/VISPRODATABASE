@@ -9,6 +9,7 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 require_once __DIR__ . '/../includes/slip.php';
 require_once __DIR__ . '/../includes/tx.php';
+require_once __DIR__ . '/../includes/magang.php';
 
 $fails = 0;
 function check(string $label, mixed $got, mixed $want): void
@@ -262,6 +263,50 @@ try {
     tx_save((int)$tx, $full + ['customer_id' => null]);
     check('Simpan transaksi: crew baru tertaut ke akunnya', array_column(kw_jobs($other), 'event'), ['BLIMBING']);
     check('Simpan transaksi: tautan lama tetap', array_column(kw_jobs($uid), 'event'), ['BLIMBING']);
+
+    // --- Jadwal Saya lewat user_id (semua tipe akun) ---
+    echo "\nJadwal Saya (user_id)\n";
+    $intern = (int)$pdo->query("INSERT INTO users (name, email, password_hash, role, tipe) VALUES ('Magang Uji', 'test-intern@example.invalid', 'x', 'karyawan', 'intern') RETURNING id")->fetchColumn();
+    $free = (int)$pdo->query("INSERT INTO users (name, email, password_hash, role, tipe) VALUES ('Freelance Uji', 'test-free@example.invalid', 'x', 'karyawan', 'freelance') RETURNING id")->fetchColumn();
+    $d1 = (int)$pdo->query("INSERT INTO transactions (invoice_no, event_name, event_date, status) VALUES ('TEST-0101', 'TITI', CURRENT_DATE + 9, 'Draft') RETURNING id")->fetchColumn();
+    $base = tx_full($d1);
+    $base['crew'] = [
+        ['name' => 'apa saja', 'role' => 'Editor', 'honor' => 150000, 'user_id' => $uid],          // pilih akun (nama ikut akun)
+        ['name' => 'Freelance Uji', 'role' => 'Kameramen', 'honor' => 400000, 'user_id' => $free],
+        ['name' => 'Magang Uji', 'role' => 'Runner', 'honor' => 0, 'user_id' => $intern],
+        ['name' => 'Pak Tanpa Akun', 'role' => 'Runner', 'honor' => 50000, 'user_id' => null],    // diketik bebas
+    ];
+    $saved = tx_save($d1, $base + ['customer_id' => null]);
+    check('Tes 1: crew tersimpan dengan user_id + nama mengikuti akun',
+        array_map(fn($c) => [$c['name'], $c['user_id']], $saved['crew']),
+        [['ANDHIKA SKYRU', $uid], ['Freelance Uji', $free], ['Magang Uji', $intern], ['Pak Tanpa Akun', null]]);
+    $j = array_values(array_filter(jadwal_saya($uid, true), fn($x) => $x['id'] === $d1))[0] ?? null;
+    check('Tes 2/8: Draft muncul di Jadwal Saya in-house, role Editor, honor sendiri, badge draft',
+        [$j['tugas'] ?? null, $j['honor'] ?? null, $j['draft'] ?? null, $j['state'] ?? null], ['Editor', 150000, true, 'mendatang']);
+    check('Draft tidak masuk slip (kw_jobs)', in_array($d1, array_column(kw_jobs($uid), 'id'), true), false);
+    $jf = array_values(array_filter(jadwal_saya($free, true), fn($x) => $x['id'] === $d1))[0] ?? [];
+    check('Tes 3: freelance melihat honor sendiri saja (rekan tanpa honor)',
+        [$jf['honor'] ?? null, array_map(fn($t) => array_keys($t), $jf['team'] ?? [])[0] ?? null], [400000, ['name', 'role']]);
+    $ji = array_values(array_filter(jadwal_saya($intern, false), fn($x) => $x['id'] === $d1))[0] ?? [];
+    check('Tes 4: intern melihat job tanpa honor', [$ji['tugas'] ?? null, array_key_exists('honor', $ji)], ['Runner', false]);
+    check('Tes 4: job berikutnya intern', job_berikutnya(jadwal_saya($intern, false))['id'] ?? null, $d1);
+    $pdo->prepare("UPDATE users SET name = 'Nama Baru Sekali' WHERE id = ?")->execute([$uid]);
+    check('Tes 6: ganti nama akun → job tetap muncul', in_array($d1, array_column(jadwal_saya($uid, true), 'id'), true), true);
+    check('Tes 6: form menampilkan nama akun terbaru', tx_full($d1)['crew'][0]['name'], 'Nama Baru Sekali');
+    $undated = (int)$pdo->query("INSERT INTO transactions (invoice_no, event_name, status) VALUES ('TEST-0102', 'TANPA TANGGAL', 'Confirmed') RETURNING id")->fetchColumn();
+    $batal = (int)$pdo->query("INSERT INTO transactions (invoice_no, event_name, event_date, status) VALUES ('TEST-0103', 'BATAL', CURRENT_DATE + 3, 'Batal') RETURNING id")->fetchColumn();
+    $pdo->exec("INSERT INTO transaction_crew (transaction_id, name, role, user_id) VALUES ($undated, 'x', 'Editor', $uid), ($batal, 'x', 'Editor', $uid)");
+    $byId = array_column(jadwal_saya($uid, true), 'state', 'id');
+    check('Tes 8: transaksi tanpa tanggal → "Belum ada tanggal"', $byId[$undated] ?? null, 'tanpa_tanggal');
+    check('Transaksi Batal tidak ditampilkan', isset($byId[$batal]), false);
+
+    // Koordinat lokasi event + absen intern di venue (titik event jadi lokasi absen hari H)
+    $base = tx_full($d1);
+    $saved = tx_save($d1, ['event_lat' => -7.871, 'event_lng' => 112.526, 'event_date' => date('Y-m-d')] + $base + ['customer_id' => null]);
+    check('Koordinat event tersimpan', [$saved['event_lat'], $saved['event_lng']], [-7.871, 112.526]);
+    $ev = intern_event_hari_ini($intern, date('Y-m-d'));
+    check('Tes 5: intern punya titik lokasi event hari ini', [count($ev), $ev[0]['tx_id'] ?? null, $ev[0]['nama'] ?? null], [1, $d1, 'lokasi event TITI']);
+    check('Koordinat dikosongkan → NULL', tx_save($d1, ['event_lat' => null, 'event_lng' => null] + tx_full($d1) + ['customer_id' => null])['event_lat'], null);
 } finally {
     $pdo->rollBack();
     echo "\n(ROLLBACK — tidak ada data uji yang tersimpan)\n";

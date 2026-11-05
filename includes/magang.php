@@ -12,6 +12,8 @@
  *   - Hari kerja yang sudah lewat tanpa catatan dihitung Alpa (tanpa keterangan).
  *   - Koreksi hanya oleh Admin, wajib alasan, dicatat di log_aktivitas.
  *   - LOKASI: absen hanya sah dalam radius kantor terdekat (includes/lokasi.php, dicek di server).
+ *     Hari H job (intern tercantum sebagai crew & transaksi punya koordinat lokasi event): radius yang
+ *     sama dari titik lokasi event juga diterima — termasuk bila hari H jatuh di Sabtu / Minggu.
  *
  * JURNAL: satu per hari. Intern hanya bisa membuat / mengubah jurnal HARI INI (tanggal server,
  *   sampai 23.59) di dalam periode magang; hari sebelumnya read-only. Admin bisa melihat & berkomentar.
@@ -160,9 +162,15 @@ function absen_lokasi(array $r, string $p): ?array
     $lat = (float)$r[$p . '_lat'];
     $lng = (float)$r[$p . '_lng'];
     $jarak = $r[$p . '_jarak_m'] === null ? null : (int)$r[$p . '_jarak_m'];
+    $txId = ($r[$p . '_tx_id'] ?? null) === null ? null : (int)$r[$p . '_tx_id'];
+    $nama = $txId !== null
+        ? 'lokasi event ' . ($r[$p . '_event_nama'] ?? '')
+        : ($r[$p . '_lokasi_nama'] ?? ($r[$p . '_lokasi_id'] === null ? 'Lokasi dihapus' : 'Kantor dihapus'));
     return [
         'lokasi_id' => $r[$p . '_lokasi_id'] === null ? null : (int)$r[$p . '_lokasi_id'],
-        'nama' => $r[$p . '_lokasi_nama'] ?? 'Kantor dihapus',
+        'tx_id' => $txId,
+        'jenis' => $txId !== null ? 'event' : 'kantor',
+        'nama' => $nama,
         'jarak' => $jarak, 'jarak_label' => $jarak === null ? '—' : jarak_label($jarak),
         'lat' => $lat, 'lng' => $lng,
         'akurasi' => $r[$p . '_akurasi_m'] === null ? null : (float)$r[$p . '_akurasi_m'],
@@ -186,11 +194,15 @@ function absen_format(array $r): array
 /** Catatan absen [tanggal => baris] untuk rentang tanggal */
 function absen_map(int $userId, string $from, string $to): array
 {
-    $st = db()->prepare('SELECT a.*, lm.nama AS masuk_lokasi_nama, lp.nama AS pulang_lokasi_nama
+    $st = db()->prepare("SELECT a.*, lm.nama AS masuk_lokasi_nama, lp.nama AS pulang_lokasi_nama,
+                                COALESCE(NULLIF(btrim(tm.event_name::text), ''), tm.invoice_no::text) AS masuk_event_nama,
+                                COALESCE(NULLIF(btrim(tp.event_name::text), ''), tp.invoice_no::text) AS pulang_event_nama
                          FROM absensi a
                          LEFT JOIN lokasi_absen lm ON lm.id = a.masuk_lokasi_id
                          LEFT JOIN lokasi_absen lp ON lp.id = a.pulang_lokasi_id
-                         WHERE a.user_id = ? AND a.tanggal BETWEEN ? AND ? ORDER BY a.tanggal');
+                         LEFT JOIN transactions tm ON tm.id = a.masuk_tx_id
+                         LEFT JOIN transactions tp ON tp.id = a.pulang_tx_id
+                         WHERE a.user_id = ? AND a.tanggal BETWEEN ? AND ? ORDER BY a.tanggal");
     $st->execute([$userId, $from, $to]);
     $out = [];
     foreach ($st as $r) $out[$r['tanggal']] = absen_format($r);
@@ -227,7 +239,9 @@ function absen_rows(array $intern, string $from, string $to, ?string $today = nu
     if ($from > $to) return [];
     $map = absen_map($intern['id'], $from, $to);
     $rows = [];
-    foreach (array_reverse(workdays($from, $to)) as $day) {
+    $days = array_unique(array_merge(workdays($from, $to), array_keys($map)));   // + Sabtu/Minggu yang ada absennya (job event)
+    sort($days);
+    foreach (array_reverse($days) as $day) {
         [$st, $lbl] = $day === $today ? ['belum', 'Belum absen'] : ($day >= $alpaMulai ? ['alpa', 'Alpa'] : ['tidak_dihitung', 'Tidak dihitung']);
         $rows[] = $map[$day] ?? [
             'id' => null, 'tanggal' => $day, 'jam_masuk' => null, 'jam_pulang' => null,
@@ -259,14 +273,36 @@ function client_ip(): string
 }
 function client_ua(): string { return mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 300); }
 
-/** Alasan absen ditolak hari ini (null = boleh) */
+/** Alasan absen ditolak hari ini (null = boleh). Sabtu/Minggu boleh bila hari itu ada job di lokasi event. */
 function absen_blocked(array $intern, string $today): ?string
 {
     if (!$intern['mulai'] || !$intern['selesai']) return 'Periode magang belum diatur Admin.';
     if ($today < $intern['mulai']) return 'Magang dimulai ' . tgl_id($intern['mulai'], false) . '.';
     if ($today > $intern['selesai']) return 'Periode magang sudah berakhir.';
-    if (!is_workday($today)) return 'Hari ini bukan hari kerja.';
+    if (!is_workday($today) && !intern_event_hari_ini($intern['id'], $today)) return 'Hari ini bukan hari kerja.';
     return null;
+}
+
+/**
+ * Job intern pada $tanggal (transaksi bukan Batal, intern tercantum sebagai crew lewat user_id) yang
+ * punya koordinat lokasi event → titik absen tambahan, bentuknya sama dengan kantor (untuk lokasi_cek).
+ */
+function intern_event_hari_ini(int $userId, string $tanggal): array
+{
+    static $cache = [];
+    $key = $userId . '|' . $tanggal;
+    if (isset($cache[$key])) return $cache[$key];
+    $st = db()->prepare("SELECT DISTINCT t.id, COALESCE(NULLIF(btrim(t.event_name::text), ''), t.invoice_no::text) AS nama,
+                                t.event_lat, t.event_lng
+                         FROM transactions t JOIN transaction_crew tc ON tc.transaction_id = t.id AND tc.user_id = ?
+                         WHERE t.event_date = ? AND t.status <> 'Batal' AND t.event_lat IS NOT NULL AND t.event_lng IS NOT NULL
+                         ORDER BY t.id");
+    $st->execute([$userId, $tanggal]);
+    return $cache[$key] = array_map(fn($r) => [
+        'id' => null, 'tx_id' => (int)$r['id'], 'jenis' => 'event', 'event' => $r['nama'],
+        'nama' => 'lokasi event ' . $r['nama'], 'aktif' => true,
+        'lat' => (float)$r['event_lat'], 'lng' => (float)$r['event_lng'],
+    ], $st->fetchAll());
 }
 
 /** Kenapa absen masuk / pulang tidak mungkin sekarang (berdasarkan catatan hari ini), null = boleh */
@@ -304,7 +340,9 @@ function absen_catat(array $intern, string $aksi, array $loc, string $ip = '', s
     if (!koordinat_ok($lat, $lng) || $acc === null || !is_finite($acc) || $acc < 0) {
         throw new AbsenLokasiException('Lokasi tidak terbaca. Coba lagi.', ['kode' => 'tidak_valid']);
     }
-    $cek = lokasi_cek(lokasi_all(true), $lat, $lng, $acc, radius_intern());
+    $events = intern_event_hari_ini($intern['id'], $today);
+    $cek = lokasi_cek(array_merge(lokasi_all(true), $events), $lat, $lng, $acc, radius_intern());
+    $cek['ada_event'] = (bool)$events;
     if ($cek['hasil'] !== 'ok') {
         if ($cek['hasil'] === 'ditolak') absen_ditolak_catat($intern['id'], $aksi, $lat, $lng, $acc, $cek, $ip, $ua);
         throw new AbsenLokasiException(lokasi_pesan($cek), [
@@ -312,14 +350,14 @@ function absen_catat(array $intern, string $aksi, array $loc, string $ip = '', s
             'kantor' => $cek['kantor']['nama'] ?? null, 'radius' => $cek['radius'], 'akurasi' => $cek['akurasi'],
         ]);
     }
-    $locArgs = [$lat, $lng, $acc, $cek['jarak'], $cek['kantor']['id']];
+    $locArgs = [$lat, $lng, $acc, $cek['jarak'], $cek['kantor']['id'], $cek['kantor']['tx_id'] ?? null];
 
     if ($aksi === 'masuk') {
         // Status dihitung di database dari LOCALTIME yang sama dengan yang disimpan (aturan = absen_status_masuk)
         $st = $pdo->prepare("INSERT INTO absensi (user_id, tanggal, jam_masuk, status_masuk, status_hari, ip_masuk, ua_masuk,
-                                                  masuk_lat, masuk_lng, masuk_akurasi_m, masuk_jarak_m, masuk_lokasi_id)
+                                                  masuk_lat, masuk_lng, masuk_akurasi_m, masuk_jarak_m, masuk_lokasi_id, masuk_tx_id)
                              SELECT ?, CURRENT_DATE, t, CASE WHEN late THEN 'terlambat' ELSE 'tepat' END,
-                                    CASE WHEN late THEN 'terlambat' ELSE 'hadir' END, ?, ?, ?, ?, ?, ?, ?
+                                    CASE WHEN late THEN 'terlambat' ELSE 'hadir' END, ?, ?, ?, ?, ?, ?, ?, ?
                              FROM (SELECT LOCALTIME(0) AS t, to_char(LOCALTIME(0), 'HH24:MI') > ? AS late) x
                              ON CONFLICT (user_id, tanggal) DO NOTHING");
         $st->execute([$intern['id'], $ip, $ua, ...$locArgs, $intern['jam_masuk']]);
@@ -328,7 +366,7 @@ function absen_catat(array $intern, string $aksi, array $loc, string $ip = '', s
         $st = $pdo->prepare("UPDATE absensi SET jam_pulang = LOCALTIME(0),
                                  status_pulang = CASE WHEN to_char(LOCALTIME(0), 'HH24:MI') < ? THEN 'awal' ELSE 'sesuai' END,
                                  ip_pulang = ?, ua_pulang = ?,
-                                 pulang_lat = ?, pulang_lng = ?, pulang_akurasi_m = ?, pulang_jarak_m = ?, pulang_lokasi_id = ?
+                                 pulang_lat = ?, pulang_lng = ?, pulang_akurasi_m = ?, pulang_jarak_m = ?, pulang_lokasi_id = ?, pulang_tx_id = ?
                              WHERE user_id = ? AND tanggal = CURRENT_DATE AND jam_masuk IS NOT NULL AND jam_pulang IS NULL");
         $st->execute([$intern['jam_pulang'], $ip, $ua, ...$locArgs, $intern['id']]);
     }

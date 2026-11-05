@@ -15,7 +15,8 @@ $now = periode_now();
 [$monthFrom, $monthTo] = periode_bounds($now);
 
 try {
-    $jobs = kw_jobs($me['id'], $monthFrom);
+    // Sumber sama dengan Jadwal Saya (jadwal_saya): Draft ikut, ditandai "Draft / belum pasti"
+    $jobs = jadwal_saya($me['id'], true);
     $slipNow = slip_month($me, $now);   // semua slip bulan ini (dibayar + berjalan)
     $prevPeriode = periode_shift($now, -1);
     $prevSlips = slips_of($me['id'], $prevPeriode);
@@ -31,8 +32,8 @@ try {
     exit('Gagal mengakses database.');
 }
 
-$upcoming = array_values(array_filter($jobs, fn($j) => $j['state'] !== 'selesai'));
-$next = $upcoming[0] ?? null;
+$upcoming = array_values(array_filter($jobs, fn($j) => in_array($j['state'], ['hari_ini', 'mendatang'], true)));
+$next = job_berikutnya($jobs);
 $later = array_slice($upcoming, 1, 4);
 $monthJobs = array_filter($jobs, fn($j) => $j['periode'] === $now);
 $doneCount = count(array_filter($monthJobs, fn($j) => $j['state'] === 'selesai'));
@@ -69,7 +70,7 @@ layout_start('Beranda', 'k-beranda');
     <?php if ($next): ?>
       <div class="kb-next__head">
         <p class="kb-next__label" id="kb-next-title">Job berikutnya</p>
-        <span class="badge kb-next__badge"><?= e(kw_countdown($next['date'], $today)) ?></span>
+        <span class="badge kb-next__badge"><?= e(kw_countdown($next['date'], $today)) ?><?= $next['draft'] ? ' · Draft / belum pasti' : '' ?></span>
       </div>
       <h2 class="kb-next__event"><?= e($next['event']) ?></h2>
       <dl class="kb-next__facts">
@@ -144,7 +145,7 @@ layout_start('Beranda', 'k-beranda');
           <span class="upc__date"><span><?= e(mb_substr(ID_BULAN[(int)date('n', $ts) - 1], 0, 3)) ?></span><strong class="num"><?= date('j', $ts) ?></strong></span>
           <span class="upc__txt">
             <strong><?= e($j['event']) ?></strong>
-            <small><?= e(implode(' · ', array_filter([ID_HARI[(int)date('w', $ts)], $j['location'], $j['tugas']]))) ?></small>
+            <small><?= e(implode(' · ', array_filter([ID_HARI[(int)date('w', $ts)], $j['location'], $j['tugas'], $j['draft'] ? 'Draft / belum pasti' : null]))) ?></small>
           </span>
           <span class="badge"><?= e(kw_countdown($j['date'], $today)) ?></span>
         </a>

@@ -122,7 +122,8 @@ function lokasi_pesan(array $c): string
 {
     return match ($c['hasil']) {
         'ditolak' => 'Absen ditolak. Kamu berada ' . $c['jarak_label'] . ' dari ' . $c['kantor']['nama']
-                     . '. Absen hanya bisa dilakukan dalam radius ' . $c['radius'] . ' m dari kantor.',
+                     . '. Absen hanya bisa dilakukan dalam radius ' . $c['radius'] . ' m dari kantor'
+                     . (!empty($c['ada_event']) ? ' atau lokasi event hari ini' : '') . '.',
         'akurasi_rendah' => 'Sinyal GPS kurang akurat (±' . $c['akurasi'] . ' m). Aktifkan lokasi presisi, keluar ke dekat jendela, lalu coba lagi.',
         'belum_diatur' => 'Lokasi kantor belum diatur Admin.',
         default => 'Lokasi sesuai.',

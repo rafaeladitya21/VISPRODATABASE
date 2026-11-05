@@ -22,6 +22,15 @@
       init.body = JSON.stringify(opts.body);
     }
     if (opts.signal) init.signal = opts.signal;
+    // opts.timeout (ms): request yang tidak dijawab dalam batas waktu dibatalkan → Error yang jelas
+    var timer = null, timedOut = false;
+    if (opts.timeout && window.AbortController) {
+      var ctl = new AbortController();
+      if (opts.signal) opts.signal.addEventListener('abort', function () { ctl.abort(); });
+      init.signal = ctl.signal;
+      timer = setTimeout(function () { timedOut = true; ctl.abort(); }, opts.timeout);
+    }
+    function done() { if (timer) clearTimeout(timer); }
 
     return fetch(url, init).then(function (r) {
       if (r.status === 401) { window.location.href = 'login.php'; throw new Error('Sesi berakhir.'); }
@@ -35,8 +44,21 @@
           return data;
         });
     }, function (err) {
+      if (timedOut) {
+        var te = new Error('Server tidak merespons dalam ' + Math.round(opts.timeout / 1000) + ' detik.');
+        te.timeout = true;
+        throw te;
+      }
       if (err && err.name === 'AbortError') throw err;
       throw new Error('Server tidak dapat dihubungi.');
+    }).then(function (d) { done(); return d; }, function (e) {
+      done();
+      if (timedOut && !e.timeout) {   // batas waktu habis saat membaca isi respons
+        var te2 = new Error('Server tidak merespons dalam ' + Math.round(opts.timeout / 1000) + ' detik.');
+        te2.timeout = true;
+        throw te2;
+      }
+      throw e;
     });
   };
 

@@ -26,6 +26,7 @@ function sidebar_menu(string $area): array
         return ['MENU' => [
             'm-beranda' => ['Beranda & Absen', 'magang/beranda', 'clock'],
             'm-jurnal'  => ['Jurnal & Tugas',  'magang/jurnal',  'book'],
+            'm-jadwal'  => ['Jadwal Saya',     'magang/jadwal',  'calendar'],
         ]];
     }
     if ($area === 'karyawan') {
@@ -109,7 +110,7 @@ function render_sidebar(string $active, array $user): void
       <div class="sidebar__info">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>
         <?php if ($area === 'magang'): ?>
-        <p><strong>Akses magang.</strong> Anda hanya melihat absen &amp; jurnal milik Anda sendiri.</p>
+        <p><strong>Akses magang.</strong> Anda hanya melihat absen, jurnal &amp; jadwal milik Anda sendiri.</p>
         <?php else: ?>
         <p><strong>Akses karyawan.</strong> Anda hanya melihat jadwal &amp; gaji milik Anda sendiri.</p>
         <?php endif; ?>

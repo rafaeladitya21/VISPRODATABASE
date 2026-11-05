@@ -59,9 +59,16 @@ function tx_full(int $id): ?array
     $st->execute([$id]);
     foreach ($st as $r) if (isset($tr[$r['item_key']])) $tr[$r['item_key']] = (int)$r['amount'];
 
-    $st = db()->prepare('SELECT name, role, honor FROM transaction_crew WHERE transaction_id = ? ORDER BY sort_order, id');
+    // Crew tertaut akun: nama mengikuti nama akun SAAT INI (ganti nama akun tidak memutus tautan)
+    $st = db()->prepare('SELECT COALESCE(u.name, tc.name) AS name, tc.role, tc.honor, tc.user_id, u.tipe AS user_tipe
+        FROM transaction_crew tc LEFT JOIN users u ON u.id = tc.user_id
+        WHERE tc.transaction_id = ? ORDER BY tc.sort_order, tc.id');
     $st->execute([$id]);
-    $crew = array_map(fn($r) => ['name' => $r['name'], 'role' => $r['role'], 'honor' => (int)$r['honor']], $st->fetchAll());
+    $crew = array_map(fn($r) => [
+        'name' => $r['name'], 'role' => $r['role'], 'honor' => (int)$r['honor'],
+        'user_id' => $r['user_id'] === null ? null : (int)$r['user_id'],
+        'user_tipe' => $r['user_tipe'],
+    ], $st->fetchAll());
 
     $st = db()->prepare('SELECT equipment_id, equipment_name, tier, unit_price, qty, days, total
         FROM transaction_equipment WHERE transaction_id = ? ORDER BY sort_order, id');
@@ -92,6 +99,8 @@ function tx_full(int $id): ?array
         'pic'               => $t['pic'],
         'standby_time'      => $hm($t['standby_time']),
         'shareloc'          => $t['shareloc'],
+        'event_lat'         => $t['event_lat'] === null ? null : (float)$t['event_lat'],
+        'event_lng'         => $t['event_lng'] === null ? null : (float)$t['event_lng'],
         'load_in_time'      => $hm($t['load_in_time']),
         'ready_time'        => $hm($t['ready_time']),
         'running_time'      => $hm($t['running_time']),
@@ -149,6 +158,14 @@ function v_date(mixed $v): ?string
     if (!is_string($v) || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m)) return null;
     return checkdate((int)$m[2], (int)$m[3], (int)$m[1]) ? $v : null;
 }
+/** Angka koordinat dari JSON (angka / teks angka) → float terbatas, selain itu null */
+function num_or_null_tx(mixed $v): ?float
+{
+    if (is_string($v)) $v = trim($v);
+    if (!is_int($v) && !is_float($v) && !(is_string($v) && is_numeric($v))) return null;
+    $f = round((float)$v, 7);
+    return is_finite($f) ? $f : null;
+}
 function v_int(mixed $v, int $min, int $max, int $default): int
 {
     if ($v === null || $v === '') return $default;
@@ -182,21 +199,42 @@ function tx_save(int $id, array $in): array
         $totalTransport += $amt;
     }
 
-    // 5. Crew (baris kosong tidak disimpan). Nama yang sama dengan akun karyawan aktif → ditautkan
-    //    (user_id) supaya job muncul di Jadwal Saya; tautan lama untuk nama yang sama dipertahankan.
-    $karyawan = karyawan_name_map();
+    // 5. Crew (baris kosong tidak disimpan). Tautan ke akun lewat user_id (dipilih dari combobox):
+    //    - user_id akun crew yang valid → ditautkan, nama disamakan dengan nama akun;
+    //    - tanpa user_id → nama yang sama persis (dinormalisasi) dengan SATU akun aktif tetap ditautkan,
+    //      tautan lama untuk nama yang sama dipertahankan; selain itu crew "Tanpa akun" (user_id NULL).
+    $accounts = [];
+    foreach ($pdo->query("SELECT id, name FROM users WHERE role = 'karyawan'") as $r) $accounts[(int)$r['id']] = $r['name'];
+    $byName = karyawan_name_map();
     $st = $pdo->prepare('SELECT name, user_id FROM transaction_crew WHERE transaction_id = ? AND user_id IS NOT NULL');
     $st->execute([$id]);
-    foreach ($st as $r) $karyawan[name_key($r['name'])] = (int)$r['user_id'];
+    foreach ($st as $r) $byName[name_key($r['name'])] ??= (int)$r['user_id'];
     $crew = [];
     $totalCrew = 0;
     foreach (array_slice((array)($in['crew'] ?? []), 0, 100) as $row) {
         $name = v_str($row['name'] ?? null, 150);
         $role = v_str($row['role'] ?? null, 100);
         $honor = to_rupiah($row['honor'] ?? 0);
+        $uid = isset($row['user_id']) && is_numeric($row['user_id']) ? (int)$row['user_id'] : null;
+        if ($uid !== null && !isset($accounts[$uid])) $uid = null;
+        if ($uid === null && $name !== null && !array_key_exists('user_id', $row)) $uid = $byName[name_key($name)] ?? null;
+        if ($uid !== null) $name = mb_substr((string)$accounts[$uid], 0, 150);
         if ($name === null && $role === null && $honor === 0) continue;
-        $crew[] = [$name, $role, $honor, $name === null ? null : ($karyawan[name_key($name)] ?? null)];
+        $crew[] = [$name, $role, $honor, $uid];
         $totalCrew += $honor;
+    }
+
+    // Koordinat lokasi event (opsional; dipakai absen intern di venue): keduanya kosong atau keduanya valid
+    $evLat = num_or_null_tx($in['event_lat'] ?? null);
+    $evLng = num_or_null_tx($in['event_lng'] ?? null);
+    if ($evLat === null || $evLng === null || $evLat < -90 || $evLat > 90 || $evLng < -180 || $evLng > 180
+        || ($evLat == 0.0 && $evLng == 0.0)) {
+        $evLat = $evLng = null;
+    }
+    if (!array_key_exists('event_lat', $in) && !array_key_exists('event_lng', $in)) {   // klien lama: titik tidak diubah
+        $st = $pdo->prepare('SELECT event_lat, event_lng FROM transactions WHERE id = ?');
+        $st->execute([$id]);
+        [$evLat, $evLng] = array_map(fn($v) => $v === null ? null : (float)$v, array_values($st->fetch() ?: [null, null]));
     }
 
     // 6. Sewa alat — harga per unit:
@@ -238,7 +276,7 @@ function tx_save(int $id, array $in): array
     try {
         $pdo->prepare('UPDATE transactions SET
                 customer_id = ?, whatsapp = ?, event_name = ?, event_date = ?, location = ?, pic = ?,
-                standby_time = ?, shareloc = ?, load_in_time = ?,
+                standby_time = ?, shareloc = ?, load_in_time = ?, event_lat = ?, event_lng = ?,
                 tech_notes = ?, documentation_url = ?, dress_code = ?,
                 revenue = ?, dp = ?, payment_method = ?, termin_status = ?, status = ?,
                 total_transport = ?, total_crew = ?, total_equipment = ?, total_operational = ?, net_profit = ?,
@@ -253,6 +291,7 @@ function tx_save(int $id, array $in): array
             v_time($in['standby_time'] ?? null),
             v_str($in['shareloc'] ?? null, 500),
             v_time($in['load_in_time'] ?? null),
+            $evLat, $evLng,
             // Jam Ready Alat, Jam Running Event, Jam Loading Out & Status Persiapan sudah dihapus dari form;
             // kolomnya dibiarkan di database (tidak diubah saat menyimpan).
             v_str($in['tech_notes'] ?? null, 5000),

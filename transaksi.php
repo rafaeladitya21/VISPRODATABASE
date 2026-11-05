@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
 require_once __DIR__ . '/includes/tx.php';
+require_once __DIR__ . '/includes/lokasi.php';
 require __DIR__ . '/includes/layout.php';
 
 /** Helper markup: <select> dari daftar opsi */
@@ -147,6 +148,21 @@ layout_start('Transaksi', 'transaksi');
             <label class="field__label" for="f-shareloc">Shareloc Lokasi</label>
             <input class="input" id="f-shareloc" data-f="shareloc" type="url" placeholder="https://maps…" maxlength="500">
           </div>
+          <div class="field span2 evloc" id="evloc">
+            <label class="field__label" for="f-evloc">Koordinat lokasi event <span class="muted">(opsional)</span></label>
+            <div class="evloc__row">
+              <input class="input" id="f-evloc" placeholder="-7.9666, 112.6326 atau link Google Maps" autocomplete="off" data-noform>
+              <button class="btn btn--secondary" type="button" id="evloc-parse"><span class="spinner btn__spinner" aria-hidden="true"></span><span>Pakai</span></button>
+            </div>
+            <div id="evloc-msg" aria-live="polite" hidden></div>
+            <div class="evloc__point" id="evloc-point" hidden>
+              <span class="evloc__coord num" id="evloc-coord"></span>
+              <a class="evloc__link" id="evloc-maps" target="_blank" rel="noopener">Buka di Maps</a>
+              <button class="evloc__link" type="button" id="evloc-clear">Hapus titik</button>
+            </div>
+            <div class="lk-map evloc__map" id="evloc-map" role="application" aria-label="Peta lokasi event — geser pin atau klik peta untuk memindahkan titik" hidden></div>
+            <p class="field__hint">Intern yang bertugas di event ini bisa absen dalam radius <?= radius_intern() ?> m dari titik ini pada hari H (selain di kantor).</p>
+          </div>
           <div class="field">
             <label class="field__label" for="f-loadin">Jam Loading In</label>
             <input class="input" id="f-loadin" data-f="load_in_time" type="time">
@@ -191,12 +207,8 @@ layout_start('Transaksi', 'transaksi');
             <tbody id="crew-body"></tbody>
           </table>
         </div>
-        <!-- Saran nama crew dari akun karyawan: nama yang sama → job tampil di Jadwal Saya karyawan -->
-        <datalist id="karyawan-names">
-          <?php foreach (db()->query("SELECT name, jabatan FROM users WHERE role = 'karyawan' AND tipe <> 'intern' AND aktif = 1 ORDER BY name") as $k): ?>
-            <option value="<?= e($k['name']) ?>"><?= e($k['jabatan'] ?: 'Karyawan') ?></option>
-          <?php endforeach; ?>
-        </datalist>
+        <p class="card__sub crew-hint">Pilih nama dari daftar akun (In-house, Freelance, Intern) supaya job muncul di <strong>Jadwal Saya</strong> orang tersebut.
+          Nama yang diketik bebas tetap tersimpan sebagai crew <em>tanpa akun</em>.</p>
         <div class="rowfoot">
           <button class="btn btn--dashed" type="button" id="crew-add">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah crew
@@ -354,4 +366,4 @@ layout_start('Transaksi', 'transaksi');
     </div>
   </div>
 </dialog>
-<?php layout_end(['transaksi.js']); ?>
+<?php layout_end(['transaksi.js'], ['crew_accounts' => crew_accounts(), 'radius_event' => radius_intern()]); ?>

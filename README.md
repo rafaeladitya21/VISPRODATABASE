@@ -111,9 +111,14 @@ Total sewa        = Harga sewa × Qty × Day
   (halaman → dialihkan ke beranda, API → 403). Data akun dibaca ulang tiap request: akun yang dinonaktifkan
   langsung keluar.
 - Semua data karyawan difilter dengan `user_id` dari session (`api/myslip.php`, `karyawan/*.php`).
-- **Jadwal karyawan** = transaksi **Confirmed/Selesai** yang mencantumkan karyawan sebagai crew (form Transaksi
-  bagian 5, kolom nama menyarankan nama akun). Nama crew yang sama dengan nama akun otomatis ditautkan
-  (`transaction_crew.user_id`). Transaksi Draft tidak tampil ke karyawan.
+- **Jadwal Saya** (karyawan & magang) = transaksi yang mencantumkan akun sebagai crew lewat
+  `transaction_crew.user_id` (BUKAN teks nama — ganti nama akun tidak memutus tautan). Form Transaksi bagian 5:
+  Nama Crew = combobox akun aktif (In-house, Freelance, Intern); nama diketik bebas = crew "Tanpa akun"
+  (tidak muncul di Jadwal Saya), kecuali sama persis dengan nama SATU akun. Sumber tunggal `crew_jobs()` di
+  `includes/karyawan.php`: `jadwal_saya()` untuk Jadwal Saya & kartu Job berikutnya (semua kecuali Batal; Draft
+  diberi badge "Draft / belum pasti"; tanpa tanggal → bagian "Belum ada tanggal"; honor hanya milik sendiri,
+  magang tanpa honor) dan `kw_jobs()` untuk slip (hanya Confirmed/Selesai).
+  Baris crew lama: `tools/backfill-crew-user.php` (laporan) lalu `--commit` (isi user_id bila tepat 1 akun cocok).
 - **Tipe karyawan** (`users.tipe`): **In-house** (gaji pokok + fee per job) atau **Freelance** (fee per job saja,
   gaji pokok disimpan 0). Tipe & gaji pokok disalin ke slip (`tipe_snapshot`, `gaji_pokok_snapshot`).
 - **Tarif per tipe** (`tarif_output.tipe`, `satuan` = hari / project / jam): Pengaturan punya tab Tarif In-house dan
@@ -138,7 +143,7 @@ Total sewa        = Harga sewa × Qty × Day
 ## Anak magang (tipe Intern)
 
 - `users.tipe = 'intern'` (dibuat di Akun Karyawan: divisi, periode magang wajib, jam masuk/pulang, mentor).
-  Masuk ke `/magang/beranda`; menu hanya **Beranda & Absen** dan **Jurnal & Tugas**. Area `magang` di
+  Masuk ke `/magang/beranda`; menu hanya **Beranda & Absen**, **Jurnal & Tugas**, dan **Jadwal Saya** (`/magang/jadwal`). Area `magang` di
   `auth-check.php` → semua halaman/API admin & karyawan membalas 403 untuk intern (dan sebaliknya).
 - **Lokasi absen** (`includes/lokasi.php`, migrasi 8): absen intern wajib dalam radius kantor. Browser hanya
   mengirim `lat, lng, akurasi` (GPS saat tombol ditekan, tanpa pelacakan); server menghitung jarak Haversine ke
@@ -149,6 +154,10 @@ Total sewa        = Harga sewa × Qty × Day
   Google Maps — link pendek di-follow di server, hanya domain Google; peta Leaflet + OSM, pin digeser, radius),
   banner di Ringkasan bila kantor aktif belum punya titik. Absensi: kolom Lokasi, filter kantor, peta detail,
   tab **Percobaan ditolak**, penanda "Mencurigakan" (akurasi selalu 0 / lompatan > 50 km sehari — hanya peringatan).
+  **Lokasi event** (migrasi 9): transaksi boleh punya titik `transactions.event_lat/lng` (form Transaksi bagian 2,
+  parser sama). Pada hari H, intern yang tercantum sebagai crew juga diterima dalam radius yang sama dari titik itu
+  (termasuk Sabtu/Minggu) → `absensi.*_tx_id`, tampil "Di lokasi event {nama event} · {jarak}". Tanpa titik event →
+  aturan kantor; salah absen dikoreksi Admin (alasan wajib + log).
 - **Absen** (`api/absen.php`): hanya `{aksi:'masuk'|'pulang', lat, lng, akurasi}`; jam = jam server database (Asia/Jakarta),
   jam dari browser ditolak 403. Sekali masuk & sekali pulang per hari, hanya hari kerja (Sen–Jum) dalam periode
   magang. Terlambat = jam:menit lewat jam masuk; pulang awal = sebelum jam pulang. IP & user-agent disimpan.

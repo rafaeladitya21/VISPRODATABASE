@@ -200,6 +200,9 @@
     syncMethod();
     syncTermin();
     conflictCheck();
+    setEvPoint(tx.event_lat, tx.event_lng, { silent: true, pan: true });
+    $('#f-evloc').value = '';
+    evMsg.hidden = true;
     // Transport
     $$('[data-transport]', form).forEach(function (el) { MH.setMoney(el, tx.transport[el.dataset.transport]); });
 
@@ -285,27 +288,192 @@
     }).join('');
   }
 
+  /* ---------------------------------------------------------
+     Nama Crew = combobox akun (In-house, Freelance, Intern).
+     Pilih akun → tr.dataset.userId terisi (job muncul di Jadwal Saya akun itu).
+     Ketik bebas → crew "Tanpa akun" (user_id kosong), kecuali namanya sama persis dengan SATU akun.
+     --------------------------------------------------------- */
+  var ACCOUNTS = MH_DATA.crew_accounts || [];
+  var TIPE_LABEL = { inhouse: 'In-house', freelance: 'Freelance', intern: 'Intern' };
+  var accById = {}, accByName = {};
+  ACCOUNTS.forEach(function (a) {
+    accById[a.id] = a;
+    var k = nameKey(a.name);
+    accByName[k] = k in accByName ? null : a;   // nama dipakai > 1 akun → tidak ditautkan otomatis
+  });
+
+  function initials(name) {
+    return String(name || '').trim().split(/\s+/).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('');
+  }
+  function accMeta(a) { return [a.jabatan, a.divisi].filter(Boolean).join(' · '); }
+
+  /** Tampilan tautan baris: avatar inisial (tertaut) / "Tanpa akun" (nama diketik bebas) / kosong */
+  function syncCrewLink(tr) {
+    var uid = Number(tr.dataset.userId) || 0, a = uid ? accById[uid] : null;
+    var tipe = a ? a.tipe : (tr.dataset.userTipe || '');
+    var name = $('[data-c="name"]', tr).value.trim();
+    var av = $('[data-c-av]', tr), tag = $('[data-c-tag]', tr), honor = $('[data-c="honor"]', tr);
+    av.hidden = !uid;
+    av.textContent = uid ? initials(a ? a.name : name) : '';
+    av.title = uid ? (a ? a.name + ' · ' + (TIPE_LABEL[a.tipe] || '') : 'Akun tertaut') : '';
+    if (uid && tipe) {
+      tag.hidden = false;
+      tag.className = 'crew-tag crew-tag--' + tipe;
+      tag.textContent = TIPE_LABEL[tipe] || tipe;
+      tag.title = tipe === 'intern' ? 'Intern tidak punya slip gaji — Honor + UM boleh 0' : 'Tertaut ke akun · muncul di Jadwal Saya';
+    } else if (!uid && name) {
+      tag.hidden = false;
+      tag.className = 'crew-tag crew-tag--none';
+      tag.textContent = 'Tanpa akun';
+      tag.title = 'Tidak akan muncul di Jadwal Saya';
+    } else {
+      tag.hidden = true;
+    }
+    honor.placeholder = tipe === 'intern' ? '0 (intern)' : '0';
+  }
+
+  function setCrewAccount(tr, a) {
+    if (a) {
+      tr.dataset.userId = a.id;
+      tr.dataset.userTipe = a.tipe;
+      $('[data-c="name"]', tr).value = a.name;
+    } else {
+      delete tr.dataset.userId;
+      delete tr.dataset.userTipe;
+    }
+    syncCrewLink(tr);
+  }
+
   function addCrewRow(c) {
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td class="c muted num" data-no></td>' +
-      '<td><input class="input" data-c="name" maxlength="150" list="karyawan-names" autocomplete="off" aria-label="Nama crew"></td>' +
+      '<td><div class="crew-who"><span class="crew__av crew-who__av" data-c-av hidden aria-hidden="true"></span>' +
+        '<input class="input" data-c="name" maxlength="150" autocomplete="off" data-noac readonly placeholder="Cari akun atau ketik nama…" aria-label="Nama crew">' +
+        '<span class="crew-tag" data-c-tag hidden></span></div></td>' +
       '<td><select class="input" data-c="role" aria-label="Role">' + roleOptions(c.role) + '</select></td>' +
       '<td><input class="input input--money" data-c="honor" placeholder="0" aria-label="Honor + UM"></td>' +
       '<td><button type="button" class="btn-icon" data-del aria-label="Hapus baris crew">' + MH.icon('trash') + '</button></td>';
     $('[data-c="name"]', tr).value = c.name || '';
+    if (c.user_id) { tr.dataset.userId = c.user_id; if (c.user_tipe) tr.dataset.userTipe = c.user_tipe; }
     var h = $('[data-c="honor"]', tr);
     MH.moneyInput(h);
     MH.setMoney(h, c.honor);
     crewBody.appendChild(tr);
     renumber(crewBody);
+    syncCrewLink(tr);
     return tr;
   }
+
+  MH.comboDelegate(crewBody, {
+    match: '[data-c="name"]',
+    source: function () { return ACCOUNTS; },
+    filter: function (a, q) { return (a.name + ' ' + (a.jabatan || '') + ' ' + (a.divisi || '') + ' ' + (TIPE_LABEL[a.tipe] || '')).toLowerCase().indexOf(q) !== -1; },
+    render: function (a) {
+      return '<span class="crew__av combo__av" aria-hidden="true">' + esc(initials(a.name)) + '</span>' +
+             '<span class="combo__name">' + esc(a.name) + (accMeta(a) ? '<small class="combo__sub">' + esc(accMeta(a)) + '</small>' : '') + '</span>' +
+             '<span class="crew-tag crew-tag--' + esc(a.tipe) + '">' + esc(TIPE_LABEL[a.tipe] || a.tipe) + '</span>';
+    },
+    minWidth: 320,
+    onSelect: function (a, input) {
+      var tr = input.closest('tr');
+      setCrewAccount(tr, a);
+      changedForm();
+    }
+  });
+
+  // Mengetik: tautan lepas bila nama tidak lagi sama dengan akun tertaut; nama sama persis dengan satu akun → tertaut
+  crewBody.addEventListener('input', function (e) {
+    if (!e.target.matches('[data-c="name"]')) return;
+    var tr = e.target.closest('tr'), k = nameKey(e.target.value);
+    var cur = accById[Number(tr.dataset.userId) || 0];
+    if (cur && nameKey(cur.name) === k) return;
+    var hit = k ? accByName[k] : null;
+    if (hit) { tr.dataset.userId = hit.id; tr.dataset.userTipe = hit.tipe; }
+    else if (tr.dataset.userId && (!cur || nameKey(cur.name) !== k)) { delete tr.dataset.userId; delete tr.dataset.userTipe; }
+    syncCrewLink(tr);
+  });
 
   $('#crew-add').addEventListener('click', function () {
     var tr = addCrewRow({});
     $('input', tr).focus();
   });
+
+  /* =========================================================
+     2b. Koordinat lokasi event (opsional) — tempel koordinat / link Google Maps
+         (diparse di server, parser sama dengan Pengaturan → Lokasi Absen) + peta pin.
+         Dipakai untuk absen intern di lokasi event pada hari H.
+     ========================================================= */
+  var ev = { lat: null, lng: null, map: null, marker: null, circle: null };
+  var evMsg = $('#evloc-msg'), evMapEl = $('#evloc-map'), evL = null;
+  var EV_RADIUS = Number(MH_DATA.radius_event) || 100;
+
+  function evRound(n) { return Math.round(n * 1e7) / 1e7; }
+
+  function evDraw(pan) {
+    var has = ev.lat !== null && ev.lng !== null;
+    $('#evloc-point').hidden = !has;
+    evMapEl.hidden = !has;
+    if (has) {
+      $('#evloc-coord').textContent = ev.lat.toFixed(6) + ', ' + ev.lng.toFixed(6);
+      $('#evloc-maps').href = MH.mapsUrl(ev.lat, ev.lng);
+    }
+    if (!has) return;
+    MH.leaflet().then(function (L) {
+      evL = L;
+      var ll = [ev.lat, ev.lng];
+      if (!ev.map) {
+        ev.map = MH.map(L, evMapEl, ll, 17);
+        ev.map.on('click', function (e) { setEvPoint(e.latlng.lat, e.latlng.lng, { pan: false }); });
+      }
+      ev.map.invalidateSize();
+      if (!ev.marker) {
+        ev.marker = L.marker(ll, { draggable: true, icon: MH.pinIcon(L), keyboard: true, title: 'Titik lokasi event' }).addTo(ev.map);
+        ev.marker.on('dragend', function () { var p = ev.marker.getLatLng(); setEvPoint(p.lat, p.lng, { pan: false }); });
+        ev.circle = L.circle(ll, { radius: EV_RADIUS, color: '#0A0A0A', weight: 1.5, fillColor: '#0A0A0A', fillOpacity: 0.08 }).addTo(ev.map);
+      } else {
+        ev.marker.setLatLng(ll);
+        ev.circle.setLatLng(ll);
+      }
+      if (pan) ev.map.setView(ll, Math.max(ev.map.getZoom(), 17));
+    }).catch(function (err) {
+      evMapEl.hidden = true;
+      evMsg.innerHTML = MH.errorHtml(err.message);
+      evMsg.hidden = false;
+    });
+  }
+
+  /** Atur titik event. opts.silent = dari data server (tidak memicu autosave) */
+  function setEvPoint(lat, lng, opts) {
+    opts = opts || {};
+    var ok = typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng);
+    ev.lat = ok ? evRound(lat) : null;
+    ev.lng = ok ? evRound(lng) : null;
+    evDraw(opts.pan !== false);
+    if (!opts.silent) changedForm();
+  }
+
+  function evParse() {
+    var inp = $('#f-evloc'), btn = $('#evloc-parse'), teks = inp.value.trim();
+    evMsg.hidden = true;
+    if (!teks) { inp.focus(); return; }
+    btn.classList.add('is-loading'); btn.disabled = true;
+    MH.api('api/lokasi.php', { method: 'POST', body: { aksi: 'parse', teks: teks } })
+      .then(function (d) {
+        setEvPoint(d.lat, d.lng, { pan: true });
+        inp.value = '';
+      })
+      .catch(function (err) {
+        evMsg.innerHTML = MH.errorHtml(err.message);
+        evMsg.hidden = false;
+      })
+      .finally(function () { btn.classList.remove('is-loading'); btn.disabled = false; });
+  }
+
+  $('#evloc-parse').addEventListener('click', evParse);
+  $('#f-evloc').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); evParse(); } });
+  $('#evloc-clear').addEventListener('click', function () { setEvPoint(null, null, {}); });
+
 
   /* =========================================================
      6. Sewa alat
@@ -473,8 +641,10 @@
       d[el.dataset.f] = el.dataset.money !== undefined ? MH.parseRupiah(el.value) : el.value;
     });
     $$('[data-transport]', form).forEach(function (el) { d.transport[el.dataset.transport] = MH.parseRupiah(el.value); });
+    d.event_lat = ev.lat; d.event_lng = ev.lng;
     rows(crewBody).forEach(function (tr) {
-      d.crew.push({ name: $('[data-c="name"]', tr).value, role: $('[data-c="role"]', tr).value, honor: MH.parseRupiah($('[data-c="honor"]', tr).value) });
+      d.crew.push({ name: $('[data-c="name"]', tr).value, role: $('[data-c="role"]', tr).value, honor: MH.parseRupiah($('[data-c="honor"]', tr).value),
+                    user_id: Number(tr.dataset.userId) || null });
     });
     rows(eqBody).forEach(function (tr) {
       d.equipment.push({
@@ -625,17 +795,24 @@
     return m ? m[1] + '.' + m[2] : '';
   }
 
+  var SAVE_TIMEOUT = 15000;   // request simpan lebih lama dari ini → dianggap gagal (tidak "Menyimpan…" selamanya)
+
+  /** kind: 'saving' | 'saved' (at = updated_at) | 'dirty' | 'error' (at = pesan error) */
   function setStatus(kind, at) {
     ebStatus.dataset.kind = kind;
+    ebStatus.removeAttribute('title');
     if (kind === 'saving') {
       ebStatus.innerHTML = '<span class="spinner"></span>Menyimpan…';
     } else if (kind === 'error') {
-      ebStatus.innerHTML = MH.icon('alert') + 'Gagal menyimpan — coba lagi' +
-        '<button type="button" class="btn-icon editbar__retry" id="eb-retry" aria-label="Coba simpan lagi">' + MH.icon('retry') + '</button>';
+      var msg = at || 'Terjadi kesalahan.';
+      ebStatus.title = msg;
+      ebStatus.innerHTML = MH.icon('alert') + '<span class="editbar__err">Gagal menyimpan · ' + esc(msg) + '</span>' +
+        '<button type="button" class="btn btn--secondary editbar__retry" id="eb-retry">' + MH.icon('retry') + 'Coba lagi</button>';
     } else if (kind === 'dirty') {
       ebStatus.textContent = 'Belum tersimpan';
     } else {
-      ebStatus.innerHTML = MH.icon('check') + 'Tersimpan otomatis · ' + hhmm(at);
+      var t = hhmm(at);
+      ebStatus.innerHTML = MH.icon('check') + 'Tersimpan' + (t ? ' · ' + t : '');
     }
   }
 
@@ -670,23 +847,31 @@
     var inv = payload.invoice_no;
     setStatus('saving');
 
-    inflight = MH.api('api/transactions.php', { method: 'PUT', body: payload })
+    inflight = MH.api('api/transactions.php', { method: 'PUT', body: payload, timeout: SAVE_TIMEOUT })
       .then(function (d) {
         var tx = d.transaction;
         if (!state.tx || state.tx.invoice_no !== inv) return true; // sudah pindah invoice
-        state.tx = tx;
-        buildSnap(tx);                     // snapshot harga terbaru dari server
-        if (tx.customer) {
-          $('#f-corder').value = tx.customer.total_order + 'x';
-          if (state.customer) state.customer.tx_count = tx.customer.total_order;
-        }
-        recalc();
+        // Status ditulis DULU: error di langkah tampilan sesudahnya tidak boleh membuat "Menyimpan…" macet
         if (!state.pending) setStatus('saved', tx.updated_at);
-        refreshList();                     // perbarui daftar (revenue, status, waktu)
+        state.tx = tx;
+        try {
+          buildSnap(tx);                     // snapshot harga terbaru dari server
+          if (tx.customer) {
+            $('#f-corder').value = tx.customer.total_order + 'x';
+            if (state.customer) state.customer.tx_count = tx.customer.total_order;
+          }
+          recalc();
+          refreshList();                     // perbarui daftar (revenue, status, waktu)
+        } catch (e) {
+          if (window.console) console.error('[transaksi] tersimpan, tetapi gagal memperbarui tampilan', e);
+        }
         return true;
-      }, function () {
-        state.pending = true;
-        setStatus('error');
+      }, function (err) {
+        if (state.tx && state.tx.invoice_no === inv) {
+          state.pending = true;
+          setStatus('error', err && err.message);
+          if (window.console) console.error('[transaksi] gagal menyimpan', err);
+        }
         return false;
       })
       .finally(function () { inflight = null; });
@@ -701,7 +886,7 @@
   }
 
   form.addEventListener('input', function (e) {
-    if (e.target.matches('#f-customer, [data-field="equipment"]')) return; // combobox: simpan saat dipilih
+    if (e.target.matches('#f-customer, [data-field="equipment"], [data-noform]')) return; // combobox: simpan saat dipilih
     changedForm();
   });
   form.addEventListener('change', function (e) {
@@ -709,7 +894,7 @@
   });
 
   ebSave.addEventListener('click', function () { if (state.tx) { state.pending = true; save(); } });
-  ebStatus.addEventListener('click', function (e) { if (e.target.closest('#eb-retry')) save(); });
+  ebStatus.addEventListener('click', function (e) { if (e.target.closest('#eb-retry')) { state.pending = true; save(); } });
 
   // Kirim perubahan terakhir saat halaman ditutup
   window.addEventListener('pagehide', function () {

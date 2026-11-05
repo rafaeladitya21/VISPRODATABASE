@@ -921,8 +921,9 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
 .editbar__status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #D4D4D4; white-space: nowrap; }
 .editbar__status .icon { width: 16px; height: 16px; }
 .editbar__status[data-kind="error"] { color: var(--white); font-weight: 600; }
-.editbar__retry { color: var(--white); width: 36px; height: 36px; }
-.editbar__retry:hover { background: rgba(255, 255, 255, .1); color: var(--white); }
+.editbar__err { max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.editbar__retry.btn { height: 32px; padding: 0 12px; gap: 6px; font-size: 13px; color: var(--ink); background: var(--white); border-color: var(--white); }
+.editbar__retry.btn:hover { background: #E5E5E5; }
 
 .tx-editor { animation: fade-blur-up .6s var(--ease-out) both; }
 
@@ -2344,3 +2345,46 @@ a.jr-chip:hover { border-color: var(--ink); }
   .lk-map { height: 220px; }
   .ab-map-legend a { margin-left: 0; }
 }
+
+/* ---------- Transaksi bagian 5: Nama Crew = combobox akun ---------- */
+.crew-hint { margin: 10px 0 0; font-size: 12px; }
+.crew-who { display: flex; align-items: center; gap: 8px; min-width: 200px; }
+.crew-who .input { flex: 1; min-width: 0; }
+.crew-who__av { width: 28px; height: 28px; }
+.crew-tag {
+  flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 7px;
+  font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap;
+  color: var(--text-2); background: var(--white); border: 1px solid var(--line); border-radius: 999px; cursor: default;
+}
+.crew-tag--inhouse { color: var(--white); background: var(--ink); border-color: var(--ink); }
+.crew-tag--intern { border-style: dashed; border-color: var(--dash); }
+.crew-tag--none { color: var(--muted); border-style: dashed; border-color: var(--dash); background: transparent; }
+.combo__av { width: 28px; height: 28px; }
+.combo__sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Transaksi bagian 2: koordinat lokasi event ---------- */
+.evloc__row { display: flex; gap: 8px; }
+.evloc__row .input { flex: 1; min-width: 0; }
+.evloc__point { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 13px; }
+.evloc__coord { font-weight: 600; }
+.evloc__link { padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.evloc__map { height: 220px; margin-top: 10px; }
+#evloc-msg { margin-top: 8px; }
+
+/* ---------- Jadwal Saya (karyawan & magang) ---------- */
+.badge--draft { color: var(--text-2); background: var(--white); border-style: dashed; border-color: var(--dash); }
+.kj-undated { margin: 0; padding: 0 16px 16px; }
+.kj-undated__title { margin: 4px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kj-undated .kj-item .sl-date { height: 56px; }
+.kj-item__badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.kj-honor { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 12px 14px; background: var(--soft); border-radius: 10px; }
+.kj-honor span { font-size: 13px; color: var(--muted); }
+.kj-honor strong { font-family: var(--font-display); font-size: 18px; }
+
+/* Beranda intern: kartu job berikutnya */
+.mg-job { display: flex; flex-direction: column; gap: 10px; }
+.mg-job__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mg-job__event { margin: 0; font-family: var(--font-display); font-size: 18px; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.mg-job__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 16px; margin: 0; }
+.mg-job__facts dt { font-size: 12px; color: var(--muted); }
+.mg-job__facts dd { margin: 2px 0 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }

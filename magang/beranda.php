@@ -21,6 +21,7 @@ try {
     $riwayat = array_slice($riwayatAll, 0, 5);
     $jurnalToday = jurnal_get($me['id'], $today);
     $radius = radius_intern();
+    $nextJob = job_berikutnya(jadwal_saya($me['id'], false));   // sumber sama dengan Jadwal Saya
     $pesan = trim(setting('pesan_semangat_intern')) ?: trim(setting('pesan_semangat'));
 } catch (PDOException $e) {
     error_log('[magang/beranda] ' . $e->getMessage());
@@ -124,7 +125,7 @@ layout_start('Beranda & Absen', 'm-beranda');
       </div>
     </div>
     <div id="mg-absen-error" aria-live="polite" hidden></div>
-    <p class="mg-note">Absen hanya bisa dilakukan di kantor (radius <?= $radius ?> m) — lokasi diambil saat kamu menekan tombol, jam dari server, dan tidak bisa diubah. Salah absen atau izin? Hubungi Admin.</p>
+    <p class="mg-note">Absen hanya bisa dilakukan di kantor (radius <?= $radius ?> m) — atau di lokasi event pada hari kamu bertugas, bila Admin sudah mengisi titiknya — lokasi diambil saat kamu menekan tombol, jam dari server, dan tidak bisa diubah. Salah absen atau izin? Hubungi Admin.</p>
   </section>
 
   <!-- Perjalanan magang -->
@@ -155,6 +156,28 @@ layout_start('Beranda & Absen', 'm-beranda');
     </div>
   </section>
 </div>
+
+<?php if ($nextJob): ?>
+<!-- Job berikutnya (dari Jadwal Saya; tanpa info honor). Disembunyikan bila tidak ada. -->
+<section class="card mg-job fbu" aria-labelledby="mg-job-title">
+  <div class="mg-job__head">
+    <p class="card__title" id="mg-job-title" style="margin:0">Job berikutnya</p>
+    <span class="kj-item__badges">
+      <?php if ($nextJob['draft']): ?><span class="badge badge--draft">Draft / belum pasti</span><?php endif; ?>
+      <span class="badge<?= $nextJob['state'] === 'hari_ini' ? ' badge--solid' : '' ?>"><?= e(kw_countdown($nextJob['date'], $today)) ?></span>
+    </span>
+  </div>
+  <h2 class="mg-job__event"><?= e($nextJob['event']) ?></h2>
+  <dl class="mg-job__facts">
+    <div><dt>Tanggal</dt><dd><?= e(tgl_id($nextJob['date'])) ?></dd></div>
+    <div><dt>Role</dt><dd><?= e($nextJob['tugas'] ?: '—') ?></dd></div>
+    <div><dt>Jam standby</dt><dd class="num"><?= e($dot($nextJob['times']['standby'])) ?></dd></div>
+    <div><dt>Lokasi</dt><dd><?= e($nextJob['location'] ?: '—') ?></dd></div>
+  </dl>
+  <div><a class="btn btn--secondary" href="magang/jadwal?id=<?= $nextJob['id'] ?>">Lihat detail job</a></div>
+</section>
+<?php endif; ?>
+
 
 <div class="mg-row">
   <!-- Riwayat absen -->

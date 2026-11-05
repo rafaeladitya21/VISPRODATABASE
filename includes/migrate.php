@@ -293,6 +293,16 @@ const MH_MIGRATIONS = [
         ALTER TABLE lokasi_absen  ENABLE ROW LEVEL SECURITY;
         ALTER TABLE absen_ditolak ENABLE ROW LEVEL SECURITY;
         SQL,
+
+    // 9 — Koordinat lokasi event (absen intern di venue) + absen yang diterima di lokasi event
+    9 => <<<'SQL'
+        ALTER TABLE transactions
+          ADD COLUMN event_lat DOUBLE PRECISION NULL CHECK (event_lat BETWEEN -90 AND 90),
+          ADD COLUMN event_lng DOUBLE PRECISION NULL CHECK (event_lng BETWEEN -180 AND 180);
+        ALTER TABLE absensi
+          ADD COLUMN masuk_tx_id  INTEGER NULL REFERENCES transactions(id) ON DELETE SET NULL,
+          ADD COLUMN pulang_tx_id INTEGER NULL REFERENCES transactions(id) ON DELETE SET NULL;
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */
