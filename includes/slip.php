@@ -21,21 +21,42 @@ declare(strict_types=1);
 require_once __DIR__ . '/karyawan.php';
 
 const SLIP_STATUS = ['draft' => 'Draft', 'diajukan' => 'Diajukan', 'disetujui' => 'Disetujui', 'dibayar' => 'Dibayar'];
-const SLIP_MAX_HARI = 31;
+/**
+ * Satuan bayar tarif. Kolom slip_item.hari menyimpan JUMLAH dalam satuan ini
+ * (project selalu 1). label = label field jumlah di form; max = batas jumlah per baris.
+ */
+const SATUAN = [
+    'hari'    => ['label' => 'Hari',    'max' => 31],
+    'jam'     => ['label' => 'Jam',     'max' => 300],
+    'project' => ['label' => 'Project', 'max' => 1],
+];
+
+function satuan_of(?string $s): string { return isset(SATUAN[$s ?? '']) ? $s : 'hari'; }
+
+/** ['hari' => 21, 'project' => 2] → '21 hari · 2 project' */
+function satuan_summary(array $per): string
+{
+    $out = [];
+    foreach (array_keys(SATUAN) as $k) if (!empty($per[$k])) $out[] = $per[$k] . ' ' . $k;
+    return implode(' · ', $out);
+}
 
 /* ---------- Rumus (murni, tanpa database — dipakai juga oleh tools/test-slip.php) ---------- */
 
 /**
- * $items: [['tanggal', 'event', 'output_nama', 'fee_snapshot', 'hari', …], …]
+ * $items: [['tanggal', 'event', 'output_nama', 'fee_snapshot', 'hari', 'satuan_snapshot'?, …], …]
+ *   total per baris = fee × jumlah (kolom 'hari'); satuan project → jumlah 1.
  * Hasil: items (urut tanggal, dengan 'total'), per_output [nama => total], total_fee, gaji_pokok,
- *        sub_total, jumlah_pekerjaan, jumlah_hari.
+ *        sub_total, jumlah_pekerjaan, per_satuan [satuan => jumlah], jumlah_hari (= per_satuan.hari).
+ * Freelance: gaji pokok selalu 0 → Sub Total = Total Fee.
  */
 function slip_compute(array $items, int $gajiPokok, string $tipe = 'inhouse'): array
 {
     if ($tipe === 'freelance') $gajiPokok = 0;   // freelance: dibayar per job saja
     foreach ($items as $i => &$it) {
+        $it['satuan_snapshot'] = satuan_of($it['satuan_snapshot'] ?? 'hari');
         $it['fee_snapshot'] = max(0, (int)$it['fee_snapshot']);
-        $it['hari'] = max(1, (int)$it['hari']);
+        $it['hari'] = $it['satuan_snapshot'] === 'project' ? 1 : max(1, (int)$it['hari']);
         $it['total'] = $it['fee_snapshot'] * $it['hari'];
         $it['_i'] = $i;
     }
@@ -44,12 +65,13 @@ function slip_compute(array $items, int $gajiPokok, string $tipe = 'inhouse'): a
     usort($items, fn($a, $b) => [$a['tanggal'], $a['_i']] <=> [$b['tanggal'], $b['_i']]);
 
     $perOutput = [];
-    $totalFee = 0; $hari = 0;
+    $perSatuan = [];
+    $totalFee = 0;
     foreach ($items as &$it) {
         unset($it['_i']);
         $perOutput[$it['output_nama']] = ($perOutput[$it['output_nama']] ?? 0) + $it['total'];
+        $perSatuan[$it['satuan_snapshot']] = ($perSatuan[$it['satuan_snapshot']] ?? 0) + $it['hari'];
         $totalFee += $it['total'];
-        $hari += $it['hari'];
     }
     unset($it);
 
@@ -61,7 +83,8 @@ function slip_compute(array $items, int $gajiPokok, string $tipe = 'inhouse'): a
         'gaji_pokok'       => $gajiPokok,
         'sub_total'        => $totalFee + $gajiPokok,
         'jumlah_pekerjaan' => count($items),
-        'jumlah_hari'      => $hari,
+        'per_satuan'       => $perSatuan,
+        'jumlah_hari'      => $perSatuan['hari'] ?? 0,
     ];
 }
 
@@ -88,13 +111,33 @@ function periode_shift(string $p, int $months): string
 
 /* ---------- Database ---------- */
 
-function tarif_list(bool $activeOnly = true): array
+/**
+ * Tarif yang BOLEH dipakai satu karyawan: aktif, tipe sama dengan tipe karyawan, fee = tarif khusus
+ * orang ini bila ada, selain itu fee umum. Satu-satunya sumber tarif untuk sisi karyawan — tarif tipe
+ * lain tidak pernah dikirim ke browser maupun diterima saat menyimpan (lihat api/myslip.php).
+ * $id → hanya tarif itu (null bila tidak boleh dipakai).
+ */
+function tarif_for_user(array $user, ?int $id = null): array|null
 {
-    $rows = db()->query('SELECT id, nama, fee_per_hari, aktif FROM tarif_output'
-        . ($activeOnly ? ' WHERE aktif = 1' : '') . ' ORDER BY sort_order, id')->fetchAll();
-    return array_map(fn($r) => [
-        'id' => (int)$r['id'], 'nama' => $r['nama'], 'fee_per_hari' => (int)$r['fee_per_hari'], 'aktif' => (bool)$r['aktif'],
-    ], $rows);
+    $sql = "SELECT t.id, t.nama, t.satuan, t.fee_per_hari AS fee_umum, tk.fee AS fee_khusus,
+                   COALESCE(tk.fee, t.fee_per_hari) AS fee
+            FROM tarif_output t
+            LEFT JOIN tarif_khusus tk ON tk.tarif_output_id = t.id AND tk.user_id = ?
+            WHERE t.aktif = 1 AND t.tipe = ?" . ($id !== null ? ' AND t.id = ?' : '') . '
+            ORDER BY t.sort_order, t.id';
+    $args = [(int)$user['id'], ($user['tipe'] ?? 'inhouse') === 'freelance' ? 'freelance' : 'inhouse'];
+    if ($id !== null) $args[] = $id;
+    $st = db()->prepare($sql);
+    $st->execute($args);
+    $rows = array_map(fn($r) => [
+        'id'     => (int)$r['id'],
+        'nama'   => $r['nama'],
+        'satuan' => satuan_of($r['satuan']),
+        'fee'    => (int)$r['fee'],
+        'khusus' => $r['fee_khusus'] !== null,
+        'max'    => SATUAN[satuan_of($r['satuan'])]['max'],
+    ], $st->fetchAll());
+    return $id !== null ? ($rows[0] ?? null) : $rows;
 }
 
 function slip_row(int $userId, string $periode, bool $lock = false): ?array
@@ -123,7 +166,7 @@ function slip_ensure(int $userId, string $periode): array
 
 function slip_items(int $slipId): array
 {
-    $st = db()->prepare('SELECT id, tanggal, event, tarif_output_id, output_nama, fee_snapshot, hari, total, transaction_id
+    $st = db()->prepare('SELECT id, tanggal, event, tarif_output_id, output_nama, fee_snapshot, satuan_snapshot, hari, total, transaction_id
                          FROM slip_item WHERE slip_id = ? ORDER BY tanggal, id');
     $st->execute([$slipId]);
     return array_map(fn($r) => [
@@ -133,6 +176,7 @@ function slip_items(int $slipId): array
         'tarif_output_id' => $r['tarif_output_id'] === null ? null : (int)$r['tarif_output_id'],
         'output_nama'     => $r['output_nama'],
         'fee_snapshot'    => (int)$r['fee_snapshot'],
+        'satuan_snapshot' => satuan_of($r['satuan_snapshot']),
         'hari'            => (int)$r['hari'],
         'total'           => (int)$r['total'],
         'transaction_id'  => $r['transaction_id'] === null ? null : (int)$r['transaction_id'],
@@ -146,10 +190,20 @@ function slip_items(int $slipId): array
 function slip_sync(int $slipId): void
 {
     $pdo = db();
-    $pdo->prepare("UPDATE slip_item si SET fee_snapshot = t.fee_per_hari, output_nama = t.nama, total = t.fee_per_hari * si.hari
-                   FROM tarif_output t, slip s
-                   WHERE si.slip_id = ? AND s.id = si.slip_id AND s.status = 'draft' AND t.id = si.tarif_output_id
-                     AND (si.fee_snapshot <> t.fee_per_hari OR si.output_nama <> t.nama OR si.total <> t.fee_per_hari * si.hari)")
+    // Fee = tarif khusus karyawan ini bila ada, selain itu fee umum; satuan project → jumlah 1
+    $pdo->prepare("UPDATE slip_item si
+                   SET fee_snapshot = x.fee, output_nama = x.nama, satuan_snapshot = x.satuan,
+                       hari = x.jml, total = x.fee * x.jml
+                   FROM (SELECT si2.id, t.nama, t.satuan, COALESCE(tk.fee, t.fee_per_hari) AS fee,
+                                CASE WHEN t.satuan = 'project' THEN 1 ELSE si2.hari END AS jml
+                         FROM slip_item si2
+                         JOIN slip s ON s.id = si2.slip_id AND s.status = 'draft'
+                         JOIN tarif_output t ON t.id = si2.tarif_output_id
+                         LEFT JOIN tarif_khusus tk ON tk.tarif_output_id = t.id AND tk.user_id = s.user_id
+                         WHERE si2.slip_id = ?) x
+                   WHERE si.id = x.id
+                     AND (si.fee_snapshot <> x.fee OR si.output_nama <> x.nama OR si.satuan_snapshot <> x.satuan
+                          OR si.hari <> x.jml OR si.total <> x.fee * x.jml)")
         ->execute([$slipId]);
     $pdo->prepare("UPDATE slip s SET gaji_pokok_snapshot = x.gp, tipe_snapshot = x.tipe, total_fee = x.fee, sub_total = x.gp + x.fee
                    FROM (SELECT CASE WHEN u.tipe = 'freelance' THEN 0 ELSE u.gaji_pokok END AS gp, u.tipe,

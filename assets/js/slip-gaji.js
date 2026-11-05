@@ -15,6 +15,9 @@
     if (s.returned || (s.status === 'draft')) return '<span class="badge badge--danger">Dikembalikan</span>';
     return '<span class="badge' + (s.status === 'dibayar' ? ' badge--solid' : s.status === 'diajukan' ? '' : ' badge--muted') + '">' + esc(s.status_label) + '</span>';
   }
+  function satuanText(per) {
+    return ['hari', 'jam', 'project'].filter(function (k) { return per && per[k]; }).map(function (k) { return ' · ' + per[k] + ' ' + k; }).join('');
+  }
   function showErr(box, e) { box.innerHTML = MH.errorHtml(e.message); box.hidden = false; }
 
   function load() {
@@ -55,7 +58,7 @@
         '<td><strong>' + esc(s.name) + '</strong>' + (s.jabatan ? '<br><small class="muted">' + esc(s.jabatan) + '</small>' : '') + '</td>' +
         '<td>' + MH.tipeBadge(s.tipe) + '</td>' +
         '<td class="nw">' + esc(s.periode_label) + '</td>' +
-        '<td class="r">' + s.jumlah_pekerjaan + ' · ' + s.jumlah_hari + ' hari</td>' +
+        '<td class="r">' + s.jumlah_pekerjaan + (s.jumlah_hari ? ' · ' + s.jumlah_hari + ' hari' : '') + '</td>' +
         '<td class="r">' + rp(s.total_fee) + '</td>' +
         '<td class="r">' + (s.tipe === 'freelance' ? '<span class="muted">—</span>' : rp(s.gaji_pokok)) + '</td>' +
         '<td class="r strong">' + rp(s.sub_total) + '</td>' +
@@ -97,7 +100,7 @@
     $('#pr-modal-title').textContent = 'Slip ' + s.karyawan.name + ' · ' + s.periode_label;
     var rows = s.items.map(function (it, i) {
       return '<tr><td class="c muted">' + (i + 1) + '</td><td class="nw">' + esc(MH.date(it.tanggal)) + '</td><td>' + esc(it.event) + '</td>' +
-        '<td class="nw">' + esc(it.output_nama) + '</td><td class="r">' + rp(it.fee_snapshot) + '</td><td class="r">' + it.hari + '</td><td class="r strong">' + rp(it.total) + '</td></tr>';
+        '<td class="nw">' + esc(it.output_nama) + '</td><td class="r">' + rp(it.fee_snapshot) + '</td><td class="r nw">' + it.hari + ' ' + esc(it.satuan_snapshot) + '</td><td class="r strong">' + rp(it.total) + '</td></tr>';
     }).join('') || '<tr><td colspan="7" class="empty">Tidak ada rincian.</td></tr>';
 
     var acts = '';
@@ -123,9 +126,9 @@
       '<div class="card__head" style="margin-bottom:12px"><div><p class="card__sub">' + esc(s.karyawan.jabatan || 'Karyawan') + ' · ' + esc(info.join(', ')) + '</p></div>' +
         (s.returned ? '<span class="badge badge--danger">Dikembalikan</span>' : '<span class="badge' + (s.status === 'dibayar' ? ' badge--solid' : '') + '">' + esc(s.status_label) + '</span>') + '</div>' +
       (s.catatan_admin ? '<div class="notice">' + MH.icon('alert') + '<span>Catatan: ' + esc(s.catatan_admin) + '</span></div>' : '') +
-      '<div class="slip-detail__items"><table class="table"><thead><tr><th class="c">No</th><th>Tanggal</th><th>Event</th><th>Output</th><th class="r">Fee</th><th class="r">Hari</th><th class="r">Total</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="slip-detail__items"><table class="table"><thead><tr><th class="c">No</th><th>Tanggal</th><th>Event</th><th>Output</th><th class="r">Fee</th><th class="r">Jumlah</th><th class="r">Total</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="slip-detail__sum">' +
-        '<div><span>Total Fee (' + s.jumlah_pekerjaan + ' pekerjaan · ' + s.jumlah_hari + ' hari)</span><strong class="num">' + rp(s.total_fee) + '</strong></div>' +
+        '<div><span>Total Fee (' + s.jumlah_pekerjaan + ' pekerjaan' + satuanText(s.per_satuan) + ')</span><strong class="num">' + rp(s.total_fee) + '</strong></div>' +
         (s.tipe === 'freelance' ? '<div><span>Gaji Pokok</span><strong class="num">— (freelance)</strong></div>' : '<div><span>Gaji Pokok</span><strong class="num">' + rp(s.gaji_pokok) + '</strong></div>') +
         '<div><span>Sub Total</span><strong class="num">' + rp(s.sub_total) + '</strong></div>' +
       '</div>' +

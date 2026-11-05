@@ -3,9 +3,10 @@
   'use strict';
   var $ = MH.$, $$ = MH.$$, esc = MH.esc;
   var DEFAULT_GP = 1000000;
-  var items = [], filter = 'semua';
+  var items = [], filter = 'semua', tarifFree = [];
+  var SATUAN = { hari: '/hari', project: '/project', jam: '/jam' };
   var body = $('#st-body'), modal = $('#st-modal'), form = $('#st-form'), save = $('#st-save'), formErr = $('#st-form-error');
-  var f = form.elements, gpField = $('#st-gp-field');
+  var f = form.elements, gpField = $('#st-gp-field'), khususBox = $('#st-khusus'), khususList = $('#st-khusus-list');
   MH.moneyInput(f.gaji_pokok);
 
   function initials(n) {
@@ -47,7 +48,7 @@
   }
 
   function load() {
-    MH.api('api/staff.php').then(function (d) { items = d.items; render(); }).catch(function (err) {
+    MH.api('api/staff.php').then(function (d) { items = d.items; tarifFree = d.tarif_freelance || []; render(); }).catch(function (err) {
       $('#st-error').innerHTML = '<div class="card">' + MH.errorHtml(err.message) + '</div>';
       $('#st-error').hidden = false;
     });
@@ -65,10 +66,35 @@
   function syncTipe() {
     var free = tipeValue() === 'freelance';
     gpField.hidden = free;
+    khususBox.hidden = !free;
     f.gaji_pokok.required = !free;
     if (!free && !MH.parseRupiah(f.gaji_pokok.value)) MH.setMoney(f.gaji_pokok, DEFAULT_GP);
   }
   $$('input[name="tipe"]', form).forEach(function (r) { r.addEventListener('change', syncTipe); });
+
+  /* Tarif khusus (freelance): satu baris per tarif freelance aktif; kosong = tarif umum */
+  function renderKhusus(k) {
+    var own = (k && k.tarif_khusus) || {};
+    if (!tarifFree.length) {
+      khususList.innerHTML = '<p class="field__hint">Belum ada tarif freelance aktif. Tambahkan di Pengaturan → Tarif Freelance.</p>';
+      return;
+    }
+    khususList.innerHTML = tarifFree.map(function (t) {
+      var v = own[t.id];
+      return '<label class="tk__row"><span class="tk__name"><strong>' + esc(t.nama) + '</strong>' +
+        '<small>Umum ' + MH.rupiah(t.fee) + SATUAN[t.satuan] + '</small></span>' +
+        '<input class="input input--money" data-tid="' + t.id + '" placeholder="' + MH.num(t.fee) + '" value="' + (v ? MH.num(v) : '') + '" aria-label="Fee khusus ' + esc(t.nama) + '"></label>';
+    }).join('');
+    $$('[data-tid]', khususList).forEach(MH.moneyInput);
+  }
+  function collectKhusus() {
+    var out = {};
+    $$('[data-tid]', khususList).forEach(function (i) {
+      var n = MH.parseRupiah(i.value);
+      if (n > 0) out[i.dataset.tid] = n;
+    });
+    return out;
+  }
 
   function open(k) {
     form.reset();
@@ -81,6 +107,7 @@
     MH.setMoney(f.gaji_pokok, k && k.tipe === 'inhouse' ? k.gaji_pokok : DEFAULT_GP);
     f.aktif.checked = k ? k.aktif : true;
     f.password.required = !k;
+    renderKhusus(k);
     syncTipe();
     $('#st-modal-title').textContent = k ? 'Ubah Karyawan' : 'Tambah Karyawan';
     $('#st-pass-label').textContent = k ? 'Kata sandi baru (opsional)' : 'Kata sandi awal';
@@ -107,11 +134,12 @@
     var id = Number(f.id.value) || null;
     var data = {
       id: id, tipe: tipe, name: f.name.value, email: f.email.value, jabatan: f.jabatan.value,
-      gaji_pokok: gp, password: f.password.value, aktif: f.aktif.checked
+      gaji_pokok: gp, password: f.password.value, aktif: f.aktif.checked,
+      tarif_khusus: tipe === 'freelance' ? collectKhusus() : {}
     };
     save.disabled = true; save.classList.add('is-loading'); formErr.hidden = true;
     MH.api('api/staff.php', { method: id ? 'PUT' : 'POST', body: data })
-      .then(function (d) { items = d.items; render(); MH.closeModal(modal); })
+      .then(function (d) { items = d.items; tarifFree = d.tarif_freelance || tarifFree; render(); MH.closeModal(modal); })
       .catch(function (err) { formErr.innerHTML = MH.errorHtml(err.message); formErr.hidden = false; })
       .finally(function () { save.disabled = false; save.classList.remove('is-loading'); });
   });

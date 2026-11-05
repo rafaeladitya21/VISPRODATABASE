@@ -104,6 +104,30 @@ const MH_MIGRATIONS = [
         ALTER TABLE slip  ADD COLUMN tipe_snapshot VARCHAR(10) NOT NULL DEFAULT 'inhouse'
                           CHECK (tipe_snapshot IN ('inhouse', 'freelance'));
         SQL,
+
+    // 3 — Tarif dipisah per tipe karyawan + satuan bayar (hari/project/jam) + tarif khusus per freelancer
+    3 => <<<'SQL'
+        ALTER TABLE tarif_output
+          ADD COLUMN tipe   VARCHAR(10) NOT NULL DEFAULT 'inhouse' CHECK (tipe IN ('inhouse', 'freelance')),
+          ADD COLUMN satuan VARCHAR(10) NOT NULL DEFAULT 'hari'    CHECK (satuan IN ('hari', 'project', 'jam'));
+        -- Nama output unik per tipe (in-house & freelance boleh punya "TAKE VIDIO" masing-masing)
+        ALTER TABLE tarif_output DROP CONSTRAINT IF EXISTS tarif_output_nama_key;
+        ALTER TABLE tarif_output ADD CONSTRAINT uq_tarif_tipe_nama UNIQUE (tipe, nama);
+
+        -- slip_item.hari = jumlah dalam satuan_snapshot (hari / jam; project selalu 1)
+        ALTER TABLE slip_item ADD COLUMN satuan_snapshot VARCHAR(10) NOT NULL DEFAULT 'hari'
+                              CHECK (satuan_snapshot IN ('hari', 'project', 'jam'));
+
+        -- Fee khusus satu freelancer untuk satu tarif (menimpa fee umum)
+        CREATE TABLE tarif_khusus (
+          user_id         INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          tarif_output_id INTEGER      NOT NULL REFERENCES tarif_output(id) ON DELETE CASCADE,
+          fee             BIGINT       NOT NULL CHECK (fee >= 0),
+          updated_at      TIMESTAMP(0) NOT NULL DEFAULT LOCALTIMESTAMP(0),
+          PRIMARY KEY (user_id, tarif_output_id)
+        );
+        ALTER TABLE tarif_khusus ENABLE ROW LEVEL SECURITY;
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

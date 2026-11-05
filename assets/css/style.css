@@ -2063,3 +2063,15 @@ select.input option { color: var(--ink); }
 .tipe-pick__opt input:checked + .tipe-pick__card::before { border: 5px solid var(--ink); }
 .tipe-pick__opt input:focus-visible + .tipe-pick__card { box-shadow: var(--ring); border-color: var(--ink); }
 @media (max-width: 480px) { .tipe-pick { grid-template-columns: minmax(0, 1fr); } }
+
+/* Pengaturan: tab tarif in-house / freelance */
+.tf-tabs { padding: 0 20px 12px; }
+.tf-tabs .seg--count { margin-bottom: 0; }
+
+/* Akun Karyawan: tarif khusus freelancer */
+.tk__list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow: auto; }
+.tk__row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; align-items: center; gap: 10px; padding: 6px 8px 6px 12px; background: var(--soft); border: 1px solid var(--line-2); border-radius: 10px; }
+.tk__name { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.tk__name strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.tk__name small { font-size: 12px; color: var(--muted); }
+.tk__row .input { height: 38px; background: var(--white); }

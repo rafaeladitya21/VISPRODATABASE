@@ -16,11 +16,12 @@
     error: $('#sl-error'), notice: $('#sl-notice'),
     formCard: $('#sl-form-card'), form: $('#sl-form'), range: $('#sl-form-range'),
     date: $('#sl-date'), event: $('#sl-event'), output: $('#sl-output'), hari: $('#sl-hari'), tx: $('#sl-tx'),
+    hariField: $('#sl-hari-field'), hariLabel: $('#sl-hari-label'),
     add: $('#sl-add'), preview: $('#sl-preview'), previewCalc: $('#sl-preview-calc'), formErr: $('#sl-form-error'),
     quick: $('#sl-quick'), quickList: $('#sl-quick-list'),
     body: $('#sl-body'), foot: $('#sl-foot'), count: $('#sl-count'),
     status: $('#ss-status'), period: $('#ss-period'), steps: $('#ss-steps'), outputs: $('#ss-outputs'),
-    fee: $('#ss-fee'), gp: $('#ss-gp'), total: $('#ss-total'), actions: $('#ss-actions'), note: $('#ss-note'),
+    fee: $('#ss-fee'), total: $('#ss-total'), actions: $('#ss-actions'), note: $('#ss-note'),
     dlg: $('#sl-confirm'), dlgText: $('#sl-confirm-text'), dlgSub: $('#sl-confirm-sub'),
     dlgOk: $('#sl-confirm-ok'), dlgOkLabel: $('#sl-confirm-ok-label')
   };
@@ -98,11 +99,13 @@
       el.date.value = D.today >= s.periode_from && D.today <= s.periode_to ? D.today : '';
     }
 
+    // Hanya tarif tipe karyawan ini (server sudah memfilter); fee khusus orang ini sudah diterapkan
     var cur = el.output.value;
-    el.output.innerHTML = '<option value="">Pilih output…</option>' + state.tarif.map(function (t) {
-      return '<option value="' + t.id + '" data-fee="' + t.fee_per_hari + '">' + esc(t.nama) + ' — ' + rp(t.fee_per_hari) + '/hari</option>';
-    }).join('');
-    if (cur && state.tarif.some(function (t) { return String(t.id) === cur; })) el.output.value = cur;
+    el.output.innerHTML = '<option value="">' + (state.tarif.length ? 'Pilih output…' : 'Belum ada tarif dari Admin') + '</option>' +
+      state.tarif.map(function (t) {
+        return '<option value="' + t.id + '">' + esc(t.nama) + ' — ' + rp(t.fee) + '/' + t.satuan + '</option>';
+      }).join('');
+    if (cur && tarifById(cur)) el.output.value = cur;
 
     el.quick.hidden = !s.quick.length;
     el.quickList.innerHTML = s.quick.map(function (q, i) {
@@ -115,7 +118,7 @@
   }
 
   function renderTable(s) {
-    el.count.textContent = s.jumlah_pekerjaan + ' pekerjaan · ' + s.jumlah_hari + ' hari';
+    el.count.textContent = [s.jumlah_pekerjaan + ' pekerjaan'].concat(satuanSummary(s.per_satuan)).join(' · ');
     if (!s.items.length) {
       el.body.innerHTML = '<tr><td colspan="8" class="empty">' +
         (s.editable ? 'Belum ada pekerjaan. Tambahkan lewat form di atas.' : 'Tidak ada pekerjaan di bulan ini.') + '</td></tr>';
@@ -129,12 +132,12 @@
         '<td class="strong">' + esc(it.event) + '</td>' +
         '<td class="nw">' + esc(it.output_nama) + '</td>' +
         '<td class="r">' + rp(it.fee_snapshot) + '</td>' +
-        '<td class="r">' + it.hari + '</td>' +
+        '<td class="r nw">' + it.hari + ' ' + esc(it.satuan_snapshot) + '</td>' +
         '<td class="r strong">' + rp(it.total) + '</td>' +
         '<td>' + (s.editable ? '<button type="button" class="btn-icon" data-del="' + it.id + '" aria-label="Hapus ' + esc(it.event) + '">' + MH.icon('trash') + '</button>' : '') + '</td>' +
         '</tr>';
     }).join('');
-    el.foot.innerHTML = '<tr><td colspan="5">Total Fee</td><td class="r">' + s.jumlah_hari + '</td><td class="r">' + rp(s.total_fee) + '</td><td></td></tr>';
+    el.foot.innerHTML = '<tr><td colspan="5">Total Fee</td><td class="r nw">' + esc(satuanSummary(s.per_satuan).join(' · ')) + '</td><td class="r">' + rp(s.total_fee) + '</td><td></td></tr>';
 
     // Datang dari "Lihat di slip gaji" (Jadwal Saya) → sorot barisnya
     var m = location.hash.match(/^#tx-(\d+)$/);
@@ -160,9 +163,10 @@
       return '<li><span>' + esc(k) + '</span><strong class="num">' + rp(s.per_output[k]) + '</strong></li>';
     }).join('') : '<li class="ks-sum__empty">Belum ada pekerjaan</li>';
     el.fee.textContent = rp(s.total_fee);
-    el.gp.textContent = rp(s.gaji_pokok);
-    // Freelance: tanpa gaji pokok (tipe diambil dari snapshot slip)
-    $('#ss-gp-row').hidden = s.tipe === 'freelance';
+    // Freelance: baris gaji pokok tidak dibuat sama sekali (tipe dari snapshot slip)
+    var gpRow = $('#ss-gp-row');
+    gpRow.hidden = s.tipe === 'freelance';
+    gpRow.innerHTML = s.tipe === 'freelance' ? '' : '<span>Gaji Pokok</span><strong class="num">' + rp(s.gaji_pokok) + '</strong>';
     el.period.textContent = 'Periode ' + s.periode_label + ' · ' + (s.tipe === 'freelance' ? 'Freelance' : 'In-house');
     el.total.textContent = rp(s.sub_total);
 
@@ -190,24 +194,39 @@
   }
 
   /* ---------- Form ---------- */
-  function feeSelected() {
-    var o = el.output.selectedOptions[0];
-    return o && o.dataset.fee ? Number(o.dataset.fee) : 0;
+  function tarifById(id) { return state.tarif.find(function (t) { return String(t.id) === String(id); }) || null; }
+  /** {hari: 21, project: 2} → ["21 hari", "2 project"] */
+  function satuanSummary(per) {
+    return ['hari', 'jam', 'project'].filter(function (k) { return per && per[k]; }).map(function (k) { return per[k] + ' ' + k; });
+  }
+  /** Field jumlah mengikuti satuan: hari → "Hari", jam → "Jam", project → disembunyikan (otomatis 1) */
+  function syncSatuan() {
+    var t = tarifById(el.output.value);
+    var sat = t ? t.satuan : null;
+    el.hariField.hidden = sat === 'project';
+    el.hariLabel.textContent = sat === 'jam' ? 'Jam' : sat === 'hari' ? 'Hari' : 'Jumlah';
+    el.hari.max = t ? t.max : 31;
+    if (sat === 'project') el.hari.value = '1';
   }
   function hariValue() {
+    var t = tarifById(el.output.value);
+    if (t && t.satuan === 'project') return 1;
     var v = el.hari.value.trim();
     return /^\d+$/.test(v) ? Number(v) : 0;
   }
   function formValid() {
     var s = state.slip;
     var d = el.date.value;
+    var t = tarifById(el.output.value);
     return !!(s && s.editable && d && d >= s.periode_from && d <= s.periode_to &&
-      el.event.value.trim() && el.output.value && hariValue() >= 1 && hariValue() <= Number(el.hari.max));
+      el.event.value.trim() && t && hariValue() >= 1 && hariValue() <= t.max);
   }
   function syncForm() {
-    var fee = feeSelected(), h = hariValue();
+    syncSatuan();
+    var t = tarifById(el.output.value), h = hariValue();
+    var fee = t ? t.fee : 0;
     el.preview.textContent = rp(fee * h);
-    el.previewCalc.textContent = fee && h ? '(' + rp(fee) + ' × ' + h + ' hari)' : '';
+    el.previewCalc.textContent = t && h ? '(' + rp(fee) + ' × ' + h + ' ' + t.satuan + ')' : '';
     el.add.disabled = state.busy || !formValid();
   }
   ['input', 'change'].forEach(function (ev) { el.form.addEventListener(ev, syncForm); });
@@ -231,7 +250,7 @@
     el.tx.value = q.transaction_id;
     markQuick();
     syncForm();
-    (el.output.value ? el.hari : el.output).focus();
+    (!el.output.value ? el.output : el.hariField.hidden ? el.add : el.hari).focus();
   });
 
   el.form.addEventListener('submit', function (e) {

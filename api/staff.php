@@ -4,6 +4,7 @@
  *   GET                                                                → daftar karyawan + jumlah per tipe
  *   POST {name, email, jabatan, tipe, gaji_pokok, password, aktif}     → tambah
  *   PUT  {id, name, email, jabatan, tipe, gaji_pokok, aktif, password?} → ubah (password kosong = tidak diganti)
+ *   tarif_khusus: {tarif_output_id: fee} (opsional, freelance saja) → fee khusus orang ini, kosong = tarif umum
  * Tipe: 'inhouse' (gaji pokok wajib, > 0) atau 'freelance' (gaji pokok disimpan 0).
  * Akun tidak dihapus (slip lama tetap utuh) — cukup dinonaktifkan; akun nonaktif tidak bisa login
  * dan session yang masih ada langsung berakhir (lihat auth-check.php).
@@ -12,7 +13,7 @@
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
-require_once __DIR__ . '/../includes/karyawan.php';
+require_once __DIR__ . '/../includes/slip.php';
 
 function staff_list(): array
 {
@@ -20,11 +21,48 @@ function staff_list(): array
             (SELECT COUNT(DISTINCT tc.transaction_id) FROM transaction_crew tc WHERE tc.user_id = u.id) AS jobs,
             (SELECT COUNT(*) FROM slip s WHERE s.user_id = u.id AND s.status = 'diajukan') AS pending
         FROM users u WHERE u.role = 'karyawan' ORDER BY u.aktif DESC, u.name")->fetchAll();
+    $khusus = [];
+    foreach (db()->query('SELECT user_id, tarif_output_id, fee FROM tarif_khusus') as $r) {
+        $khusus[(int)$r['user_id']][(string)$r['tarif_output_id']] = (int)$r['fee'];
+    }
     return array_map(fn($r) => [
         'id' => (int)$r['id'], 'name' => $r['name'], 'email' => $r['email'], 'jabatan' => $r['jabatan'],
         'tipe' => $r['tipe'], 'gaji_pokok' => (int)$r['gaji_pokok'], 'aktif' => (bool)$r['aktif'],
         'jobs' => (int)$r['jobs'], 'pending' => (int)$r['pending'],
+        'tarif_khusus' => (object)($khusus[(int)$r['id']] ?? []),   // {tarif_output_id: fee}
     ], $rows);
+}
+
+/** Tarif freelance aktif (untuk bagian "Tarif khusus orang ini" di form) */
+function freelance_tarif(): array
+{
+    $rows = db()->query("SELECT id, nama, fee_per_hari, satuan FROM tarif_output
+                         WHERE tipe = 'freelance' AND aktif = 1 ORDER BY sort_order, id")->fetchAll();
+    return array_map(fn($r) => ['id' => (int)$r['id'], 'nama' => $r['nama'], 'fee' => (int)$r['fee_per_hari'],
+                                'satuan' => satuan_of($r['satuan'])], $rows);
+}
+
+/**
+ * Simpan tarif khusus: hanya untuk freelance & hanya tarif bertipe freelance; fee kosong/0 = pakai tarif umum.
+ * Karyawan in-house → semua tarif khusus dihapus.
+ */
+function save_tarif_khusus(int $userId, string $tipe, mixed $map): void
+{
+    $pdo = db();
+    $pdo->prepare('DELETE FROM tarif_khusus WHERE user_id = ?')->execute([$userId]);
+    if ($tipe !== 'freelance' || !is_array($map)) return;
+    $valid = array_flip(array_column(freelance_tarif(), 'id'));
+    $ins = $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee) VALUES (?, ?, ?)');
+    foreach ($map as $tid => $fee) {
+        $tid = (int)$tid;
+        $fee = ($fee === null || $fee === '') ? 0 : to_rupiah($fee);
+        if (isset($valid[$tid]) && $fee > 0) $ins->execute([$userId, $tid, $fee]);
+    }
+}
+
+function staff_response(int $status = 200): never
+{
+    json_response(['ok' => true, 'items' => staff_list(), 'tarif_freelance' => freelance_tarif()], $status);
 }
 
 function staff_input(array $in, bool $create): array
@@ -55,10 +93,11 @@ function staff_input(array $in, bool $create): array
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
-    if ($method === 'GET') json_response(['ok' => true, 'items' => staff_list()]);
+    if ($method === 'GET') staff_response();
 
     if ($method === 'POST') {
-        $d = staff_input(read_json(), true);
+        $in = read_json();
+        $d = staff_input($in, true);
         try {
             $st = db()->prepare("INSERT INTO users (name, email, password_hash, must_change_password, role, jabatan, tipe, gaji_pokok, aktif)
                                  VALUES (?, ?, ?, 0, 'karyawan', ?, ?, ?, ?) RETURNING id");
@@ -67,8 +106,10 @@ try {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;
         }
-        crew_link_user((int)$st->fetchColumn());
-        json_response(['ok' => true, 'items' => staff_list()], 201);
+        $newId = (int)$st->fetchColumn();
+        save_tarif_khusus($newId, $d['tipe'], $in['tarif_khusus'] ?? null);
+        crew_link_user($newId);
+        staff_response(201);
     }
 
     if ($method === 'PUT') {
@@ -90,8 +131,9 @@ try {
             db()->prepare('UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?')
                 ->execute([password_hash($d['password'], PASSWORD_DEFAULT), $id]);
         }
+        save_tarif_khusus($id, $d['tipe'], $in['tarif_khusus'] ?? null);
         crew_link_user($id);
-        json_response(['ok' => true, 'items' => staff_list()]);
+        staff_response();
     }
 
     json_error('Metode tidak diizinkan.', 405);

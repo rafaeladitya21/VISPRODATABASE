@@ -123,12 +123,12 @@ $autoPrint = empty($_GET['noprint']);
     <div class="info">
       <div><span>Nama</span><strong><?= e($k['name']) ?></strong></div>
       <div><span>Jabatan · Tipe</span><strong><?= e(($k['jabatan'] ? $k['jabatan'] . ' · ' : '') . tipe_label($s['tipe'])) ?></strong></div>
-      <div><span>Jumlah pekerjaan</span><strong class="num"><?= $s['jumlah_pekerjaan'] ?> pekerjaan · <?= $s['jumlah_hari'] ?> hari</strong></div>
+      <div><span>Jumlah pekerjaan</span><strong class="num"><?= e(trim($s['jumlah_pekerjaan'] . ' pekerjaan · ' . satuan_summary($s['per_satuan']), ' ·')) ?></strong></div>
       <div><span>Tanggal transfer</span><strong><?= e($s['tanggal_transfer'] ? tgl_id($s['tanggal_transfer']) : '—') ?></strong></div>
     </div>
 
     <table>
-      <thead><tr><th class="c">No</th><th>Tanggal</th><th>Event</th><th>Output</th><th class="r">Fee</th><th class="r">Hari</th><th class="r">Total Fee</th></tr></thead>
+      <thead><tr><th class="c">No</th><th>Tanggal</th><th>Event</th><th>Output</th><th class="r">Fee</th><th class="r">Jumlah</th><th class="r">Total Fee</th></tr></thead>
       <tbody>
         <?php foreach ($s['items'] as $i => $it): ?>
         <tr>
@@ -137,13 +137,13 @@ $autoPrint = empty($_GET['noprint']);
           <td><?= e($it['event']) ?></td>
           <td><?= e($it['output_nama']) ?></td>
           <td class="r num"><?= e(rupiah($it['fee_snapshot'])) ?></td>
-          <td class="r num"><?= $it['hari'] ?></td>
+          <td class="r num"><?= $it['hari'] . ' ' . e($it['satuan_snapshot']) ?></td>
           <td class="r num"><?= e(rupiah($it['total'])) ?></td>
         </tr>
         <?php endforeach; ?>
         <?php if (!$s['items']): ?><tr><td colspan="7" class="c">Tidak ada pekerjaan.</td></tr><?php endif; ?>
       </tbody>
-      <tfoot><tr><td colspan="5">Total Fee</td><td class="r num"><?= $s['jumlah_hari'] ?></td><td class="r num"><?= e(rupiah($s['total_fee'])) ?></td></tr></tfoot>
+      <tfoot><tr><td colspan="5">Total Fee</td><td class="r num"><?= e(satuan_summary($s['per_satuan'])) ?></td><td class="r num"><?= e(rupiah($s['total_fee'])) ?></td></tr></tfoot>
     </table>
 
     <div class="sum">

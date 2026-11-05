@@ -46,8 +46,8 @@ try {
 
     // --- Slip Oktober 2026 ---
     $tarif = [];
-    foreach (tarif_list() as $t) $tarif[$t['nama']] = $t;
-    check('Master tarif ter-seed', array_map(fn($t) => $t['fee_per_hari'], $tarif), [
+    foreach (tarif_for_user(karyawan_row($uid)) as $t) $tarif[$t['nama']] = $t;
+    check('Master tarif ter-seed', array_map(fn($t) => $t['fee'], $tarif), [
         'DRONE + TAKE VIDIO' => 250000, 'TAKE VIDIO' => 150000, 'LIVECAM' => 150000,
         'CAMPERS' => 150000, 'EDIT HL' => 100000, 'EDIT FULLDOC' => 100000,
     ]);
@@ -65,7 +65,7 @@ try {
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     foreach ($rows as $r) {
         $t = $tarif[$r[2]];
-        $ins->execute([$slip['id'], $r[0], $r[1], $t['id'], $t['nama'], $t['fee_per_hari'], $r[3], $t['fee_per_hari'] * $r[3],
+        $ins->execute([$slip['id'], $r[0], $r[1], $t['id'], $t['nama'], $t['fee'], $r[3], $t['fee'] * $r[3],
                        $r[1] === 'BLIMBING' && $r[2] === 'LIVECAM' ? $tx : null]);
     }
     slip_sync((int)$slip['id']);
@@ -126,6 +126,43 @@ try {
     check('Slip baru freelance: snapshot tipe & gaji pokok 0', [$nov['tipe_snapshot'], (int)$nov['gaji_pokok_snapshot']], ['freelance', 0]);
     $pdo->prepare("UPDATE users SET tipe = 'inhouse', gaji_pokok = 1000000 WHERE id = ?")->execute([$uid]);
     $me = karyawan_row($uid);
+
+    // --- Tarif in-house vs freelance (pemisahan wajib di server) ---
+    $fid = (int)$pdo->query("INSERT INTO users (name, email, password_hash, role, tipe, gaji_pokok)
+        VALUES ('HAFIDZ AGIL ABIYASA', 'test-hafidz@example.invalid', 'x', 'karyawan', 'freelance', 0) RETURNING id")->fetchColumn();
+    $fTake = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'TAKE VIDIO', 200000, 'hari') RETURNING id")->fetchColumn();
+    $fProj = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'EDIT COMPRO', 500000, 'project') RETURNING id")->fetchColumn();
+    $fJam  = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'LIVECAM JAM', 75000, 'jam') RETURNING id")->fetchColumn();
+    $fOff  = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan, aktif) VALUES ('freelance', 'LAMA', 1, 'hari', 0) RETURNING id")->fetchColumn();
+    $hafidz = karyawan_row($fid);
+    $andhika = karyawan_row($uid);
+    $freeList = tarif_for_user($hafidz);
+    check('Freelance: dropdown hanya tarif freelance aktif', array_column($freeList, 'nama'), ['TAKE VIDIO', 'EDIT COMPRO', 'LIVECAM JAM']);
+    check('Freelance: satuan ikut', array_column($freeList, 'satuan'), ['hari', 'project', 'jam']);
+    check('In-house: tidak ada tarif freelance', array_intersect(array_column(tarif_for_user($andhika), 'id'), [$fTake, $fProj, $fJam]), []);
+    check('Freelance memakai tarif in-house → ditolak', tarif_for_user($hafidz, $tarif['TAKE VIDIO']['id']), null);
+    check('In-house memakai tarif freelance → ditolak', tarif_for_user($andhika, $fTake), null);
+    check('Tarif nonaktif → ditolak', tarif_for_user($hafidz, $fOff), null);
+
+    $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee) VALUES (?, ?, 250000)')->execute([$fid, $fTake]);
+    $t = tarif_for_user($hafidz, $fTake);
+    check('Tarif khusus menimpa fee umum', [$t['fee'], $t['khusus']], [250000, true]);
+    check('Tarif khusus tidak berlaku untuk orang lain',
+        tarif_for_user(['id' => $other, 'tipe' => 'freelance'], $fTake)['fee'], 200000);
+
+    $fs = slip_ensure($fid, '2026-10');
+    $ins2 = $pdo->prepare('INSERT INTO slip_item (slip_id, tanggal, event, tarif_output_id, output_nama, fee_snapshot, satuan_snapshot, hari, total)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    $ins2->execute([$fs['id'], '2026-10-10', 'WEDDING A', $fTake, 'TAKE VIDIO', 200000, 'hari', 2, 400000]);   // fee lama → disinkron ke 250.000
+    $ins2->execute([$fs['id'], '2026-10-12', 'COMPRO B', $fProj, 'EDIT COMPRO', 500000, 'project', 3, 1500000]); // project → jumlah dipaksa 1
+    $ins2->execute([$fs['id'], '2026-10-14', 'KONSER C', $fJam, 'LIVECAM JAM', 75000, 'jam', 4, 300000]);
+    slip_sync((int)$fs['id']);
+    $p = slip_load($hafidz, '2026-10');
+    check('Freelance: jumlah project = 1', array_column($p['items'], 'hari'), [2, 1, 4]);
+    check('Freelance: Total Fee = 2×250.000 + 500.000 + 4×75.000', $p['total_fee'], 1300000);
+    check('Freelance: tanpa gaji pokok, Sub Total = Total Fee', [$p['tipe'], $p['gaji_pokok'], $p['sub_total']], ['freelance', 0, 1300000]);
+    check('Freelance: ringkasan satuan', satuan_summary($p['per_satuan']), '2 hari · 4 jam · 1 project');
+    check('In-house tetap 4.600.000', slip_load($andhika, '2026-10')['sub_total'], 4600000);
 
     // Slip karyawan lain terpisah
     check('Slip karyawan lain kosong', slip_load(karyawan_row($other), '2026-10')['jumlah_pekerjaan'], 0);

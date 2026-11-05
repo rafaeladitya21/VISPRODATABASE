@@ -92,6 +92,19 @@ check('Freelance: gaji pokok diabaikan = 0', $fr['gaji_pokok'], 0);
 check('Freelance: Sub Total = Total Fee = Rp 3.600.000', [$fr['total_fee'], $fr['sub_total']], [3600000, 3600000]);
 check('In-house eksplisit: Sub Total = Rp 4.600.000', slip_compute($items, 1000000, 'inhouse')['sub_total'], 4600000);
 check('Label tipe', [tipe_label('inhouse'), tipe_label('freelance')], ['In-house', 'Freelance']);
+
+echo "\nSatuan (hari / project / jam)\n";
+$mix = slip_compute([
+    ['tanggal' => '2026-11-02', 'event' => 'A', 'output_nama' => 'TAKE VIDIO',  'fee_snapshot' => 200000, 'hari' => 2, 'satuan_snapshot' => 'hari'],
+    ['tanggal' => '2026-11-03', 'event' => 'B', 'output_nama' => 'EDIT COMPRO', 'fee_snapshot' => 500000, 'hari' => 5, 'satuan_snapshot' => 'project'],
+    ['tanggal' => '2026-11-04', 'event' => 'C', 'output_nama' => 'LIVECAM JAM', 'fee_snapshot' => 75000,  'hari' => 4, 'satuan_snapshot' => 'jam'],
+], 0, 'freelance');
+check('Project selalu jumlah 1', $mix['items'][1]['hari'], 1);
+check('Total Fee campuran = 400.000 + 500.000 + 300.000', $mix['total_fee'], 1200000);
+check('Freelance Sub Total = Total Fee', $mix['sub_total'], 1200000);
+check('Ringkasan satuan', satuan_summary($mix['per_satuan']), '2 hari · 4 jam · 1 project');
+check('Data lama tanpa satuan = hari', slip_compute($items, 1000000)['per_satuan'], ['hari' => 21]);
+check('Satuan tidak dikenal → hari', satuan_of('minggu'), 'hari');
 check('Sapaan 04.00', sapaan(4), 'Selamat Pagi');
 check('Sapaan 10.59', sapaan(10), 'Selamat Pagi');
 check('Sapaan 11.00', sapaan(11), 'Selamat Siang');

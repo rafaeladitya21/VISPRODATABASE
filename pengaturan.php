@@ -1,7 +1,13 @@
 <?php
-/** Pengaturan karyawan — admin: master tarif output + pesan penyemangat & info di Beranda karyawan. */
+/**
+ * Pengaturan karyawan — admin:
+ *  - master tarif output, dipisah Tarif In-house / Tarif Freelance (fee + satuan per hari/project/jam)
+ *  - pesan penyemangat & info di Beranda karyawan
+ * Tarif khusus per freelancer diatur di Akun Karyawan → Ubah.
+ */
 declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
+require_once __DIR__ . '/includes/slip.php';
 require __DIR__ . '/includes/layout.php';
 
 layout_start('Pengaturan', 'pengaturan');
@@ -17,18 +23,24 @@ layout_start('Pengaturan', 'pengaturan');
   <section class="card card--flush fbu" aria-labelledby="tf-title">
     <div class="card__head card__head--pad">
       <div>
-        <h2 class="card__title" id="tf-title">Tarif output per hari</h2>
-        <p class="card__sub">Slip yang sudah diajukan tidak ikut berubah (fee disimpan saat diajukan).</p>
+        <h2 class="card__title" id="tf-title">Tarif output</h2>
+        <p class="card__sub" id="tf-sub">Karyawan hanya melihat tarif sesuai tipenya. Slip yang sudah diajukan tidak ikut berubah.</p>
       </div>
       <button class="btn btn--primary" type="button" id="tf-add">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah
       </button>
     </div>
+    <div class="tf-tabs">
+      <div class="seg seg--count" role="tablist" aria-label="Daftar tarif" id="tf-tabs">
+        <button type="button" class="seg__btn is-active" role="tab" aria-selected="true" data-tipe="inhouse">Tarif In-house <small class="num" data-count="inhouse">0</small></button>
+        <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="freelance">Tarif Freelance <small class="num" data-count="freelance">0</small></button>
+      </div>
+    </div>
     <div id="tf-error" hidden style="padding:0 20px 12px"></div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>Output</th><th class="r">Tarif per hari</th><th>Status</th><th style="width:150px"><span class="sr-only">Aksi</span></th></tr></thead>
-        <tbody id="tf-body"><tr><td colspan="4" class="empty">Memuat…</td></tr></tbody>
+        <thead><tr><th>Output</th><th class="r">Fee</th><th>Satuan</th><th>Status</th><th style="width:190px"><span class="sr-only">Aksi</span></th></tr></thead>
+        <tbody id="tf-body"><tr><td colspan="5" class="empty">Memuat…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -62,20 +74,31 @@ layout_start('Pengaturan', 'pengaturan');
 <dialog class="modal" id="tf-modal" aria-labelledby="tf-modal-title">
   <div class="window__bar">
     <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name" id="tf-modal-title">Tambah Output</span>
+    <span class="window__name" id="tf-modal-title">Tambah Tarif</span>
     <button class="btn-icon modal__close" type="button" data-close aria-label="Tutup">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
   </div>
   <form class="window__body adm-form" id="tf-form" novalidate autocomplete="off" data-form-type="other">
     <input type="hidden" name="tid">
+    <p class="card__sub" id="tf-form-tipe"></p>
     <div class="field">
       <label class="field__label" for="tf-nama">Nama output</label>
       <input class="input" id="tf-nama" name="nama" maxlength="80" placeholder="mis. TAKE VIDIO" required>
     </div>
-    <div class="field">
-      <label class="field__label" for="tf-fee">Tarif per hari (Rp)</label>
-      <input class="input input--money" id="tf-fee" name="fee_per_hari" placeholder="0" required>
+    <div class="grid2">
+      <div class="field">
+        <label class="field__label" for="tf-fee">Fee (Rp)</label>
+        <input class="input input--money" id="tf-fee" name="fee_per_hari" placeholder="0" required>
+      </div>
+      <div class="field">
+        <label class="field__label" for="tf-satuan">Satuan</label>
+        <select class="input" id="tf-satuan" name="satuan">
+          <option value="hari">Per hari</option>
+          <option value="project">Per project</option>
+          <option value="jam">Per jam</option>
+        </select>
+      </div>
     </div>
     <label class="check" for="tf-aktif">
       <input type="checkbox" id="tf-aktif" name="aktif" checked>
@@ -89,22 +112,5 @@ layout_start('Pengaturan', 'pengaturan');
       </button>
     </div>
   </form>
-</dialog>
-
-<dialog class="modal" id="tf-del" aria-labelledby="tf-del-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name">Hapus output</span>
-  </div>
-  <div class="window__body">
-    <p class="modal__title" id="tf-del-title"></p>
-    <p class="card__sub" id="tf-del-sub"></p>
-    <div class="modal__actions">
-      <button class="btn btn--secondary" type="button" data-close>Batal</button>
-      <button class="btn btn--primary" type="button" id="tf-del-ok">
-        <span class="spinner btn__spinner" aria-hidden="true"></span><span>Hapus</span>
-      </button>
-    </div>
-  </div>
 </dialog>
 <?php layout_end(['pengaturan.js']); ?>

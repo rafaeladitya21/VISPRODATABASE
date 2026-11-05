@@ -30,7 +30,7 @@ function payroll_list(string $filter, ?string $periode): array
     $st = db()->prepare("SELECT s.id, s.periode, s.status, s.total_fee, s.sub_total, s.gaji_pokok_snapshot, s.tipe_snapshot,
             s.diajukan_at, s.tanggal_transfer, s.catatan_admin, u.name, u.jabatan,
             (SELECT COUNT(*) FROM slip_item si WHERE si.slip_id = s.id) AS n,
-            (SELECT COALESCE(SUM(hari), 0) FROM slip_item si WHERE si.slip_id = s.id) AS hari
+            (SELECT COALESCE(SUM(hari), 0) FROM slip_item si WHERE si.slip_id = s.id AND si.satuan_snapshot = 'hari') AS hari
         FROM slip s JOIN users u ON u.id = s.user_id
         WHERE $where ORDER BY s.periode DESC, s.diajukan_at DESC NULLS LAST, u.name LIMIT 500");
     $st->execute($args);

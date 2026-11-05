@@ -116,6 +116,10 @@ Total sewa        = Harga sewa × Qty × Day
   (`transaction_crew.user_id`). Transaksi Draft tidak tampil ke karyawan.
 - **Tipe karyawan** (`users.tipe`): **In-house** (gaji pokok + fee per job) atau **Freelance** (fee per job saja,
   gaji pokok disimpan 0). Tipe & gaji pokok disalin ke slip (`tipe_snapshot`, `gaji_pokok_snapshot`).
+- **Tarif per tipe** (`tarif_output.tipe`, `satuan` = hari / project / jam): Pengaturan punya tab Tarif In-house dan
+  Tarif Freelance. Karyawan hanya menerima & hanya boleh menyimpan tarif aktif bertipe sama dengan akunnya
+  (`tarif_for_user()` di `includes/slip.php`; tarif tipe lain → 403). Fee khusus satu freelancer (`tarif_khusus`)
+  diatur di Akun Karyawan → Ubah dan menimpa fee umum. Fee & satuan disimpan di `slip_item` dari server.
 - **Slip gaji**: total per baris = fee output × hari · Total Fee = Σ baris · Sub Total = Total Fee + Gaji Pokok
   (freelance: Sub Total = Total Fee).
   Alur: Draft → Diajukan → Disetujui → Dibayar. Selama Draft fee & gaji pokok mengikuti master terkini;

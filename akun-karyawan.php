@@ -88,6 +88,11 @@ layout_start('Akun Karyawan', 'akun-karyawan');
         <input class="input input--money" id="st-gp" name="gaji_pokok" placeholder="1.000.000" required>
       </div>
     </div>
+    <div class="field tk" id="st-khusus" hidden>
+      <p class="field__label">Tarif khusus orang ini (opsional)</p>
+      <p class="field__hint">Isi fee untuk menimpa tarif freelance umum khusus orang ini. Kosong = pakai tarif umum.</p>
+      <div class="tk__list" id="st-khusus-list"></div>
+    </div>
     <div class="field">
       <label class="field__label" for="st-pass" id="st-pass-label">Kata sandi awal</label>
       <input class="input" id="st-pass" name="password" type="text" minlength="8" autocomplete="new-password" data-lpignore="true">

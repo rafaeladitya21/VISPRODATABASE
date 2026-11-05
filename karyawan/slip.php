@@ -18,8 +18,8 @@ layout_start('Slip Gaji', 'k-slip');
   <div>
     <h1 class="page-head__title">Slip Gaji</h1>
     <p class="page-head__sub"><?= ($user['tipe'] ?? 'inhouse') === 'freelance'
-      ? 'Total fee = fee output × jumlah hari · Sub total = total fee (freelance, tanpa gaji pokok)'
-      : 'Total fee = fee output × jumlah hari · Sub total = total fee + gaji pokok' ?></p>
+      ? 'Pilih output yang Anda kerjakan. Fee mengikuti tarif freelance dari Admin.'
+      : 'Total fee = fee output × jumlah · Sub total = total fee + gaji pokok' ?></p>
   </div>
   <div class="page-head__actions">
     <div class="sc-nav">
@@ -66,9 +66,9 @@ layout_start('Slip Gaji', 'k-slip');
           <label class="field__label" for="sl-output">Output</label>
           <select class="input" id="sl-output" name="tarif_output_id" required></select>
         </div>
-        <div class="field ks-form__hari">
-          <label class="field__label" for="sl-hari">Hari</label>
-          <input class="input num" type="number" id="sl-hari" name="hari" min="1" max="<?= SLIP_MAX_HARI ?>" step="1" value="1" inputmode="numeric" required>
+        <div class="field ks-form__hari" id="sl-hari-field">
+          <label class="field__label" for="sl-hari" id="sl-hari-label">Jumlah</label>
+          <input class="input num" type="number" id="sl-hari" name="hari" min="1" max="31" step="1" value="1" inputmode="numeric" required>
         </div>
         <div class="ks-form__foot">
           <p class="ks-preview">Total <strong class="num" id="sl-preview">Rp 0</strong> <span class="num" id="sl-preview-calc"></span></p>
@@ -86,14 +86,14 @@ layout_start('Slip Gaji', 'k-slip');
     <section class="card card--flush fbu" aria-labelledby="sl-table-title">
       <div class="card__head card__head--pad">
         <h2 class="card__title" id="sl-table-title">Rincian pekerjaan</h2>
-        <span class="badge num" id="sl-count">0 pekerjaan · 0 hari</span>
+        <span class="badge num" id="sl-count">0 pekerjaan</span>
       </div>
       <div class="table-wrap">
         <table class="table ks-table">
           <thead>
             <tr>
               <th class="c" style="width:48px">No</th><th>Tanggal</th><th>Event</th><th>Output</th>
-              <th class="r">Fee</th><th class="r">Hari</th><th class="r">Total Fee</th>
+              <th class="r">Fee</th><th class="r">Jumlah</th><th class="r">Total Fee</th>
               <th style="width:52px"><span class="sr-only">Hapus</span></th>
             </tr>
           </thead>
@@ -124,7 +124,7 @@ layout_start('Slip Gaji', 'k-slip');
     <ul class="ks-sum__rows" id="ss-outputs"></ul>
     <div class="ks-sum__rows ks-sum__rows--total">
       <div><span>Total Fee</span><strong class="num" id="ss-fee">Rp 0</strong></div>
-      <div id="ss-gp-row"><span>Gaji Pokok</span><strong class="num" id="ss-gp">Rp 0</strong></div>
+      <div id="ss-gp-row" hidden></div><!-- diisi JS hanya untuk slip in-house -->
     </div>
     <div class="ks-sum__grand">
       <span>Sub Total</span>
