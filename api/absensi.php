@@ -1,8 +1,9 @@
 <?php
 /**
  * API Absensi — ADMIN
- *   GET  ?bulan=YYYY-MM | ?tanggal=YYYY-MM-DD  [&user_id=] [&status=]
- *        → baris absen per hari kerja (hari lewat tanpa catatan = Alpa) + rekap bulanan per intern
+ *   GET  ?bulan=YYYY-MM | ?tanggal=YYYY-MM-DD  [&user_id=] [&status=] [&lokasi_id=]
+ *        → baris absen per hari kerja (hari lewat tanpa catatan = Alpa) + lokasi masuk/pulang + rekap bulanan,
+ *          percobaan ditolak (di luar radius), daftar kantor & radius. Penanda "Mencurigakan" hanya peringatan.
  *   GET  ...&export=csv                         → unduh CSV (dibuka di Excel)
  *   POST {aksi:'koreksi', user_id, tanggal, status:'auto'|'izin'|'sakit'|'alpa', jam_masuk?, jam_pulang?, alasan}
  *        → ubah / buat catatan absen. auto = status dari jam masuk (Tepat waktu / Terlambat).
@@ -28,11 +29,22 @@ function csv_out(array $d): never
     fputcsv($out, ['Nama', 'Divisi', 'Hadir', 'Terlambat', 'Izin', 'Sakit', 'Alpa'], ';');
     foreach ($d['rekap'] as $r) fputcsv($out, [$r['name'], $r['divisi'], $r['hadir'], $r['terlambat'], $r['izin'], $r['sakit'], $r['alpa']], ';');
     fputcsv($out, [], ';');
-    fputcsv($out, ['Nama', 'Tanggal', 'Masuk', 'Pulang', 'Status masuk', 'Status pulang', 'Status hari', 'Alasan koreksi'], ';');
+    fputcsv($out, ['Nama', 'Tanggal', 'Masuk', 'Pulang', 'Status masuk', 'Status pulang', 'Status hari',
+                   'Lokasi masuk', 'Jarak masuk (m)', 'Lokasi pulang', 'Jarak pulang (m)', 'Mencurigakan', 'Alasan koreksi'], ';');
     foreach ($d['rows'] as $r) {
         fputcsv($out, [$r['name'], $r['tanggal'], $r['jam_masuk'] ?? '', $r['jam_pulang'] ?? '',
                        ABSEN_MASUK[$r['status_masuk'] ?? ''] ?? '', ABSEN_PULANG[$r['status_pulang'] ?? ''] ?? '',
-                       $r['status_label'], $r['alasan_koreksi'] ?? ''], ';');
+                       $r['status_label'],
+                       $r['masuk_lokasi']['nama'] ?? '', $r['masuk_lokasi']['jarak'] ?? '',
+                       $r['pulang_lokasi']['nama'] ?? '', $r['pulang_lokasi']['jarak'] ?? '',
+                       implode('; ', $r['curiga']), $r['alasan_koreksi'] ?? ''], ';');
+    }
+    fputcsv($out, [], ';');
+    fputcsv($out, ['Percobaan absen ditolak (di luar radius)'], ';');
+    fputcsv($out, ['Nama', 'Waktu server', 'Jenis', 'Jarak (m)', 'Kantor terdekat', 'Akurasi (m)', 'Lat', 'Lng', 'Mencurigakan'], ';');
+    foreach ($d['ditolak'] as $t) {
+        fputcsv($out, [$t['name'], $t['waktu'], $t['jenis'], $t['jarak'] ?? '', $t['kantor'] ?? '', $t['akurasi'] === null ? '' : round($t['akurasi']),
+                       $t['lat'], $t['lng'], implode('; ', $t['curiga'] ?? [])], ';');
     }
     fclose($out);
     exit;

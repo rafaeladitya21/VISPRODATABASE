@@ -27,7 +27,11 @@
       if (r.status === 401) { window.location.href = 'login.php'; throw new Error('Sesi berakhir.'); }
       return r.json().catch(function () { return { ok: false, message: 'Respons server tidak valid.' }; })
         .then(function (data) {
-          if (!r.ok || data.ok === false) throw new Error(data.message || 'Terjadi kesalahan.');
+          if (!r.ok || data.ok === false) {
+            var er = new Error(data.message || 'Terjadi kesalahan.');
+            er.data = data; er.status = r.status;   // detail tambahan (mis. penolakan lokasi absen)
+            throw er;
+          }
           return data;
         });
     }, function (err) {
@@ -218,6 +222,48 @@
     MH.$$('.fbu', root).forEach(function (el, i) {
       if (!el.style.getPropertyValue('--d')) el.style.setProperty('--d', (base || 0) + i * 80 + 'ms');
     });
+  };
+
+  /* --- Peta (Leaflet + OpenStreetMap), dimuat saat dibutuhkan --- */
+  var leafletP = null;
+  MH.leaflet = function () {
+    if (window.L) return Promise.resolve(window.L);
+    if (leafletP) return leafletP;
+    leafletP = new Promise(function (res, rej) {
+      var css = document.createElement('link');
+      css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      css.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='; css.crossOrigin = '';
+      document.head.appendChild(css);
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      s.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo='; s.crossOrigin = '';
+      s.onload = function () { res(window.L); };
+      s.onerror = function () { leafletP = null; rej(new Error('Peta gagal dimuat. Periksa koneksi internet.')); };
+      document.head.appendChild(s);
+    });
+    return leafletP;
+  };
+  /** Peta dasar OSM di elemen el */
+  MH.map = function (L, el, center, zoom) {
+    var m = L.map(el, { scrollWheelZoom: false }).setView(center || [-7.9666, 112.6326], zoom || 15);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+    }).addTo(m);
+    return m;
+  };
+  /** Pin monokrom (label 1–2 huruf opsional; variant: '' hitam, 'light' putih, 'bad' merah) */
+  MH.pinIcon = function (L, label, variant) {
+    return L.divIcon({
+      className: 'mh-pin' + (variant ? ' mh-pin--' + variant : ''),
+      html: '<span><b>' + (label ? MH.esc(label) : '') + '</b></span>', iconSize: [30, 30], iconAnchor: [15, 30], tooltipAnchor: [0, -26]
+    });
+  };
+  MH.mapsUrl = function (lat, lng) { return 'https://www.google.com/maps?q=' + lat + ',' + lng; };
+  /** 230 → "230 m", 1234 → "1,2 km" (sama dengan jarak_label di server) */
+  MH.jarak = function (m) {
+    if (m === null || m === undefined) return '—';
+    var r = Math.round(m);
+    return r < 1000 ? r + ' m' : (m / 1000).toFixed(1).replace('.', ',') + ' km';
   };
 
   /* --- Modal (<dialog>) --- */

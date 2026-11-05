@@ -1,11 +1,14 @@
 <?php
 /**
  * API Absen — ANAK MAGANG (hanya absen milik sendiri; user_id dari session)
- *   GET                       → absen hari ini + jam server
- *   POST {aksi:'masuk'}       → absen masuk (sekali per hari) — jam = JAM SERVER
- *   POST {aksi:'pulang'}      → absen pulang (sekali, sesudah masuk) — jam = JAM SERVER
- * Body tidak boleh / tidak bisa membawa jam: field lain diabaikan.
- * Mengubah / menghapus absen (PUT, PATCH, DELETE, atau POST dengan jam) → 403. Koreksi hanya oleh Admin.
+ *   GET                                        → absen hari ini + jam server
+ *   POST {aksi:'setuju_lokasi'}                → catat persetujuan penggunaan lokasi (sekali)
+ *   POST {aksi:'masuk'|'pulang', lat, lng, akurasi}
+ *        → absen dengan JAM SERVER. Lokasi dicek di SERVER: kantor aktif terdekat (Haversine) harus
+ *          dalam radius_absen_intern. Di luar radius → ditolak & dicatat di absen_ditolak.
+ *          Akurasi > 50 m → kode 'akurasi_rendah' (tidak disimpan). Kantor tidak pernah dipilih / dikirim browser.
+ * Body tidak boleh membawa jam / tanggal / status. Mengubah / menghapus absen → 403 (koreksi hanya oleh Admin).
+ * Penolakan lokasi → 422 {ok:false, message, lokasi:{kode, jarak, jarak_label, kantor, radius, akurasi}}
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
@@ -22,7 +25,7 @@ try {
     if ($method === 'GET') {
         $now = server_now();
         json_response(['ok' => true, 'now' => $now, 'absen' => absen_map($me['id'], $now['tanggal'], $now['tanggal'])[$now['tanggal']] ?? null,
-                       'blocked' => absen_blocked($me, $now['tanggal'])]);
+                       'blocked' => absen_blocked($me, $now['tanggal']), 'perlu_setuju' => $me['setuju_lokasi_at'] === null]);
     }
 
     if ($method !== 'POST') json_error('Absen tidak bisa diubah atau dihapus. Hubungi Admin.', 403);
@@ -33,10 +36,22 @@ try {
         if (array_key_exists($k, $in)) json_error('Jam & tanggal absen diambil dari server dan tidak bisa dikirim.', 403);
     }
     $aksi = (string)($in['aksi'] ?? '');
+
+    if ($aksi === 'setuju_lokasi') {
+        db()->prepare('UPDATE users SET setuju_lokasi_at = COALESCE(setuju_lokasi_at, LOCALTIMESTAMP(0)) WHERE id = ?')->execute([$me['id']]);
+        json_response(['ok' => true]);
+    }
     if (!in_array($aksi, ['masuk', 'pulang'], true)) json_error('Absen tidak bisa diubah atau dihapus. Hubungi Admin.', 403);
+    if ($me['setuju_lokasi_at'] === null) {
+        json_response(['ok' => false, 'message' => 'Baca dan setujui penjelasan penggunaan lokasi dulu.', 'lokasi' => ['kode' => 'perlu_setuju']], 422);
+    }
 
     try {
-        $row = absen_catat($me, $aksi, client_ip(), client_ua());
+        // Hanya lat, lng, akurasi yang dipakai. Field lain (kantor, lokasi_id, "dalam radius") diabaikan.
+        $row = absen_catat($me, $aksi, ['lat' => $in['lat'] ?? null, 'lng' => $in['lng'] ?? null, 'akurasi' => $in['akurasi'] ?? null],
+                           client_ip(), client_ua());
+    } catch (AbsenLokasiException $e) {
+        json_response(['ok' => false, 'message' => $e->getMessage(), 'lokasi' => $e->info], 422);
     } catch (DomainException $e) {
         json_error($e->getMessage(), 409);
     }

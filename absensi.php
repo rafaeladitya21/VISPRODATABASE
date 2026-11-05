@@ -1,5 +1,5 @@
 <?php
-/** Absensi anak magang — admin: daftar absen, koreksi (alasan wajib), tandai Izin/Sakit/Alpa, rekap & ekspor. */
+/** Absensi anak magang — admin: daftar absen + lokasi, percobaan ditolak, koreksi (alasan wajib), tandai Izin/Sakit/Alpa, rekap & ekspor. */
 declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
 require __DIR__ . '/includes/layout.php';
@@ -38,6 +38,7 @@ layout_start('Absensi', 'absensi');
       <option value="izin">Izin</option><option value="sakit">Sakit</option><option value="alpa">Alpa</option>
     </select>
   </label>
+  <label><span class="sr-only">Kantor</span><select class="input ab-select" id="ab-kantor"><option value="">Semua kantor</option></select></label>
 </div>
 
 <div id="ab-error" hidden></div>
@@ -59,13 +60,23 @@ layout_start('Absensi', 'absensi');
 
 <section class="card card--flush fbu pr-report" aria-labelledby="ab-list-title">
   <div class="card__head card__head--pad">
-    <h2 class="card__title" id="ab-list-title">Daftar absen</h2>
-    <span class="badge num" id="ab-count">0</span>
+    <h2 class="sr-only" id="ab-list-title">Daftar absen</h2>
+    <div class="seg seg--count" role="tablist" aria-label="Daftar" id="ab-tabs">
+      <button type="button" class="seg__btn is-active" role="tab" aria-selected="true" data-tab="absen">Daftar absen <small class="num" data-count="absen">0</small></button>
+      <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tab="ditolak">Percobaan ditolak <small class="num" data-count="ditolak">0</small></button>
+    </div>
+    <span class="card__sub" id="ab-radius"></span>
   </div>
-  <div class="table-wrap">
+  <div class="table-wrap" data-pane="absen">
     <table class="table">
-      <thead><tr><th>Nama</th><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th style="width:110px"><span class="sr-only">Aksi</span></th></tr></thead>
-      <tbody id="ab-body"><tr><td colspan="6" class="empty">Memuat…</td></tr></tbody>
+      <thead><tr><th>Nama</th><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Lokasi</th><th>Status</th><th style="width:150px"><span class="sr-only">Aksi</span></th></tr></thead>
+      <tbody id="ab-body"><tr><td colspan="7" class="empty">Memuat…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="table-wrap" data-pane="ditolak" hidden>
+    <table class="table">
+      <thead><tr><th>Nama</th><th>Waktu server</th><th>Jenis</th><th class="r">Jarak</th><th>Kantor terdekat</th><th class="r">Akurasi</th><th style="width:150px"><span class="sr-only">Peta</span></th></tr></thead>
+      <tbody id="ab-tolak"><tr><td colspan="7" class="empty">Memuat…</td></tr></tbody>
     </table>
   </div>
 </section>
@@ -132,5 +143,19 @@ layout_start('Absensi', 'absensi');
       <button class="btn btn--primary" type="submit" id="ab-reset-ok"><span class="spinner btn__spinner" aria-hidden="true"></span><span>Reset</span></button>
     </div>
   </form>
+</dialog>
+<dialog class="modal modal--wide" id="ab-map-modal" aria-labelledby="ab-map-title">
+  <div class="window__bar">
+    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="window__name" id="ab-map-title">Lokasi absen</span>
+    <button class="btn-icon modal__close" type="button" data-close aria-label="Tutup">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="window__body">
+    <p class="card__sub" id="ab-map-who"></p>
+    <div class="lk-map lk-map--tall" id="ab-map"></div>
+    <ul class="ab-map-legend" id="ab-map-list"></ul>
+  </div>
 </dialog>
 <?php layout_end(['absensi.js'], ['today' => date('Y-m-d')]); ?>

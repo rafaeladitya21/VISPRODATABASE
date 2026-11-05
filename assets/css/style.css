@@ -2270,3 +2270,77 @@ a.jr-chip:hover { border-color: var(--ink); }
 .jm-who { margin-bottom: 4px; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .jm-kom-form { margin-top: 16px; }
 #jm-detail .jr-card { box-shadow: none; }
+
+/* =========================================================
+   LOKASI ABSEN (Pengaturan, Absensi admin, kotak absen intern)
+   ========================================================= */
+.notice__link { margin-left: 6px; font-weight: 700; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.lk-section { margin-top: 20px; display: flex; flex-direction: column; gap: 16px; }
+.lk-rule {
+  display: grid; grid-template-columns: minmax(0, 1fr) 140px auto; align-items: end; gap: 12px;
+  padding: 14px 16px; background: var(--soft); border: 1px solid var(--line); border-radius: 12px;
+}
+.lk-rule__title { font-weight: 700; font-size: 14px; }
+.lk-rule__field { display: flex; flex-direction: column; gap: 6px; }
+.lk-rule__field .input { background: var(--white); }
+.lk-rule__err { grid-column: 1 / -1; }
+.lk-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.lk-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--white); }
+.lk-card__head { display: flex; align-items: center; gap: 12px; }
+.lk-name { flex: 1; min-width: 0; font-weight: 700; }
+.lk-paste { display: flex; flex-direction: column; gap: 6px; }
+.lk-paste__row { display: flex; gap: 8px; }
+.lk-paste__row .input { flex: 1; min-width: 0; }
+.lk-paste .field__hint { display: flex; align-items: center; gap: 6px; }
+.lk-map {
+  position: relative; isolation: isolate; height: 260px; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--soft);
+}
+.lk-map--tall { height: min(440px, 60vh); }
+.lk-coords { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--muted); }
+.lk-coords .num { color: var(--ink); font-weight: 600; }
+.lk-card__tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.lk-card__tools .btn, .lk-card__tools a.btn { gap: 6px; }
+.lk-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line-2); }
+.leaflet-container { font-family: var(--font-body); }
+.leaflet-container a { color: var(--ink); }
+
+/* Pin peta monokrom */
+.mh-pin { background: none; border: 0; }
+.mh-pin span {
+  display: grid; place-items: center; width: 30px; height: 30px;
+  font: 700 11px/1 var(--font-body); color: #FFFFFF;
+  background: #0A0A0A; border: 2px solid #FFFFFF; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+}
+.mh-pin b { transform: rotate(45deg); font-weight: 700; }
+.mh-pin--light span { color: #0A0A0A; background: #FFFFFF; border-color: #0A0A0A; }
+.mh-pin--bad span { background: #DC2626; }
+
+/* Absensi admin: legenda peta detail */
+.ab-map-legend { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.ab-map-legend li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.ab-map-legend a { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-weight: 600; color: var(--ink); }
+.ab-dot { display: inline-grid; place-items: center; flex: none; width: 22px; height: 22px; font-size: 11px; font-weight: 700; color: var(--white); background: var(--ink); border-radius: 50%; }
+.ab-dot.is-bad { background: var(--red); color: #FFFFFF; }
+#ab-tabs { flex-wrap: wrap; }
+
+/* Kotak absen intern (kartu hitam) */
+.mg-loc { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12.5px; color: #E5E5E5; }
+.mg-loc__ok { font-size: 11px; padding: 2px 8px; }
+.mg-alert {
+  display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px;
+  font-size: 13px; line-height: 1.5; color: #E5E5E5;
+  border: 1px solid rgba(255, 255, 255, .3); border-radius: 12px; background: rgba(255, 255, 255, .04);
+}
+.mg-alert > .icon { flex: none; margin-top: 2px; }
+.mg-alert--strong { color: #FFFFFF; border: 2px solid #FFFFFF; background: rgba(255, 255, 255, .08); }
+.mg-alert__body { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.mg-alert__body strong { color: #FFFFFF; }
+.mg-alert__retry { height: 36px; gap: 6px; font-size: 13px; }
+.mg-guide { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: #D4D4D4; font-size: 12.5px; }
+@media (max-width: 640px) {
+  .lk-rule { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .lk-map { height: 220px; }
+  .ab-map-legend a { margin-left: 0; }
+}

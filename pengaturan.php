@@ -3,6 +3,7 @@
  * Pengaturan karyawan — admin:
  *  - master tarif output, dipisah Tarif In-house / Tarif Freelance (fee + satuan per hari/project/jam)
  *  - pesan penyemangat & info di Beranda karyawan
+ *  - Lokasi Absen: titik kantor (peta Leaflet + OpenStreetMap) & radius absen anak magang (api/lokasi.php)
  * Tarif khusus per freelancer diatur di Akun Karyawan → Ubah.
  */
 declare(strict_types=1);
@@ -15,7 +16,7 @@ layout_start('Pengaturan', 'pengaturan');
 <header class="page-head fbu">
   <div>
     <h1 class="page-head__title">Pengaturan</h1>
-    <p class="page-head__sub">Tarif output untuk slip gaji &amp; pesan untuk Beranda karyawan</p>
+    <p class="page-head__sub">Tarif output untuk slip gaji, pesan untuk Beranda karyawan &amp; lokasi absen anak magang</p>
   </div>
 </header>
 
@@ -76,6 +77,35 @@ layout_start('Pengaturan', 'pengaturan');
   </section>
 </div>
 
+<section class="card fbu lk-section" id="lokasi" aria-labelledby="lk-title">
+  <div class="card__head">
+    <div>
+      <h2 class="card__title" id="lk-title">Lokasi Absen</h2>
+      <p class="card__sub">Anak magang hanya bisa absen di dekat kantor aktif. Server memilih kantor terdekat secara otomatis — intern tidak memilih kantor.</p>
+    </div>
+    <button class="btn btn--primary" type="button" id="lk-add">
+      <span class="spinner btn__spinner" aria-hidden="true"></span>
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Tambah kantor</span>
+    </button>
+  </div>
+
+  <form class="lk-rule" id="lk-rule" novalidate>
+    <div>
+      <p class="lk-rule__title">Aturan anak magang</p>
+      <p class="card__sub">Absen hanya sah bila jarak ke kantor terdekat ≤ radius. Akurasi GPS lebih dari ±50 m diminta coba lagi.</p>
+    </div>
+    <div class="lk-rule__field">
+      <label class="field__label" for="lk-radius">Radius (m)</label>
+      <input class="input num" id="lk-radius" type="number" inputmode="numeric" min="50" max="300" step="5" value="100">
+    </div>
+    <button class="btn btn--secondary" type="submit" id="lk-radius-save"><span class="spinner btn__spinner" aria-hidden="true"></span><span>Simpan radius</span></button>
+    <div id="lk-rule-error" class="lk-rule__err" hidden></div>
+  </form>
+
+  <div id="lk-error" hidden></div>
+  <div class="lk-list" id="lk-list"><p class="empty">Memuat…</p></div>
+</section>
+
 <dialog class="modal" id="tf-modal" aria-labelledby="tf-modal-title">
   <div class="window__bar">
     <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -118,4 +148,4 @@ layout_start('Pengaturan', 'pengaturan');
     </div>
   </form>
 </dialog>
-<?php layout_end(['pengaturan.js']); ?>
+<?php layout_end(['pengaturan.js', 'lokasi-absen.js']); ?>

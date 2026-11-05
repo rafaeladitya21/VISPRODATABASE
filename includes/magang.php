@@ -11,12 +11,14 @@
  *   - status_hari: hadir / terlambat (dari jam masuk), atau izin / sakit / alpa (ditandai Admin).
  *   - Hari kerja yang sudah lewat tanpa catatan dihitung Alpa (tanpa keterangan).
  *   - Koreksi hanya oleh Admin, wajib alasan, dicatat di log_aktivitas.
+ *   - LOKASI: absen hanya sah dalam radius kantor terdekat (includes/lokasi.php, dicek di server).
  *
  * JURNAL: satu per hari. Intern hanya bisa membuat / mengubah jurnal HARI INI (tanggal server,
  *   sampai 23.59) di dalam periode magang; hari sebelumnya read-only. Admin bisa melihat & berkomentar.
  */
 declare(strict_types=1);
 require_once __DIR__ . '/karyawan.php';
+require_once __DIR__ . '/lokasi.php';
 
 const ABSEN_HARI = ['hadir' => 'Hadir', 'terlambat' => 'Terlambat', 'izin' => 'Izin', 'sakit' => 'Sakit', 'alpa' => 'Alpa'];
 const ABSEN_MASUK = ['tepat' => 'Tepat waktu', 'terlambat' => 'Terlambat'];
@@ -122,7 +124,7 @@ function server_now(): array
 function intern_row(int $userId): ?array
 {
     $st = db()->prepare("SELECT u.id, u.name, u.email, u.divisi, u.magang_mulai, u.magang_selesai, u.jam_masuk, u.jam_pulang,
-                                u.mentor_id, m.name AS mentor_name, u.aktif
+                                u.mentor_id, m.name AS mentor_name, u.aktif, u.setuju_lokasi_at
                          FROM users u LEFT JOIN users m ON m.id = u.mentor_id
                          WHERE u.id = ? AND u.role = 'karyawan' AND u.tipe = 'intern'");
     $st->execute([$userId]);
@@ -134,7 +136,7 @@ function intern_row(int $userId): ?array
         'jam_masuk' => substr((string)($r['jam_masuk'] ?? INTERN_JAM_MASUK), 0, 5),
         'jam_pulang' => substr((string)($r['jam_pulang'] ?? INTERN_JAM_PULANG), 0, 5),
         'mentor_id' => $r['mentor_id'] === null ? null : (int)$r['mentor_id'], 'mentor' => $r['mentor_name'],
-        'aktif' => (bool)$r['aktif'],
+        'aktif' => (bool)$r['aktif'], 'setuju_lokasi_at' => $r['setuju_lokasi_at'],
     ];
 }
 
@@ -151,6 +153,23 @@ function in_periode(array $intern, string $ymd): bool
     return $intern['mulai'] && $intern['selesai'] && $ymd >= $intern['mulai'] && $ymd <= $intern['selesai'];
 }
 
+/** Lokasi absen masuk/pulang dari baris absensi ($p = 'masuk' | 'pulang'), null bila tanpa lokasi */
+function absen_lokasi(array $r, string $p): ?array
+{
+    if (($r[$p . '_lat'] ?? null) === null) return null;
+    $lat = (float)$r[$p . '_lat'];
+    $lng = (float)$r[$p . '_lng'];
+    $jarak = $r[$p . '_jarak_m'] === null ? null : (int)$r[$p . '_jarak_m'];
+    return [
+        'lokasi_id' => $r[$p . '_lokasi_id'] === null ? null : (int)$r[$p . '_lokasi_id'],
+        'nama' => $r[$p . '_lokasi_nama'] ?? 'Kantor dihapus',
+        'jarak' => $jarak, 'jarak_label' => $jarak === null ? '—' : jarak_label($jarak),
+        'lat' => $lat, 'lng' => $lng,
+        'akurasi' => $r[$p . '_akurasi_m'] === null ? null : (float)$r[$p . '_akurasi_m'],
+        'maps' => maps_titik_url($lat, $lng),
+    ];
+}
+
 function absen_format(array $r): array
 {
     $hm = fn($v) => $v === null ? null : substr((string)$v, 0, 5);
@@ -160,13 +179,18 @@ function absen_format(array $r): array
         'status_masuk' => $r['status_masuk'], 'status_pulang' => $r['status_pulang'], 'status_hari' => $r['status_hari'],
         'status_label' => ABSEN_HARI[$r['status_hari']] ?? $r['status_hari'],
         'dikoreksi' => $r['dikoreksi_oleh'] !== null, 'alasan_koreksi' => $r['alasan_koreksi'],
+        'masuk_lokasi' => absen_lokasi($r, 'masuk'), 'pulang_lokasi' => absen_lokasi($r, 'pulang'),
     ];
 }
 
 /** Catatan absen [tanggal => baris] untuk rentang tanggal */
 function absen_map(int $userId, string $from, string $to): array
 {
-    $st = db()->prepare('SELECT * FROM absensi WHERE user_id = ? AND tanggal BETWEEN ? AND ? ORDER BY tanggal');
+    $st = db()->prepare('SELECT a.*, lm.nama AS masuk_lokasi_nama, lp.nama AS pulang_lokasi_nama
+                         FROM absensi a
+                         LEFT JOIN lokasi_absen lm ON lm.id = a.masuk_lokasi_id
+                         LEFT JOIN lokasi_absen lp ON lp.id = a.pulang_lokasi_id
+                         WHERE a.user_id = ? AND a.tanggal BETWEEN ? AND ? ORDER BY a.tanggal');
     $st->execute([$userId, $from, $to]);
     $out = [];
     foreach ($st as $r) $out[$r['tanggal']] = absen_format($r);
@@ -210,6 +234,7 @@ function absen_rows(array $intern, string $from, string $to, ?string $today = nu
             'status_masuk' => null, 'status_pulang' => null,
             'status_hari' => $st, 'status_label' => $lbl,
             'dikoreksi' => false, 'alasan_koreksi' => null, 'tanpa_absen' => $st === 'alpa',
+            'masuk_lokasi' => null, 'pulang_lokasi' => null,
         ];
     }
     return $rows;
@@ -244,46 +269,72 @@ function absen_blocked(array $intern, string $today): ?string
     return null;
 }
 
+/** Kenapa absen masuk / pulang tidak mungkin sekarang (berdasarkan catatan hari ini), null = boleh */
+function absen_state_error(?array $cur, string $aksi): ?string
+{
+    if ($aksi === 'masuk') {
+        if (!$cur) return null;
+        return $cur['jam_masuk'] === null
+            ? 'Hari ini sudah ditandai ' . $cur['status_label'] . ' oleh Admin.'
+            : 'Absen masuk hari ini sudah tercatat dan tidak bisa diubah.';
+    }
+    if (!$cur || $cur['jam_masuk'] === null) return 'Absen masuk dulu sebelum absen pulang.';
+    return $cur['jam_pulang'] !== null ? 'Absen pulang hari ini sudah tercatat dan tidak bisa diubah.' : null;
+}
+
 /**
- * Absen masuk / pulang dengan JAM SERVER. Melempar DomainException berisi pesan bila ditolak.
+ * Absen masuk / pulang dengan JAM SERVER dan LOKASI yang dicek server.
+ * $loc = ['lat' => float, 'lng' => float, 'akurasi' => float] dari GPS browser (kantor TIDAK pernah dari browser).
+ * Melempar DomainException (aturan absen) atau AbsenLokasiException (lokasi; info berisi kode & jarak).
  * Mengembalikan baris absen terbaru.
  */
-function absen_catat(array $intern, string $aksi, string $ip = '', string $ua = ''): array
+function absen_catat(array $intern, string $aksi, array $loc, string $ip = '', string $ua = ''): array
 {
     $pdo = db();
     $now = server_now();
     $today = $now['tanggal'];
+    if (!in_array($aksi, ['masuk', 'pulang'], true)) throw new DomainException('Aksi absen tidak dikenal.');
     if ($msg = absen_blocked($intern, $today)) throw new DomainException($msg);
+    if ($msg = absen_state_error(absen_map($intern['id'], $today, $today)[$today] ?? null, $aksi)) throw new DomainException($msg);
+
+    // ---- Lokasi (server yang memutuskan; tidak ada pengecualian untuk intern) ----
+    $lat = num_or_null($loc['lat'] ?? null);
+    $lng = num_or_null($loc['lng'] ?? null);
+    $acc = num_or_null($loc['akurasi'] ?? null);
+    if (!koordinat_ok($lat, $lng) || $acc === null || !is_finite($acc) || $acc < 0) {
+        throw new AbsenLokasiException('Lokasi tidak terbaca. Coba lagi.', ['kode' => 'tidak_valid']);
+    }
+    $cek = lokasi_cek(lokasi_all(true), $lat, $lng, $acc, radius_intern());
+    if ($cek['hasil'] !== 'ok') {
+        if ($cek['hasil'] === 'ditolak') absen_ditolak_catat($intern['id'], $aksi, $lat, $lng, $acc, $cek, $ip, $ua);
+        throw new AbsenLokasiException(lokasi_pesan($cek), [
+            'kode' => $cek['hasil'], 'jarak' => $cek['jarak'], 'jarak_label' => $cek['jarak_label'] ?? null,
+            'kantor' => $cek['kantor']['nama'] ?? null, 'radius' => $cek['radius'], 'akurasi' => $cek['akurasi'],
+        ]);
+    }
+    $locArgs = [$lat, $lng, $acc, $cek['jarak'], $cek['kantor']['id']];
 
     if ($aksi === 'masuk') {
         // Status dihitung di database dari LOCALTIME yang sama dengan yang disimpan (aturan = absen_status_masuk)
-        $st = $pdo->prepare("INSERT INTO absensi (user_id, tanggal, jam_masuk, status_masuk, status_hari, ip_masuk, ua_masuk)
+        $st = $pdo->prepare("INSERT INTO absensi (user_id, tanggal, jam_masuk, status_masuk, status_hari, ip_masuk, ua_masuk,
+                                                  masuk_lat, masuk_lng, masuk_akurasi_m, masuk_jarak_m, masuk_lokasi_id)
                              SELECT ?, CURRENT_DATE, t, CASE WHEN late THEN 'terlambat' ELSE 'tepat' END,
-                                    CASE WHEN late THEN 'terlambat' ELSE 'hadir' END, ?, ?
+                                    CASE WHEN late THEN 'terlambat' ELSE 'hadir' END, ?, ?, ?, ?, ?, ?, ?
                              FROM (SELECT LOCALTIME(0) AS t, to_char(LOCALTIME(0), 'HH24:MI') > ? AS late) x
                              ON CONFLICT (user_id, tanggal) DO NOTHING");
-        $st->execute([$intern['id'], $ip, $ua, $intern['jam_masuk']]);
-        if (!$st->rowCount()) {
-            $cur = absen_map($intern['id'], $today, $today)[$today] ?? null;
-            throw new DomainException($cur && $cur['jam_masuk'] === null
-                ? 'Hari ini sudah ditandai ' . $cur['status_label'] . ' oleh Admin.'
-                : 'Absen masuk hari ini sudah tercatat dan tidak bisa diubah.');
-        }
-    } elseif ($aksi === 'pulang') {
+        $st->execute([$intern['id'], $ip, $ua, ...$locArgs, $intern['jam_masuk']]);
+    } else {
         // Jam pulang dihitung di database (LOCALTIME) supaya sama persis dengan yang disimpan
         $st = $pdo->prepare("UPDATE absensi SET jam_pulang = LOCALTIME(0),
                                  status_pulang = CASE WHEN to_char(LOCALTIME(0), 'HH24:MI') < ? THEN 'awal' ELSE 'sesuai' END,
-                                 ip_pulang = ?, ua_pulang = ?
+                                 ip_pulang = ?, ua_pulang = ?,
+                                 pulang_lat = ?, pulang_lng = ?, pulang_akurasi_m = ?, pulang_jarak_m = ?, pulang_lokasi_id = ?
                              WHERE user_id = ? AND tanggal = CURRENT_DATE AND jam_masuk IS NOT NULL AND jam_pulang IS NULL");
-        $st->execute([$intern['jam_pulang'], $ip, $ua, $intern['id']]);
-        if (!$st->rowCount()) {
-            $cur = absen_map($intern['id'], $today, $today)[$today] ?? null;
-            throw new DomainException(!$cur || $cur['jam_masuk'] === null
-                ? 'Absen masuk dulu sebelum absen pulang.'
-                : 'Absen pulang hari ini sudah tercatat dan tidak bisa diubah.');
-        }
-    } else {
-        throw new DomainException('Aksi absen tidak dikenal.');
+        $st->execute([$intern['jam_pulang'], $ip, $ua, ...$locArgs, $intern['id']]);
+    }
+    if (!$st->rowCount()) {   // balapan dua klik: yang kedua kalah
+        throw new DomainException(absen_state_error(absen_map($intern['id'], $today, $today)[$today] ?? null, $aksi)
+            ?? 'Absen gagal dicatat. Muat ulang halaman.');
     }
     return absen_map($intern['id'], $today, $today)[$today];
 }
@@ -439,15 +490,41 @@ function absensi_data(array $q): array
     [$from, $to, $bulan] = absensi_range($q);
     $uid = (int)($q['user_id'] ?? 0);
     $status = (string)($q['status'] ?? '');
+    $lokasiId = (int)($q['lokasi_id'] ?? 0);
     $interns = interns_all(false);
+    $ditolak = absen_ditolak_list($from, $to, $uid);
     $rows = [];
     $rekap = [];
     foreach ($interns as $in) {
         if ($uid && $in['id'] !== $uid) continue;
-        foreach (absen_rows($in, $from, $to) as $r) {
+        $all = absen_rows($in, $from, $to);
+        // Penanda "Mencurigakan": dari semua titik orang ini di rentang (absen + percobaan ditolak)
+        $pts = [];
+        foreach ($all as $r) {
+            foreach (['masuk_lokasi', 'pulang_lokasi'] as $k) {
+                if ($r[$k]) $pts[] = ['tanggal' => $r['tanggal'], 'lat' => $r[$k]['lat'], 'lng' => $r[$k]['lng'], 'akurasi' => $r[$k]['akurasi']];
+            }
+        }
+        foreach ($ditolak as $d) {
+            if ($d['user_id'] === $in['id']) $pts[] = ['tanggal' => $d['tanggal'], 'lat' => $d['lat'], 'lng' => $d['lng'], 'akurasi' => $d['akurasi']];
+        }
+        $fl = lokasi_flags($pts);
+        $curiga = function (string $tgl, bool $adaLokasi) use ($fl): array {
+            $out = [];
+            if ($fl['akurasi_nol'] && $adaLokasi) $out[] = 'Akurasi GPS selalu tepat 0 m';
+            if (isset($fl['lompat'][$tgl])) $out[] = 'Lompatan lokasi ' . number_format($fl['lompat'][$tgl], 1, ',', '.') . ' km dalam satu hari';
+            return $out;
+        };
+        foreach ($ditolak as &$d) {
+            if ($d['user_id'] === $in['id']) $d['curiga'] = $curiga($d['tanggal'], true);
+        }
+        unset($d);
+        foreach ($all as $r) {
             if ($status !== '' && $r['status_hari'] !== $status) continue;
+            if ($lokasiId && ($r['masuk_lokasi']['lokasi_id'] ?? 0) !== $lokasiId && ($r['pulang_lokasi']['lokasi_id'] ?? 0) !== $lokasiId) continue;
             $rows[] = $r + ['user_id' => $in['id'], 'name' => $in['name'], 'divisi' => $in['divisi'],
-                            'jam_kerja' => $in['jam_masuk'] . '–' . $in['jam_pulang']];
+                            'jam_kerja' => $in['jam_masuk'] . '–' . $in['jam_pulang'],
+                            'curiga' => $curiga($r['tanggal'], $r['masuk_lokasi'] || $r['pulang_lokasi'])];
         }
         $rk = absen_rekap($in, $bulan . '-01', date('Y-m-t', strtotime($bulan . '-01')));
         if (array_sum($rk) || in_periode($in, $bulan . '-01') || in_periode($in, date('Y-m-t', strtotime($bulan . '-01')))) {
@@ -458,6 +535,8 @@ function absensi_data(array $q): array
     return [
         'from' => $from, 'to' => $to, 'bulan' => $bulan, 'bulan_label' => periode_label($bulan), 'alpa_mulai' => alpa_mulai(),
         'rows' => $rows, 'rekap' => $rekap,
+        'ditolak' => array_values(array_filter($ditolak, fn($d) => !$lokasiId || $d['lokasi_id'] === $lokasiId)),
+        'lokasi' => lokasi_all(), 'radius' => radius_intern(),
         'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif']], $interns),
     ];
 }

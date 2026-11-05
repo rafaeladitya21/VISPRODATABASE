@@ -2,9 +2,19 @@
 declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
 require __DIR__ . '/includes/layout.php';
+require_once __DIR__ . '/includes/lokasi.php';
+
+// Banner: kantor aktif yang titik lokasinya belum diatur (anak magang belum bisa absen di sana)
+try { $lokasiKosong = lokasi_belum_diatur(); } catch (PDOException $e) { $lokasiKosong = []; }
 
 layout_start('Ringkasan', 'ringkasan');
 ?>
+<?php foreach ($lokasiKosong as $k): ?>
+  <div class="notice fbu" role="status">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+    <span>Titik lokasi <strong><?= e($k['nama']) ?></strong> belum diatur. <a class="notice__link" href="pengaturan.php#lokasi">Atur sekarang</a></span>
+  </div>
+<?php endforeach; ?>
 <header class="page-head fbu">
   <div>
     <h1 class="page-head__title">Ringkasan</h1>

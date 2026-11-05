@@ -68,15 +68,17 @@ $dot = fn(?string $hm) => $hm ? str_replace(':', '.', $hm) : '—';
 
     <h2>Rincian</h2>
     <table>
-      <thead><tr><th>Nama</th><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Status</th><th>Koreksi</th></tr></thead>
+      <thead><tr><th>Nama</th><th>Tanggal</th><th>Masuk</th><th>Pulang</th><th>Lokasi</th><th>Status</th><th>Koreksi</th></tr></thead>
       <tbody>
         <?php foreach ($d['rows'] as $r): ?>
         <tr><td><?= e($r['name']) ?></td><td><?= e(tgl_id($r['tanggal'])) ?></td>
             <td class="num"><?= e($dot($r['jam_masuk'])) ?><?= $r['status_masuk'] === 'terlambat' ? ' (terlambat)' : '' ?></td>
             <td class="num"><?= e($dot($r['jam_pulang'])) ?><?= $r['status_pulang'] === 'awal' ? ' (awal)' : '' ?></td>
-            <td><?= e($r['status_label']) ?></td><td><?= e($r['alasan_koreksi'] ?? '') ?></td></tr>
+            <td><?= e(implode(' / ', array_unique(array_filter([$r['masuk_lokasi'] ? $r['masuk_lokasi']['nama'] . ' ' . $r['masuk_lokasi']['jarak_label'] : null,
+                                                              $r['pulang_lokasi'] ? $r['pulang_lokasi']['nama'] . ' ' . $r['pulang_lokasi']['jarak_label'] : null]))) ?: '—') ?></td>
+            <td><?= e($r['status_label']) ?><?= $r['curiga'] ? ' · mencurigakan' : '' ?></td><td><?= e($r['alasan_koreksi'] ?? '') ?></td></tr>
         <?php endforeach; ?>
-        <?php if (!$d['rows']): ?><tr><td colspan="6">Tidak ada data.</td></tr><?php endif; ?>
+        <?php if (!$d['rows']): ?><tr><td colspan="7">Tidak ada data.</td></tr><?php endif; ?>
       </tbody>
     </table>
     <footer class="foot"><span>Visual Production.id</span><span>Dicetak <?= e(date('d/m/Y H.i')) ?> WIB</span></footer>

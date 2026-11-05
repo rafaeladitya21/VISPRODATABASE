@@ -140,7 +140,16 @@ Total sewa        = Harga sewa × Qty × Day
 - `users.tipe = 'intern'` (dibuat di Akun Karyawan: divisi, periode magang wajib, jam masuk/pulang, mentor).
   Masuk ke `/magang/beranda`; menu hanya **Beranda & Absen** dan **Jurnal & Tugas**. Area `magang` di
   `auth-check.php` → semua halaman/API admin & karyawan membalas 403 untuk intern (dan sebaliknya).
-- **Absen** (`api/absen.php`): hanya `{aksi:'masuk'|'pulang'}`; jam = jam server database (Asia/Jakarta),
+- **Lokasi absen** (`includes/lokasi.php`, migrasi 8): absen intern wajib dalam radius kantor. Browser hanya
+  mengirim `lat, lng, akurasi` (GPS saat tombol ditekan, tanpa pelacakan); server menghitung jarak Haversine ke
+  SEMUA kantor aktif (`lokasi_absen`) dan memakai yang terdekat — intern tidak memilih kantor, tanpa pengecualian.
+  Jarak ≤ `pengaturan.radius_absen_intern` (default 100 m, 50–300) → tersimpan + `*_lokasi_id`/`*_jarak_m`;
+  lebih jauh → ditolak & dicatat di `absen_ditolak`; akurasi > 50 m → "sinyal kurang akurat" (tidak disimpan).
+  Persetujuan sekali di `users.setuju_lokasi_at`. Admin: Pengaturan → Lokasi Absen (tempel koordinat / link
+  Google Maps — link pendek di-follow di server, hanya domain Google; peta Leaflet + OSM, pin digeser, radius),
+  banner di Ringkasan bila kantor aktif belum punya titik. Absensi: kolom Lokasi, filter kantor, peta detail,
+  tab **Percobaan ditolak**, penanda "Mencurigakan" (akurasi selalu 0 / lompatan > 50 km sehari — hanya peringatan).
+- **Absen** (`api/absen.php`): hanya `{aksi:'masuk'|'pulang', lat, lng, akurasi}`; jam = jam server database (Asia/Jakarta),
   jam dari browser ditolak 403. Sekali masuk & sekali pulang per hari, hanya hari kerja (Sen–Jum) dalam periode
   magang. Terlambat = jam:menit lewat jam masuk; pulang awal = sebelum jam pulang. IP & user-agent disimpan.
   Hari kerja lewat tanpa catatan = Alpa, tapi hanya mulai `pengaturan.alpa_mulai` (sebelumnya "Tidak dihitung");
