@@ -56,7 +56,7 @@ layout_start('Siswa Magang', 'g-siswa');
   <article class="card kpi fbu">
     <p class="kpi__label">Perlu perhatian</p>
     <p class="kpi__value num"><?= $perhatian ?></p>
-    <p class="kpi__sub">Kehadiran bulan ini &lt; <?= GURU_HADIR_MIN ?>% atau alpa ≥ <?= GURU_ALPA_MAKS ?> kali</p>
+    <p class="kpi__sub">Kehadiran bulan ini di bawah <?= GURU_HADIR_MIN ?>%</p>
   </article>
 </section>
 

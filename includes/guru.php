@@ -10,9 +10,8 @@
 declare(strict_types=1);
 require_once __DIR__ . '/magang.php';
 
-/** Batas "Perlu perhatian": kehadiran bulan ini < 80% atau alpa ≥ 2 kali */
+/** Batas "Perlu perhatian": kehadiran bulan ini di bawah 80% (saja) */
 const GURU_HADIR_MIN = 80;
-const GURU_ALPA_MAKS = 2;
 
 /** Nomor WhatsApp → tautan wa.me (0812… → 62812…), null bila kosong */
 function wa_url(?string $nomor): ?string
@@ -107,7 +106,7 @@ function siswa_rekap(array $intern, string $from, string $to, string $today): ar
 
 function siswa_perlu_perhatian(array $rekap): bool
 {
-    return ($rekap['persen'] !== null && $rekap['persen'] < GURU_HADIR_MIN) || $rekap['alpa'] >= GURU_ALPA_MAKS;
+    return $rekap['persen'] !== null && $rekap['persen'] < GURU_HADIR_MIN;
 }
 
 /** Ringkasan kartu siswa: absen & jurnal hari ini + rekap bulan ini */

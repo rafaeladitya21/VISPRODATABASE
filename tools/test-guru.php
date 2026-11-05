@@ -34,7 +34,7 @@ check('Sekolah dinormalisasi', sekolah_norm('  SMKN 2   Singosari '), 'smkn 2 si
 check('Sekolah kosong', sekolah_norm(null), '');
 $rk = fn(?int $p, int $alpa) => ['persen' => $p, 'alpa' => $alpa];
 check('Kehadiran 79% → perlu perhatian', siswa_perlu_perhatian($rk(79, 0)), true);
-check('Alpa 2 kali → perlu perhatian', siswa_perlu_perhatian($rk(95, 2)), true);
+check('Alpa 2 kali tapi 95% → aman', siswa_perlu_perhatian($rk(95, 2)), false);
 check('80% & alpa 1 → aman', siswa_perlu_perhatian($rk(80, 1)), false);
 check('Belum ada hari dihitung → aman', siswa_perlu_perhatian($rk(null, 0)), false);
 check('Teks absen: belum', siswa_absen_teks(null), 'Belum absen');
