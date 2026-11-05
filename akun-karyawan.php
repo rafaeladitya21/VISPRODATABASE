@@ -9,7 +9,7 @@ layout_start('Akun Karyawan', 'akun-karyawan');
 <header class="page-head fbu">
   <div>
     <h1 class="page-head__title">Akun Karyawan</h1>
-    <p class="page-head__sub">Karyawan hanya bisa membuka Beranda, Jadwal Saya, dan Slip Gaji miliknya sendiri</p>
+    <p class="page-head__sub">Karyawan hanya membuka data miliknya sendiri · Guru pendamping hanya memantau siswa bimbingannya</p>
   </div>
   <div class="page-head__actions">
     <button class="btn btn--primary" type="button" id="st-add">
@@ -24,6 +24,7 @@ layout_start('Akun Karyawan', 'akun-karyawan');
   <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="inhouse">In-house <small class="num" data-count="inhouse">0</small></button>
   <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="freelance">Freelance <small class="num" data-count="freelance">0</small></button>
   <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="intern">Intern <small class="num" data-count="intern">0</small></button>
+  <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="guru">Guru Pendamping <small class="num" data-count="guru">0</small></button>
 </div>
 
 <div id="st-error" hidden></div>
@@ -76,6 +77,27 @@ layout_start('Akun Karyawan', 'akun-karyawan');
           <small>Anak magang. Absen &amp; jurnal harian, tanpa slip gaji.</small>
         </span>
       </label>
+      <label class="tipe-pick__opt">
+        <input type="radio" name="tipe" value="guru">
+        <span class="tipe-pick__card">
+          <strong>Guru Pendamping</strong>
+          <small>Guru dari sekolah. Hanya memantau siswa bimbingannya.</small>
+        </span>
+      </label>
+    </fieldset>
+    <fieldset class="adm-intern" id="st-guru" hidden>
+      <legend class="field__label">Data guru pendamping</legend>
+      <div class="grid2">
+        <div class="field">
+          <label class="field__label" for="st-wa">No. WhatsApp</label>
+          <input class="input" id="st-wa" name="whatsapp" type="tel" maxlength="20" placeholder="0812xxxxxxx">
+        </div>
+        <div class="field">
+          <label class="field__label" for="st-sekolah">Asal sekolah</label>
+          <input class="input" id="st-sekolah" name="sekolah" maxlength="150" placeholder="mis. SMK Negeri 4 Malang">
+        </div>
+      </div>
+      <p class="field__hint">Guru hanya melihat absen &amp; jurnal siswa yang ditautkan ke akunnya, dan bisa memberi catatan jurnal.</p>
     </fieldset>
     <fieldset class="adm-intern" id="st-intern" hidden>
       <legend class="field__label">Data magang</legend>
@@ -101,15 +123,25 @@ layout_start('Akun Karyawan', 'akun-karyawan');
           <input class="input" id="st-jp" name="jam_pulang" type="time" value="16:00">
         </div>
       </div>
+      <div class="grid2">
+        <div class="field">
+          <label class="field__label" for="st-mentor">Mentor</label>
+          <select class="input" id="st-mentor" name="mentor_id"></select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="st-kelas">Kelas / Jurusan</label>
+          <input class="input" id="st-kelas" name="kelas" maxlength="100" placeholder="mis. XII Multimedia">
+        </div>
+      </div>
       <div class="field">
-        <label class="field__label" for="st-mentor">Mentor</label>
-        <select class="input" id="st-mentor" name="mentor_id"></select>
+        <label class="field__label" for="st-guru-id">Guru pendamping</label>
+        <select class="input" id="st-guru-id" name="guru_id"></select>
       </div>
     </fieldset>
     <div class="field">
       <label class="field__label" for="st-name">Nama lengkap</label>
       <input class="input" id="st-name" name="name" maxlength="150" required>
-      <p class="field__hint">Samakan dengan nama crew di transaksi supaya jadwal tertaut otomatis.</p>
+      <p class="field__hint" id="st-name-hint">Samakan dengan nama crew di transaksi supaya jadwal tertaut otomatis.</p>
     </div>
     <div class="field">
       <label class="field__label" for="st-email">Email (untuk login)</label>

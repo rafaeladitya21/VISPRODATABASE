@@ -143,6 +143,7 @@
   /** Ikon SVG inline */
   var ICONS = {
     plus: '<path d="M12 5v14M5 12h14"/>',
+    lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     x: '<path d="M18 6 6 18M6 6l12 12"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
@@ -170,6 +171,7 @@
   /** Badge tipe karyawan: In-house = hitam solid, Freelance = putih border putus-putus, Intern = putih border hitam */
   MH.tipeBadge = function (t) {
     if (t === 'intern') return '<span class="badge badge--outline">Intern</span>';
+    if (t === 'guru') return '<span class="badge badge--guru">Guru</span>';
     return t === 'freelance' ? '<span class="badge badge--muted">Freelance</span>' : '<span class="badge badge--solid">In-house</span>';
   };
 
@@ -205,8 +207,12 @@
       return '<a class="jr-chip" href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer" title="' + esc(l.url) + '">' +
         MH.icon('ext') + '<span>' + esc(l.label || MH.linkLabel(l.url)) + '</span></a>';
     }).join('');
+    // Catatan guru: "{Nama} · Guru Pendamping". opts.canDelete(k) → tombol hapus (catatan milik sendiri)
     var kom = (j.komentar || []).map(function (k) {
-      return '<li><strong>' + esc(k.nama) + '</strong> <small class="muted">' + esc(MH.when(k.created_at)) + '</small><p>' + esc(k.isi) + '</p></li>';
+      var del = opts.canDelete && opts.canDelete(k)
+        ? ' <button type="button" class="jr-kom__del" data-del-kom="' + k.id + '">Hapus</button>' : '';
+      return '<li' + (k.peran === 'guru' ? ' class="is-guru"' : '') + '><strong>' + esc(k.nama) + (k.peran === 'guru' ? ' · Guru Pendamping' : '') + '</strong> ' +
+        '<small class="muted">' + esc(MH.when(k.created_at)) + '</small>' + del + '<p>' + esc(k.isi) + '</p></li>';
     }).join('');
     var foot = kom ? '<ul class="jr-kom">' + kom + '</ul>'
       : '<p class="jr-seen">' + (j.dilihat_at ? MH.icon('check') + 'Dilihat ' + esc(MH.when(j.dilihat_at)) : 'Menunggu dilihat mentor') + '</p>';

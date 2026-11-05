@@ -328,6 +328,21 @@ const MH_MIGRATIONS = [
         INSERT INTO pengumuman (judul, isi)
           SELECT 'Info dari Admin', left(btrim(value), 300) FROM pengaturan WHERE key = 'info_admin' AND btrim(value) <> '';
         SQL,
+
+    // 11 — Guru pendamping (tipe 'guru') yang memantau anak magang bimbingannya; catatan guru di jurnal
+    11 => <<<'SQL'
+        ALTER TABLE users DROP CONSTRAINT IF EXISTS users_tipe_check;
+        ALTER TABLE users ADD CONSTRAINT users_tipe_check CHECK (tipe IN ('inhouse', 'freelance', 'intern', 'guru'));
+        ALTER TABLE users
+          ADD COLUMN guru_id  INTEGER     NULL REFERENCES users(id) ON DELETE SET NULL,   -- intern → guru pendamping
+          ADD COLUMN sekolah  citext      NULL,                                            -- guru: asal sekolah
+          ADD COLUMN whatsapp VARCHAR(30) NULL,                                            -- guru: nomor WhatsApp
+          ADD COLUMN kelas    citext      NULL;                                            -- intern: kelas / jurusan
+        CREATE INDEX idx_users_guru ON users (guru_id) WHERE guru_id IS NOT NULL;
+
+        ALTER TABLE jurnal_komentar
+          ADD COLUMN peran VARCHAR(10) NOT NULL DEFAULT 'admin' CHECK (peran IN ('admin', 'guru'));
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

@@ -8,6 +8,9 @@
  *                 (kosong = tarif umum) dan tampil=false untuk menyembunyikan tarif itu dari orang ini
  * Tipe: 'inhouse' (gaji pokok wajib, > 0), 'freelance' (gaji pokok 0), atau 'intern' (anak magang: gaji 0, tanpa
  *       tarif; wajib magang_mulai/magang_selesai; divisi, jam_masuk (08:00), jam_pulang (16:00), mentor_id opsional).
+ *       Intern juga: guru_id (akun bertipe guru, opsional) & kelas (kelas / jurusan).
+ *       'guru' (guru pendamping sekolah): hanya nama, email, whatsapp, sekolah — tanpa gaji, tarif, jam kerja;
+ *       bukan crew, tanpa slip / absen / jadwal. Satu guru → banyak intern; satu intern → satu guru.
  * Akun tidak dihapus (slip lama tetap utuh) — cukup dinonaktifkan; akun nonaktif tidak bisa login
  * dan session yang masih ada langsung berakhir (lihat auth-check.php).
  * Setelah simpan, baris crew transaksi dengan nama sama otomatis ditautkan ke akun ini.
@@ -16,14 +19,17 @@ declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/slip.php';
+require_once __DIR__ . '/../includes/guru.php';
 
 function staff_list(): array
 {
     $rows = db()->query("SELECT u.id, u.name, u.email, u.jabatan, u.tipe, u.gaji_pokok, u.aktif,
             u.divisi, u.magang_mulai, u.magang_selesai, u.jam_masuk, u.jam_pulang, u.mentor_id, m.name AS mentor_name,
+            u.whatsapp, u.sekolah, u.kelas, u.guru_id, g.name AS guru_name, g.whatsapp AS guru_wa,
+            (SELECT COUNT(*) FROM users x WHERE x.guru_id = u.id AND x.tipe = 'intern' AND x.aktif = 1) AS siswa,
             (SELECT COUNT(DISTINCT tc.transaction_id) FROM transaction_crew tc WHERE tc.user_id = u.id) AS jobs,
             (SELECT COUNT(*) FROM slip s WHERE s.user_id = u.id AND s.status = 'diajukan') AS pending
-        FROM users u LEFT JOIN users m ON m.id = u.mentor_id
+        FROM users u LEFT JOIN users m ON m.id = u.mentor_id LEFT JOIN users g ON g.id = u.guru_id
         WHERE u.role = 'karyawan' ORDER BY u.aktif DESC, u.name")->fetchAll();
     $khusus = [];
     foreach (db()->query('SELECT user_id, tarif_output_id, fee, tampil FROM tarif_khusus') as $r) {
@@ -40,6 +46,10 @@ function staff_list(): array
         'divisi' => $r['divisi'], 'magang_mulai' => $r['magang_mulai'], 'magang_selesai' => $r['magang_selesai'],
         'jam_masuk' => $r['jam_masuk'] ? substr($r['jam_masuk'], 0, 5) : null, 'jam_pulang' => $r['jam_pulang'] ? substr($r['jam_pulang'], 0, 5) : null,
         'mentor_id' => $r['mentor_id'] === null ? null : (int)$r['mentor_id'], 'mentor' => $r['mentor_name'],
+        'kelas' => $r['kelas'], 'guru_id' => $r['guru_id'] === null ? null : (int)$r['guru_id'],
+        'guru' => $r['guru_name'], 'guru_wa' => $r['guru_wa'], 'guru_wa_url' => wa_url($r['guru_wa']),
+        // Guru pendamping
+        'whatsapp' => $r['whatsapp'], 'wa_url' => wa_url($r['whatsapp']), 'sekolah' => $r['sekolah'], 'siswa' => (int)$r['siswa'],
     ], $rows);
 }
 
@@ -77,7 +87,8 @@ function save_tarif_khusus(int $userId, string $tipe, mixed $map): void
 
 function staff_response(int $status = 200): never
 {
-    json_response(['ok' => true, 'items' => staff_list(), 'tarif_freelance' => freelance_tarif(), 'mentors' => mentor_options()], $status);
+    json_response(['ok' => true, 'items' => staff_list(), 'tarif_freelance' => freelance_tarif(), 'mentors' => mentor_options(),
+                   'gurus' => array_map(fn($g) => ['id' => $g['id'], 'name' => $g['name'], 'sekolah' => $g['sekolah'], 'aktif' => $g['aktif']], guru_all())], $status);
 }
 
 function staff_input(array $in, bool $create): array
@@ -99,7 +110,8 @@ function staff_input(array $in, bool $create): array
     if (($create || $password !== '') && strlen($password) < 8) json_error('Kata sandi minimal 8 karakter.', 422);
 
     // Anak magang: divisi, periode (wajib), jam kerja, mentor (admin / in-house aktif). Tanpa gaji & tarif.
-    $intern = ['divisi' => null, 'mulai' => null, 'selesai' => null, 'jam_masuk' => null, 'jam_pulang' => null, 'mentor_id' => null];
+    $intern = ['divisi' => null, 'mulai' => null, 'selesai' => null, 'jam_masuk' => null, 'jam_pulang' => null, 'mentor_id' => null,
+               'guru_id' => null, 'kelas' => null];
     if ($tipe === 'intern') {
         $date = fn($v) => is_string($v) && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m) && checkdate((int)$m[2], (int)$m[3], (int)$m[1]) ? $v : null;
         $time = fn($v, $def) => is_string($v) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $v) ? $v : ($v === null || $v === '' ? $def : false);
@@ -121,15 +133,37 @@ function staff_input(array $in, bool $create): array
             if ($mentor === false) json_error('Mentor harus akun admin atau karyawan in-house yang aktif.', 422);
             $mentor = (int)$mentor;
         }
+        $guruId = null;
+        if (!empty($in['guru_id'])) {
+            $st = db()->prepare("SELECT id FROM users WHERE id = ? AND role = 'karyawan' AND tipe = 'guru'");
+            $st->execute([(int)$in['guru_id']]);
+            $guruId = $st->fetchColumn();
+            if ($guruId === false) json_error('Guru pendamping harus akun bertipe Guru Pendamping.', 422);
+            $guruId = (int)$guruId;
+        }
+        $kelas = trim((string)($in['kelas'] ?? ''));
+        if (mb_strlen($kelas) > 100) json_error('Kelas/Jurusan maksimal 100 karakter.', 422);
         $intern = ['divisi' => $divisi === '' ? null : $divisi, 'mulai' => $mulai, 'selesai' => $selesai,
-                   'jam_masuk' => $jm, 'jam_pulang' => $jp, 'mentor_id' => $mentor];
+                   'jam_masuk' => $jm, 'jam_pulang' => $jp, 'mentor_id' => $mentor,
+                   'guru_id' => $guruId, 'kelas' => $kelas === '' ? null : $kelas];
+    }
+    // Guru pendamping: No. WhatsApp & asal sekolah (tanpa jabatan, gaji, tarif, jam kerja)
+    $guru = ['whatsapp' => null, 'sekolah' => null];
+    if ($tipe === 'guru') {
+        $wa = trim((string)($in['whatsapp'] ?? ''));
+        $sekolah = trim(preg_replace('/\s+/u', ' ', (string)($in['sekolah'] ?? '')));
+        if ($wa !== '' && !preg_match('/^\+?[0-9 ()-]{8,20}$/', $wa)) json_error('Nomor WhatsApp tidak valid (8–20 digit).', 422);
+        if ($sekolah === '') json_error('Asal sekolah wajib diisi untuk guru pendamping.', 422);
+        if (mb_strlen($sekolah) > 150) json_error('Asal sekolah maksimal 150 karakter.', 422);
+        $guru = ['whatsapp' => $wa === '' ? null : $wa, 'sekolah' => $sekolah];
+        $jabatan = '';
     }
     return [
         'name' => $name, 'email' => $email, 'jabatan' => $jabatan === '' ? null : $jabatan,
         'tipe' => $tipe, 'gaji_pokok' => $gp,
         'aktif' => !isset($in['aktif']) || !empty($in['aktif']) ? 1 : 0,
         'password' => $password,
-    ] + $intern;
+    ] + $intern + $guru;
 }
 
 /** Calon mentor: admin & karyawan in-house yang aktif */
@@ -151,10 +185,12 @@ try {
         $d = staff_input($in, true);
         try {
             $st = db()->prepare("INSERT INTO users (name, email, password_hash, must_change_password, role, jabatan, tipe, gaji_pokok, aktif,
-                                                    divisi, magang_mulai, magang_selesai, jam_masuk, jam_pulang, mentor_id)
-                                 VALUES (?, ?, ?, 0, 'karyawan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id");
+                                                    divisi, magang_mulai, magang_selesai, jam_masuk, jam_pulang, mentor_id,
+                                                    guru_id, kelas, whatsapp, sekolah)
+                                 VALUES (?, ?, ?, 0, 'karyawan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id");
             $st->execute([$d['name'], $d['email'], password_hash($d['password'], PASSWORD_DEFAULT), $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif'],
-                           $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id']]);
+                           $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id'],
+                           $d['guru_id'], $d['kelas'], $d['whatsapp'], $d['sekolah']]);
         } catch (PDOException $e) {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;
@@ -175,10 +211,15 @@ try {
         try {
             // Slip draft ikut tipe & gaji pokok baru saat dibuka berikutnya; slip yang sudah diajukan memakai snapshot
             if ($d['mentor_id'] === $id) json_error('Mentor tidak boleh diri sendiri.', 422);
+            if ($d['guru_id'] === $id) json_error('Guru pendamping tidak boleh diri sendiri.', 422);
             db()->prepare('UPDATE users SET name = ?, email = ?, jabatan = ?, tipe = ?, gaji_pokok = ?, aktif = ?,
-                             divisi = ?, magang_mulai = ?, magang_selesai = ?, jam_masuk = ?, jam_pulang = ?, mentor_id = ? WHERE id = ?')
+                             divisi = ?, magang_mulai = ?, magang_selesai = ?, jam_masuk = ?, jam_pulang = ?, mentor_id = ?,
+                             guru_id = ?, kelas = ?, whatsapp = ?, sekolah = ? WHERE id = ?')
                 ->execute([$d['name'], $d['email'], $d['jabatan'], $d['tipe'], $d['gaji_pokok'], $d['aktif'],
-                           $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id'], $id]);
+                           $d['divisi'], $d['mulai'], $d['selesai'], $d['jam_masuk'], $d['jam_pulang'], $d['mentor_id'],
+                           $d['guru_id'], $d['kelas'], $d['whatsapp'], $d['sekolah'], $id]);
+            // Bukan guru lagi → lepaskan siswa yang tadinya dibimbing
+            if ($d['tipe'] !== 'guru') db()->prepare('UPDATE users SET guru_id = NULL WHERE guru_id = ?')->execute([$id]);
         } catch (PDOException $e) {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;

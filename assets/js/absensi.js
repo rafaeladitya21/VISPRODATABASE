@@ -8,7 +8,7 @@
   var st = { mode: 'bulan', data: null, row: null, tab: 'absen' };
 
   var el = {
-    bulan: $('#ab-bulan'), tgl: $('#ab-tgl'), tglWrap: $('#ab-tgl-wrap'), user: $('#ab-user'), status: $('#ab-status'), kantor: $('#ab-kantor'),
+    bulan: $('#ab-bulan'), tgl: $('#ab-tgl'), tglWrap: $('#ab-tgl-wrap'), user: $('#ab-user'), guru: $('#ab-guru'), status: $('#ab-status'), kantor: $('#ab-kantor'),
     tolak: $('#ab-tolak'),
     csv: $('#ab-csv'), pdf: $('#ab-pdf'), err: $('#ab-error'),
     rekap: $('#ab-rekap'), body: $('#ab-body'),
@@ -20,6 +20,7 @@
 
   function query() {
     var q = st.mode === 'tanggal' ? 'tanggal=' + el.tgl.value : 'bulan=' + el.bulan.value;
+    if (el.guru.value) q += '&guru_id=' + el.guru.value;
     if (el.user.value) q += '&user_id=' + el.user.value;
     if (el.status.value) q += '&status=' + el.status.value;
     if (el.kantor.value) q += '&lokasi_id=' + el.kantor.value;
@@ -50,6 +51,11 @@
     if (el.user.options.length <= 1) {
       el.user.insertAdjacentHTML('beforeend', d.interns.map(function (i) {
         return '<option value="' + i.id + '">' + esc(i.name) + (i.divisi ? ' · ' + esc(i.divisi) : '') + (i.aktif ? '' : ' (nonaktif)') + '</option>';
+      }).join(''));
+    }
+    if (el.guru.options.length <= 1 && d.gurus) {
+      el.guru.insertAdjacentHTML('beforeend', d.gurus.map(function (g) {
+        return '<option value="' + g.id + '">' + esc(g.name) + (g.sekolah ? ' · ' + esc(g.sekolah) : '') + '</option>';
       }).join(''));
     }
     if (el.kantor.options.length <= 1) {
@@ -175,7 +181,7 @@
       load();
     });
   });
-  [el.bulan, el.tgl, el.user, el.status, el.kantor].forEach(function (x) { x.addEventListener('change', load); });
+  [el.bulan, el.tgl, el.user, el.status, el.kantor, el.guru].forEach(function (x) { x.addEventListener('change', load); });
 
   /* ---------- Koreksi / tandai ---------- */
   function preview() {

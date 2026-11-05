@@ -14,6 +14,7 @@ layout_start('Jurnal Magang', 'jurnal-magang');
 </header>
 
 <div class="adm-filter fbu">
+<label><span class="sr-only">Guru pendamping</span><select class="input ab-select" id="jm-guru"><option value="">Semua guru pendamping</option></select></label>
   <label><span class="sr-only">Nama</span><select class="input ab-select" id="jm-user"><option value="">Semua anak magang</option></select></label>
   <label class="year-select"><span class="sr-only">Dari tanggal</span><input class="input" type="date" id="jm-from" aria-label="Dari tanggal"></label>
   <span class="card__sub">s.d.</span>

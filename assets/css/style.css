@@ -2418,3 +2418,47 @@ a.jr-chip:hover { border-color: var(--ink); }
 #pengumuman { margin-top: 20px; }
 .seg.pg-tabs { margin: 0 20px 12px; }
 .pg-foot { margin: 0; padding: 12px 20px 16px; }
+
+/* ---------- Guru pendamping ---------- */
+.badge--guru { color: var(--ink); background: var(--white); border: 1.5px dashed var(--ink); }
+.wa-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; margin-top: 4px; font-size: 11px; font-weight: 600; color: var(--ink); background: var(--white); border: 1px solid var(--line); border-radius: 999px; text-decoration: none; }
+.wa-chip:hover { border-color: var(--ink); }
+.jr-kom li.is-guru { border-left-style: dashed; }
+.jr-kom__del { margin-left: 6px; padding: 0; font: 600 12px var(--font-body); color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.jr-kom__del:hover { color: var(--ink); }
+
+.g-hello { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.g-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
+.g-kpis .kpi__value small { font-size: .55em; color: inherit; opacity: .6; }
+.g-list { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.g-card { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 16px; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.g-card:hover { border-color: var(--dash); }
+.g-card.is-selected { border-color: var(--ink); box-shadow: inset 0 0 0 .5px var(--ink); }
+.g-card__head { display: flex; align-items: center; gap: 12px; }
+.g-card__who { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.g-card__who strong { font-family: var(--font-display); font-size: 15px; overflow-wrap: anywhere; }
+.g-card__who small { font-size: 13px; color: var(--muted); }
+.g-card__boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.g-box { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: var(--soft); border-radius: 8px; min-width: 0; }
+.g-box small { font-size: 11px; color: var(--muted); }
+.g-box strong { font-size: 13px; overflow-wrap: anywhere; }
+.g-bar { display: flex; flex-direction: column; gap: 6px; }
+.g-bar__label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.g-bar__label strong { color: var(--ink); }
+.g-bar__track { height: 6px; background: var(--line-2); border-radius: 999px; overflow: hidden; }
+.g-bar__track i { display: block; height: 100%; background: var(--ink); border-radius: inherit; }
+.g-bar__track i.is-low { background: var(--red); }
+.g-detail { position: sticky; top: 20px; min-width: 0; }
+.g-panel .agenda__body { display: flex; flex-direction: column; gap: 12px; }
+.g-panel__day { margin: 4px 0 0; font-size: 13px; color: #A3A3A3; }
+.g-tabs { align-self: flex-start; }
+.g-tabs .seg__btn small { margin-left: 4px; }
+.g-readonly { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--muted); }
+.g-readonly .icon { width: 14px; height: 14px; flex: none; }
+.g-table { font-size: 13px; }
+.g-jurnal { display: flex; flex-direction: column; gap: 12px; }
+.g-note { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-2); }
+.g-note .btn { align-self: flex-end; }
+@media (max-width: 1099px) { .g-detail { position: static; } }
+@media (max-width: 760px) { .g-kpis { grid-template-columns: minmax(0, 1fr); } }
+.g-av { width: 38px; height: 38px; font-size: 13px; }

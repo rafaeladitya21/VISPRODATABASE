@@ -3,12 +3,12 @@
   'use strict';
   var $ = MH.$, $$ = MH.$$, esc = MH.esc;
   var DEFAULT_GP = 1000000;
-  var TIPE_LABEL = { inhouse: 'in-house', freelance: 'freelance', intern: 'intern' };
-  var items = [], filter = 'semua', tarifFree = [], mentors = [];
+  var TIPE_LABEL = { inhouse: 'in-house', freelance: 'freelance', intern: 'intern', guru: 'guru pendamping' };
+  var items = [], filter = 'semua', tarifFree = [], mentors = [], gurus = [];
   var SATUAN = { hari: '/hari', project: '/project', jam: '/jam' };
   var body = $('#st-body'), modal = $('#st-modal'), form = $('#st-form'), save = $('#st-save'), formErr = $('#st-form-error');
   var f = form.elements, gpField = $('#st-gp-field'), khususBox = $('#st-khusus'), khususList = $('#st-khusus-list');
-  var internBox = $('#st-intern'), jabatanField = $('#st-jabatan-field');
+  var internBox = $('#st-intern'), jabatanField = $('#st-jabatan-field'), guruBox = $('#st-guru');
   MH.moneyInput(f.gaji_pokok);
 
   function initials(n) {
@@ -19,8 +19,12 @@
     return m ? Number(m[3]) + ' ' + MH.BULAN_PENDEK[Number(m[2]) - 1] + ' ' + m[1] : '—';
   }
 
+  function waBtn(url, name) {
+    return url ? ' <a class="wa-chip" href="' + esc(url) + '" target="_blank" rel="noopener" aria-label="Chat WhatsApp ' + esc(name) + '">Chat WA</a>' : '';
+  }
+
   function renderTabs() {
-    var n = { semua: items.length, inhouse: 0, freelance: 0, intern: 0 };
+    var n = { semua: items.length, inhouse: 0, freelance: 0, intern: 0, guru: 0 };
     items.forEach(function (k) { n[k.tipe] = (n[k.tipe] || 0) + 1; });
     $$('[data-tipe]', $('#st-tabs')).forEach(function (b) {
       var on = b.dataset.tipe === filter;
@@ -40,17 +44,21 @@
       return;
     }
     body.innerHTML = list.map(function (k) {
-      var intern = k.tipe === 'intern';
-      // Intern: kolom Jabatan berisi divisi + periode magang
+      var intern = k.tipe === 'intern', guru = k.tipe === 'guru';
+      // Intern: kolom Jabatan berisi divisi + periode magang + guru pendamping (tombol chat WhatsApp)
+      // Guru: asal sekolah + jumlah siswa bimbingan + WhatsApp
       var jab = intern
-        ? esc(k.divisi || 'Intern') + '<br><small class="muted num">' + esc(tglPendek(k.magang_mulai) + ' – ' + tglPendek(k.magang_selesai)) + '</small>'
+        ? esc([k.divisi || 'Intern', k.kelas].filter(Boolean).join(' · ')) + '<br><small class="muted num">' + esc(tglPendek(k.magang_mulai) + ' – ' + tglPendek(k.magang_selesai)) + '</small>' +
+          (k.guru ? '<br><small class="muted">Guru: ' + esc(k.guru) + '</small>' + waBtn(k.guru_wa_url, k.guru) : '')
+        : guru
+        ? esc(k.sekolah || '—') + '<br><small class="muted num">' + k.siswa + ' siswa bimbingan' + (k.whatsapp ? ' · ' + esc(k.whatsapp) : '') + '</small>' + waBtn(k.wa_url, k.name)
         : esc(k.jabatan || '—');
       return '<tr' + (k.aktif ? '' : ' class="muted"') + '>' +
         '<td><div class="adm-who"><span class="avatar" aria-hidden="true">' + esc(initials(k.name)) + '</span><span class="adm-who__txt"><strong>' + esc(k.name) + '</strong><small>' + esc(k.email) + '</small></span></div></td>' +
         '<td>' + jab + '</td>' +
         '<td>' + MH.tipeBadge(k.tipe) + '</td>' +
         '<td class="r">' + (k.tipe !== 'inhouse' ? '<span class="muted">—</span>' : MH.rupiah(k.gaji_pokok)) + '</td>' +
-        '<td class="r">' + (intern ? '<span class="muted">—</span>' : k.jobs) + '</td>' +
+        '<td class="r">' + (intern || guru ? '<span class="muted">—</span>' : k.jobs) + '</td>' +
         '<td>' + (k.pending ? '<a class="badge badge--solid" href="slip-gaji.php">' + k.pending + ' diajukan</a>' : '<span class="muted">—</span>') + '</td>' +
         '<td><span class="badge' + (k.aktif ? '' : ' badge--muted') + '">' + (k.aktif ? 'Aktif' : 'Nonaktif') + '</span></td>' +
         '<td><div class="adm-actions"><button type="button" class="btn btn--secondary" data-edit="' + k.id + '">Ubah</button></div></td>' +
@@ -60,7 +68,7 @@
 
   function load() {
     MH.api('api/staff.php').then(function (d) {
-      items = d.items; tarifFree = d.tarif_freelance || []; mentors = d.mentors || [];
+      items = d.items; tarifFree = d.tarif_freelance || []; mentors = d.mentors || []; gurus = d.gurus || [];
       render();
     }).catch(function (err) {
       $('#st-error').innerHTML = '<div class="card">' + MH.errorHtml(err.message) + '</div>';
@@ -79,14 +87,17 @@
    * In-house → gaji pokok wajib (default Rp 1.000.000) · Freelance → tanpa gaji pokok, ada tarif khusus
    * Intern → tanpa gaji & tarif, tampil data magang (divisi, periode wajib, jam kerja, mentor)
    */
-  function tipeValue() { var v = f.tipe.value; return v === 'freelance' || v === 'intern' ? v : 'inhouse'; }
+  function tipeValue() { var v = f.tipe.value; return v === 'freelance' || v === 'intern' || v === 'guru' ? v : 'inhouse'; }
   function syncTipe() {
     var t = tipeValue();
     gpField.hidden = t !== 'inhouse';
     f.gaji_pokok.required = t === 'inhouse';
     khususBox.hidden = t !== 'freelance';
     internBox.hidden = t !== 'intern';
-    jabatanField.hidden = t === 'intern';
+    guruBox.hidden = t !== 'guru';
+    f.sekolah.required = t === 'guru';
+    jabatanField.hidden = t === 'intern' || t === 'guru';
+    $('#st-name-hint').hidden = t === 'guru';
     f.magang_mulai.required = f.magang_selesai.required = t === 'intern';
     if (t === 'inhouse' && !MH.parseRupiah(f.gaji_pokok.value)) MH.setMoney(f.gaji_pokok, DEFAULT_GP);
   }
@@ -96,6 +107,13 @@
     var cur = k ? k.mentor_id : null;
     f.mentor_id.innerHTML = '<option value="">— Tanpa mentor —</option>' + mentors.filter(function (m) { return !k || m.id !== k.id; }).map(function (m) {
       return '<option value="' + m.id + '"' + (m.id === cur ? ' selected' : '') + '>' + esc(m.name) + ' · ' + esc(m.label) + '</option>';
+    }).join('');
+  }
+
+  function renderGurus(k) {
+    var cur = k ? k.guru_id : null;
+    f.guru_id.innerHTML = '<option value="">— Belum ada guru pendamping —</option>' + gurus.map(function (g) {
+      return '<option value="' + g.id + '"' + (g.id === cur ? ' selected' : '') + '>' + esc(g.name) + (g.sekolah ? ' · ' + esc(g.sekolah) : '') + (g.aktif ? '' : ' (nonaktif)') + '</option>';
     }).join('');
   }
 
@@ -135,7 +153,7 @@
     form.reset();
     formErr.hidden = true;
     f.id.value = k ? k.id : '';
-    f.tipe.value = k ? k.tipe : (filter === 'intern' ? 'intern' : 'inhouse');
+    f.tipe.value = k ? k.tipe : (filter === 'intern' || filter === 'guru' ? filter : 'inhouse');
     f.name.value = k ? k.name : '';
     f.email.value = k ? k.email : '';
     f.jabatan.value = k ? (k.jabatan || '') : '';
@@ -145,7 +163,11 @@
     f.magang_selesai.value = k && k.magang_selesai ? k.magang_selesai : '';
     f.jam_masuk.value = k && k.jam_masuk ? k.jam_masuk : '08:00';
     f.jam_pulang.value = k && k.jam_pulang ? k.jam_pulang : '16:00';
+    f.kelas.value = k && k.kelas ? k.kelas : '';
+    f.whatsapp.value = k && k.whatsapp ? k.whatsapp : '';
+    f.sekolah.value = k && k.sekolah ? k.sekolah : '';
     f.aktif.checked = k ? k.aktif : true;
+    renderGurus(k);
     f.password.required = !k;
     renderMentors(k);
     renderKhusus(k);
@@ -178,9 +200,10 @@
       if (f.magang_selesai.value < f.magang_mulai.value) return fail('Tanggal selesai magang harus sesudah tanggal mulai.', f.magang_selesai);
       if (f.jam_pulang.value <= f.jam_masuk.value) return fail('Jam pulang harus sesudah jam masuk.', f.jam_pulang);
     }
+    if (tipe === 'guru' && !f.sekolah.value.trim()) return fail('Asal sekolah wajib diisi untuk guru pendamping.', f.sekolah);
     var id = Number(f.id.value) || null;
     var data = {
-      id: id, tipe: tipe, name: f.name.value, email: f.email.value, jabatan: tipe === 'intern' ? '' : f.jabatan.value,
+      id: id, tipe: tipe, name: f.name.value, email: f.email.value, jabatan: tipe === 'intern' || tipe === 'guru' ? '' : f.jabatan.value,
       gaji_pokok: gp, password: f.password.value, aktif: f.aktif.checked,
       tarif_khusus: tipe === 'freelance' ? collectKhusus() : {}
     };
@@ -191,10 +214,16 @@
       data.jam_masuk = f.jam_masuk.value;
       data.jam_pulang = f.jam_pulang.value;
       data.mentor_id = f.mentor_id.value ? Number(f.mentor_id.value) : null;
+      data.guru_id = f.guru_id.value ? Number(f.guru_id.value) : null;
+      data.kelas = f.kelas.value;
+    }
+    if (tipe === 'guru') {
+      data.whatsapp = f.whatsapp.value;
+      data.sekolah = f.sekolah.value;
     }
     save.disabled = true; save.classList.add('is-loading'); formErr.hidden = true;
     MH.api('api/staff.php', { method: id ? 'PUT' : 'POST', body: data })
-      .then(function (d) { items = d.items; tarifFree = d.tarif_freelance || tarifFree; mentors = d.mentors || mentors; render(); MH.closeModal(modal); })
+      .then(function (d) { items = d.items; tarifFree = d.tarif_freelance || tarifFree; mentors = d.mentors || mentors; gurus = d.gurus || gurus; render(); MH.closeModal(modal); })
       .catch(function (err) { fail(err.message); })
       .finally(function () { save.disabled = false; save.classList.remove('is-loading'); });
   });

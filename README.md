@@ -173,6 +173,20 @@ Total sewa        = Harga sewa × Qty × Day
 - Pesan penyemangat khusus magang: Pengaturan → `pesan_semangat_intern` (kosong = pesan karyawan).
 - Uji: `tools/test-magang.php` (aturan) dan `tools/test-magang.php --db` (database, di-ROLLBACK).
 
+## Guru pendamping (tipe Guru)
+
+- `users.tipe = 'guru'` (migrasi 11), dibuat di Akun Karyawan (tab **Guru Pendamping**): nama, email, No. WhatsApp
+  (`users.whatsapp`), asal sekolah (`users.sekolah`). Intern punya `users.guru_id` (satu guru → banyak intern) dan
+  `users.kelas`. Guru **bukan** crew (tidak ada di combobox / tautan nama), tanpa slip, absen, maupun jadwal.
+- Area `guru` (`MH_AREA`): login → `/guru/siswa`; menu **Siswa Magang** dan **Rekap & Laporan**. Semua data lewat
+  `includes/guru.php` yang selalu memfilter `guru_id` = guru login — siswa lain, halaman admin, `/karyawan/*`,
+  `/magang/*` → 403. Satu-satunya tulis: catatan jurnal (`jurnal_komentar.peran = 'guru'`, tampil "Nama · Guru
+  Pendamping"), hanya catatan sendiri yang bisa dihapus (`api/guru.php`).
+- Perlu perhatian: kehadiran bulan ini < 80% atau alpa ≥ 2. Laporan PDF: `guru/cetak` (kop, data siswa, rekap,
+  jurnal, tanda tangan Mentor & Guru). Admin: filter Guru pendamping di Absensi & Jurnal Magang; guru + tombol
+  Chat WA di baris intern (Akun Karyawan) dan kartu jurnal.
+- Uji: `tools/test-guru.php [--db]`.
+
 ### Migrasi skema
 
 `database.sql` hanya untuk database kosong. Perubahan sesudahnya ada di `includes/migrate.php` (berversi,

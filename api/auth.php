@@ -49,7 +49,7 @@ $_SESSION['user'] = [
     'email'   => (string)$row['email'],
     'role'    => $row['role'] === 'karyawan' ? 'karyawan' : 'admin',
     'jabatan' => $row['jabatan'],
-    'tipe'    => in_array($row['tipe'], ['freelance', 'intern'], true) ? $row['tipe'] : 'inhouse',
+    'tipe'    => normal_tipe($row['tipe']),
     'divisi'  => $row['divisi'],
     'must_change_password' => (bool)$row['must_change_password'],
 ];

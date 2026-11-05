@@ -204,7 +204,7 @@ function tx_save(int $id, array $in): array
     //    - tanpa user_id → nama yang sama persis (dinormalisasi) dengan SATU akun aktif tetap ditautkan,
     //      tautan lama untuk nama yang sama dipertahankan; selain itu crew "Tanpa akun" (user_id NULL).
     $accounts = [];
-    foreach ($pdo->query("SELECT id, name FROM users WHERE role = 'karyawan'") as $r) $accounts[(int)$r['id']] = $r['name'];
+    foreach ($pdo->query("SELECT id, name FROM users WHERE role = 'karyawan' AND tipe <> 'guru'") as $r) $accounts[(int)$r['id']] = $r['name'];
     $byName = karyawan_name_map();
     $st = $pdo->prepare('SELECT name, user_id FROM transaction_crew WHERE transaction_id = ? AND user_id IS NOT NULL');
     $st->execute([$id]);

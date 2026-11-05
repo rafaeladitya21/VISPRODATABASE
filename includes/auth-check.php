@@ -8,6 +8,7 @@
  *   'admin'    (default — semua halaman & API lama) → hanya role admin
  *   'karyawan' → karyawan in-house & freelance (karyawan/*.php, api/myslip.php)
  *   'magang'   → anak magang / tipe intern (magang/*.php, api/absen.php, api/jurnal.php)
+ *   'guru'     → guru pendamping (guru/*.php, api/guru.php) — hanya siswa dengan users.guru_id = dirinya
  *   'admin,karyawan' dst. → beberapa area (mis. cetak slip; pembatasan data dilakukan di file itu sendiri)
  * Default = admin, jadi halaman/API admin yang baru otomatis tertutup bagi karyawan & magang.
  * Area tidak cocok → API 403 JSON, halaman 403 dengan tautan ke beranda sendiri.
@@ -54,7 +55,7 @@ if ($user) {
             'email'   => (string)$row['email'],
             'role'    => $row['role'] === 'karyawan' ? 'karyawan' : 'admin',
             'jabatan' => $row['jabatan'],
-            'tipe'    => in_array($row['tipe'], ['freelance', 'intern'], true) ? $row['tipe'] : 'inhouse',
+            'tipe'    => normal_tipe($row['tipe']),
             'divisi'  => $row['divisi'],
             'must_change_password' => (bool)$row['must_change_password'],
         ];

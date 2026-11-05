@@ -13,8 +13,9 @@ const MH_PAGES = ['index', 'login', 'logout', 'dashboard', 'transaksi', 'custome
                   'absensi', 'absensi-cetak', 'jurnal-magang', 'pengumuman'];
 const MH_KARYAWAN_PAGES = ['index', 'beranda', 'jadwal', 'slip'];
 const MH_MAGANG_PAGES   = ['index', 'beranda', 'jurnal', 'jadwal'];
+const MH_GURU_PAGES     = ['index', 'siswa', 'rekap', 'cetak'];
 const MH_APIS  = ['auth', 'customers', 'equipment', 'inventory', 'leads', 'schedule', 'summary', 'transactions',
-                  'myslip', 'staff', 'tarif', 'settings', 'payroll', 'absen', 'jurnal', 'absensi', 'jurnalmagang', 'lokasi', 'pengumuman'];
+                  'myslip', 'staff', 'tarif', 'settings', 'payroll', 'absen', 'jurnal', 'absensi', 'jurnalmagang', 'lokasi', 'pengumuman', 'guru'];
 
 $root = dirname(__DIR__);
 $path = (string)(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
@@ -39,6 +40,11 @@ if ($path === '/' || $path === '') {
     exit;
 } elseif (preg_match('#^/magang/([a-z-]*)(?:\.php)?$#', $path, $m) && in_array($m[1] ?: 'index', MH_MAGANG_PAGES, true)) {
     $file = "$root/magang/" . ($m[1] ?: 'index') . '.php';
+} elseif ($path === '/guru') {
+    header('Location: /guru/siswa');
+    exit;
+} elseif (preg_match('#^/guru/([a-z-]*)(?:\.php)?$#', $path, $m) && in_array($m[1] ?: 'index', MH_GURU_PAGES, true)) {
+    $file = "$root/guru/" . ($m[1] ?: 'index') . '.php';
 } elseif (preg_match('#^/api/([a-z]+)(?:\.php)?$#', $path, $m) && in_array($m[1], MH_APIS, true)) {
     $file = "$root/api/{$m[1]}.php";
 }

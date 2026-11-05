@@ -29,6 +29,12 @@ function sidebar_menu(string $area): array
             'm-jadwal'  => ['Jadwal Saya',     'magang/jadwal',  'calendar'],
         ]];
     }
+    if ($area === 'guru') {
+        return ['MENU' => [
+            'g-siswa' => ['Siswa Magang',    'guru/siswa', 'users'],
+            'g-rekap' => ['Rekap & Laporan', 'guru/rekap', 'doc'],
+        ]];
+    }
     if ($area === 'karyawan') {
         return ['MENU' => [
             'k-beranda' => ['Beranda',     'karyawan/beranda', 'home'],
@@ -63,6 +69,7 @@ function render_sidebar(string $active, array $user): void
     $isKaryawan = $area !== 'admin';
     $roleLabel = match ($area) {
         'magang'   => (trim((string)($user['divisi'] ?? '')) !== '' ? $user['divisi'] . ' · ' : '') . 'Intern',
+        'guru'     => 'Guru Pendamping',
         'karyawan' => (trim((string)($user['jabatan'] ?? '')) !== '' ? $user['jabatan'] . ' · ' : '') . tipe_label($user['tipe'] ?? null),
         default    => 'Admin',
     };
@@ -109,7 +116,9 @@ function render_sidebar(string $active, array $user): void
       <?php if ($isKaryawan): ?>
       <div class="sidebar__info">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg>
-        <?php if ($area === 'magang'): ?>
+        <?php if ($area === 'guru'): ?>
+        <p><strong>Akses pantau.</strong> Anda hanya melihat siswa bimbingan Anda.</p>
+        <?php elseif ($area === 'magang'): ?>
         <p><strong>Akses magang.</strong> Anda hanya melihat absen, jurnal &amp; jadwal milik Anda sendiri.</p>
         <?php else: ?>
         <p><strong>Akses karyawan.</strong> Anda hanya melihat jadwal &amp; gaji milik Anda sendiri.</p>

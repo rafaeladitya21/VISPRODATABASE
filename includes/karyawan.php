@@ -64,9 +64,9 @@ function crew_link_user(int $userId): void
 {
     $k = fn($c) => sprintf(SQL_NAME_KEY, $c);
     db()->prepare("UPDATE transaction_crew tc SET user_id = u.id FROM users u
-                   WHERE u.id = ? AND u.role = 'karyawan' AND tc.user_id IS NULL
+                   WHERE u.id = ? AND u.role = 'karyawan' AND u.tipe <> 'guru' AND tc.user_id IS NULL
                      AND {$k('tc.name')} = {$k('u.name')}
-                     AND NOT EXISTS (SELECT 1 FROM users o WHERE o.role = 'karyawan' AND o.id <> u.id AND {$k('o.name')} = {$k('u.name')})")
+                     AND NOT EXISTS (SELECT 1 FROM users o WHERE o.role = 'karyawan' AND o.tipe <> 'guru' AND o.id <> u.id AND {$k('o.name')} = {$k('u.name')})")
         ->execute([$userId]);
 }
 
@@ -77,7 +77,7 @@ function crew_link_user(int $userId): void
 function karyawan_name_map(): array
 {
     $map = [];
-    foreach (db()->query("SELECT id, name FROM users WHERE role = 'karyawan' AND aktif = 1 ORDER BY id") as $r) {
+    foreach (db()->query("SELECT id, name FROM users WHERE role = 'karyawan' AND tipe <> 'guru' AND aktif = 1 ORDER BY id") as $r) {
         $key = name_key($r['name']);
         $map[$key] = array_key_exists($key, $map) ? null : (int)$r['id'];
     }
@@ -90,7 +90,7 @@ function crew_accounts(): array
     return array_map(fn($r) => [
         'id' => (int)$r['id'], 'name' => $r['name'], 'tipe' => $r['tipe'] ?: 'inhouse',
         'jabatan' => $r['jabatan'], 'divisi' => $r['divisi'],
-    ], db()->query("SELECT id, name, tipe, jabatan, divisi FROM users WHERE role = 'karyawan' AND aktif = 1 ORDER BY name")->fetchAll());
+    ], db()->query("SELECT id, name, tipe, jabatan, divisi FROM users WHERE role = 'karyawan' AND tipe <> 'guru' AND aktif = 1 ORDER BY name")->fetchAll());
 }
 
 

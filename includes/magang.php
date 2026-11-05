@@ -126,8 +126,9 @@ function server_now(): array
 function intern_row(int $userId): ?array
 {
     $st = db()->prepare("SELECT u.id, u.name, u.email, u.divisi, u.magang_mulai, u.magang_selesai, u.jam_masuk, u.jam_pulang,
-                                u.mentor_id, m.name AS mentor_name, u.aktif, u.setuju_lokasi_at
-                         FROM users u LEFT JOIN users m ON m.id = u.mentor_id
+                                u.mentor_id, m.name AS mentor_name, u.aktif, u.setuju_lokasi_at, u.kelas,
+                                u.guru_id, g.name AS guru_name, g.whatsapp AS guru_wa, g.sekolah AS guru_sekolah
+                         FROM users u LEFT JOIN users m ON m.id = u.mentor_id LEFT JOIN users g ON g.id = u.guru_id
                          WHERE u.id = ? AND u.role = 'karyawan' AND u.tipe = 'intern'");
     $st->execute([$userId]);
     $r = $st->fetch();
@@ -139,7 +140,16 @@ function intern_row(int $userId): ?array
         'jam_pulang' => substr((string)($r['jam_pulang'] ?? INTERN_JAM_PULANG), 0, 5),
         'mentor_id' => $r['mentor_id'] === null ? null : (int)$r['mentor_id'], 'mentor' => $r['mentor_name'],
         'aktif' => (bool)$r['aktif'], 'setuju_lokasi_at' => $r['setuju_lokasi_at'],
+        'kelas' => $r['kelas'], 'guru_id' => $r['guru_id'] === null ? null : (int)$r['guru_id'],
+        'guru' => $r['guru_name'], 'guru_wa' => $r['guru_wa'], 'sekolah' => $r['guru_sekolah'],
     ];
+}
+
+/** Guru pendamping untuk filter Admin: [{id, name, sekolah}] */
+function guru_options(): array
+{
+    return array_map(fn($r) => ['id' => (int)$r['id'], 'name' => $r['name'], 'sekolah' => $r['sekolah']],
+        db()->query("SELECT id, name, sekolah FROM users WHERE role = 'karyawan' AND tipe = 'guru' ORDER BY name")->fetchAll());
 }
 
 /** Semua intern aktif (untuk filter & ringkasan admin) */
@@ -392,10 +402,12 @@ function jurnal_format(array $r, bool $withComments = true): array
         'komentar' => [],
     ];
     if ($withComments) {
-        $st = db()->prepare('SELECT k.id, k.isi, k.created_at, u.name FROM jurnal_komentar k LEFT JOIN users u ON u.id = k.user_id
+        $st = db()->prepare('SELECT k.id, k.isi, k.created_at, k.peran, k.user_id, u.name FROM jurnal_komentar k LEFT JOIN users u ON u.id = k.user_id
                              WHERE k.jurnal_id = ? ORDER BY k.created_at, k.id');
         $st->execute([$out['id']]);
-        $out['komentar'] = array_map(fn($k) => ['id' => (int)$k['id'], 'isi' => $k['isi'], 'nama' => $k['name'] ?? 'Admin',
+        // peran 'guru' → label "{Nama} · Guru Pendamping" (MH.jurnalCard)
+        $out['komentar'] = array_map(fn($k) => ['id' => (int)$k['id'], 'isi' => $k['isi'], 'nama' => $k['name'] ?? ($k['peran'] === 'guru' ? 'Guru' : 'Admin'),
+                                                'peran' => $k['peran'], 'user_id' => $k['user_id'] === null ? null : (int)$k['user_id'],
                                                 'created_at' => $k['created_at']], $st->fetchAll());
     }
     return $out;
@@ -529,7 +541,9 @@ function absensi_data(array $q): array
     $uid = (int)($q['user_id'] ?? 0);
     $status = (string)($q['status'] ?? '');
     $lokasiId = (int)($q['lokasi_id'] ?? 0);
-    $interns = interns_all(false);
+    $guruId = (int)($q['guru_id'] ?? 0);
+    $allInterns = interns_all(false);
+    $interns = $guruId ? array_values(array_filter($allInterns, fn($i) => $i['guru_id'] === $guruId)) : $allInterns;
     $ditolak = absen_ditolak_list($from, $to, $uid);
     $rows = [];
     $rekap = [];
@@ -573,9 +587,11 @@ function absensi_data(array $q): array
     return [
         'from' => $from, 'to' => $to, 'bulan' => $bulan, 'bulan_label' => periode_label($bulan), 'alpa_mulai' => alpa_mulai(),
         'rows' => $rows, 'rekap' => $rekap,
-        'ditolak' => array_values(array_filter($ditolak, fn($d) => !$lokasiId || $d['lokasi_id'] === $lokasiId)),
+        'ditolak' => array_values(array_filter($ditolak, fn($d) => (!$lokasiId || $d['lokasi_id'] === $lokasiId)
+            && (!$guruId || in_array($d['user_id'], array_column($interns, 'id'), true)))),
         'lokasi' => lokasi_all(), 'radius' => radius_intern(),
-        'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif']], $interns),
+        'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif'], 'guru_id' => $i['guru_id']], $allInterns),
+        'gurus' => guru_options(),
     ];
 }
 
