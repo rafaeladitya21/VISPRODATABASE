@@ -112,6 +112,21 @@ try {
     $p = slip_load($me, '2026-10');
     check('Tarif dihapus: baris slip tetap utuh', [$p['sub_total'], $p['per_output']['EDIT FULLDOC'] ?? null], [4600000, 100000]);
 
+    // Tipe karyawan: slip yang sudah diajukan menyimpan tipe lama (snapshot)
+    check('Tipe default akun = inhouse', karyawan_row($uid)['tipe'], 'inhouse');
+    $pdo->prepare("UPDATE slip SET status = 'diajukan' WHERE id = ?")->execute([$slip['id']]);
+    $pdo->prepare("UPDATE users SET tipe = 'freelance', gaji_pokok = 0 WHERE id = ?")->execute([$uid]);
+    $me = karyawan_row($uid);
+    $p = slip_load($me, '2026-10');
+    check('Diajukan: ganti ke freelance tidak mengubah slip', [$p['tipe'], $p['sub_total']], ['inhouse', 4600000]);
+    $pdo->prepare("UPDATE slip SET status = 'draft' WHERE id = ?")->execute([$slip['id']]);
+    $p = slip_load($me, '2026-10');
+    check('Draft: ikut freelance → Sub Total = Total Fee', [$p['tipe'], $p['gaji_pokok'], $p['sub_total']], ['freelance', 0, 3600000]);
+    $nov = slip_ensure($uid, '2026-11');
+    check('Slip baru freelance: snapshot tipe & gaji pokok 0', [$nov['tipe_snapshot'], (int)$nov['gaji_pokok_snapshot']], ['freelance', 0]);
+    $pdo->prepare("UPDATE users SET tipe = 'inhouse', gaji_pokok = 1000000 WHERE id = ?")->execute([$uid]);
+    $me = karyawan_row($uid);
+
     // Slip karyawan lain terpisah
     check('Slip karyawan lain kosong', slip_load(karyawan_row($other), '2026-10')['jumlah_pekerjaan'], 0);
 

@@ -52,7 +52,7 @@ function render_sidebar(string $active, array $user): void
     $role = $user['role'] ?? 'admin';
     $isKaryawan = $role === 'karyawan';
     $roleLabel = $isKaryawan
-        ? (trim((string)($user['jabatan'] ?? '')) !== '' ? $user['jabatan'] . ' · Karyawan' : 'Karyawan')
+        ? (trim((string)($user['jabatan'] ?? '')) !== '' ? $user['jabatan'] . ' · ' : '') . tipe_label($user['tipe'] ?? null)
         : 'Admin';
     ?>
     <aside class="sidebar" aria-label="Navigasi utama">

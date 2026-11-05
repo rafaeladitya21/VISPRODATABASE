@@ -147,7 +147,6 @@
   function renderSummary(s) {
     el.status.className = badgeClass(s.status);
     el.status.textContent = s.returned ? 'Dikembalikan' : s.status_label;
-    el.period.textContent = 'Periode ' + s.periode_label;
 
     var idx = STEPS.indexOf(s.status);
     MH.$$('li', el.steps).forEach(function (li, i) {
@@ -162,6 +161,9 @@
     }).join('') : '<li class="ks-sum__empty">Belum ada pekerjaan</li>';
     el.fee.textContent = rp(s.total_fee);
     el.gp.textContent = rp(s.gaji_pokok);
+    // Freelance: tanpa gaji pokok (tipe diambil dari snapshot slip)
+    $('#ss-gp-row').hidden = s.tipe === 'freelance';
+    el.period.textContent = 'Periode ' + s.periode_label + ' · ' + (s.tipe === 'freelance' ? 'Freelance' : 'In-house');
     el.total.textContent = rp(s.sub_total);
 
     var a = '';

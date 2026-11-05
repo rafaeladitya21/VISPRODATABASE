@@ -114,7 +114,10 @@ Total sewa        = Harga sewa × Qty × Day
 - **Jadwal karyawan** = transaksi **Confirmed/Selesai** yang mencantumkan karyawan sebagai crew (form Transaksi
   bagian 5, kolom nama menyarankan nama akun). Nama crew yang sama dengan nama akun otomatis ditautkan
   (`transaction_crew.user_id`). Transaksi Draft tidak tampil ke karyawan.
-- **Slip gaji**: total per baris = fee output × hari · Total Fee = Σ baris · Sub Total = Total Fee + Gaji Pokok.
+- **Tipe karyawan** (`users.tipe`): **In-house** (gaji pokok + fee per job) atau **Freelance** (fee per job saja,
+  gaji pokok disimpan 0). Tipe & gaji pokok disalin ke slip (`tipe_snapshot`, `gaji_pokok_snapshot`).
+- **Slip gaji**: total per baris = fee output × hari · Total Fee = Σ baris · Sub Total = Total Fee + Gaji Pokok
+  (freelance: Sub Total = Total Fee).
   Alur: Draft → Diajukan → Disetujui → Dibayar. Selama Draft fee & gaji pokok mengikuti master terkini;
   sejak diajukan nilainya dibekukan (snapshot) sehingga perubahan tarif tidak mengubah slip lama.
   Bulan lalu hanya bisa dilihat (dan diajukan bila belum), kecuali slip yang dikembalikan Admin / ditarik.

@@ -259,6 +259,11 @@ function home_path(?array $user): string
     return ($user['role'] ?? 'admin') === 'karyawan' ? 'karyawan/beranda' : 'dashboard.php';
 }
 
+/** Tipe karyawan: in-house (gaji pokok + fee per job) / freelance (fee per job saja) */
+const TIPE_KARYAWAN = ['inhouse' => 'In-house', 'freelance' => 'Freelance'];
+
+function tipe_label(?string $t): string { return TIPE_KARYAWAN[$t ?? 'inhouse'] ?? 'In-house'; }
+
 /** Inisial (maks. 2 huruf) untuk avatar */
 function initials(string $name): string
 {

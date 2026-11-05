@@ -609,7 +609,8 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
   background: rgba(255, 255, 255, .03);
 }
 .avatar {
-  display: grid; place-items: center; flex: none;
+  display: flex; align-items: center; justify-content: center; flex: none;
+  line-height: 1; text-align: center; letter-spacing: 0;
   width: 34px; height: 34px; border-radius: 50%;
   font-size: 13px; font-weight: 700; color: var(--ink); background: var(--white);
 }
@@ -1888,13 +1889,13 @@ select.input option { color: var(--ink); }
 }
 
 /* ---------- Jadwal Saya ---------- */
-.kj-tabs { margin-bottom: 16px; }
-.kj-tabs .seg__btn { display: inline-flex; align-items: center; gap: 8px; }
-.kj-tabs .seg__btn small {
+.kj-tabs, .seg--count { margin-bottom: 16px; }
+:is(.kj-tabs, .seg--count) .seg__btn { display: inline-flex; align-items: center; gap: 8px; }
+:is(.kj-tabs, .seg--count) .seg__btn small {
   display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px;
   font-size: 11.5px; font-weight: 600; color: var(--muted); background: var(--white); border-radius: 999px;
 }
-.kj-tabs .seg__btn.is-active small { color: var(--white); background: var(--ink); }
+:is(.kj-tabs, .seg--count) .seg__btn.is-active small { color: var(--white); background: var(--ink); }
 
 .kj-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 16px; list-style: none; }
 .kj-item {
@@ -2018,7 +2019,7 @@ select.input option { color: var(--ink); }
 .adm-actions .btn { height: 34px; padding: 0 12px; font-size: 13px; }
 .adm-who { display: flex; align-items: center; gap: 10px; }
 .adm-who .avatar { color: var(--white); background: var(--ink); }
-.adm-who span { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.adm-who__txt { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
 .adm-who small { font-size: 12px; color: var(--muted); }
 .adm-form { display: flex; flex-direction: column; gap: 14px; }
 .adm-saved { font-size: 13px; color: var(--muted); }
@@ -2039,3 +2040,26 @@ select.input option { color: var(--ink); }
 @media (max-width: 1100px) { .adm-grid { grid-template-columns: minmax(0, 1fr); } }
 
 .year-select input[type="month"] { width: 170px; }
+
+/* Pilihan tipe karyawan (kartu radio) */
+.tipe-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.tipe-pick legend { grid-column: 1 / -1; margin-bottom: 8px; padding: 0; }
+.tipe-pick__opt { position: relative; display: flex; cursor: pointer; }
+.tipe-pick__opt input { position: absolute; opacity: 0; pointer-events: none; }
+.tipe-pick__card {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 12px 14px 12px 40px;
+  background: var(--white); border: 1px solid var(--line); border-radius: 12px;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  position: relative;
+}
+.tipe-pick__card::before {
+  content: ''; position: absolute; left: 14px; top: 14px; width: 16px; height: 16px;
+  border: 1.5px solid var(--dash); border-radius: 50%; background: var(--white);
+}
+.tipe-pick__card strong { font-size: 14px; font-weight: 700; }
+.tipe-pick__card small { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+.tipe-pick__opt:hover .tipe-pick__card { border-color: var(--dash); }
+.tipe-pick__opt input:checked + .tipe-pick__card { border-color: var(--ink); box-shadow: inset 0 0 0 .5px var(--ink); background: var(--soft); }
+.tipe-pick__opt input:checked + .tipe-pick__card::before { border: 5px solid var(--ink); }
+.tipe-pick__opt input:focus-visible + .tipe-pick__card { box-shadow: var(--ring); border-color: var(--ink); }
+@media (max-width: 480px) { .tipe-pick { grid-template-columns: minmax(0, 1fr); } }

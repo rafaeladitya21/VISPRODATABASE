@@ -17,7 +17,9 @@ layout_start('Slip Gaji', 'k-slip');
 <header class="page-head fbu">
   <div>
     <h1 class="page-head__title">Slip Gaji</h1>
-    <p class="page-head__sub">Total fee = fee output × jumlah hari · Sub total = total fee + gaji pokok</p>
+    <p class="page-head__sub"><?= ($user['tipe'] ?? 'inhouse') === 'freelance'
+      ? 'Total fee = fee output × jumlah hari · Sub total = total fee (freelance, tanpa gaji pokok)'
+      : 'Total fee = fee output × jumlah hari · Sub total = total fee + gaji pokok' ?></p>
   </div>
   <div class="page-head__actions">
     <div class="sc-nav">
@@ -122,7 +124,7 @@ layout_start('Slip Gaji', 'k-slip');
     <ul class="ks-sum__rows" id="ss-outputs"></ul>
     <div class="ks-sum__rows ks-sum__rows--total">
       <div><span>Total Fee</span><strong class="num" id="ss-fee">Rp 0</strong></div>
-      <div><span>Gaji Pokok</span><strong class="num" id="ss-gp">Rp 0</strong></div>
+      <div id="ss-gp-row"><span>Gaji Pokok</span><strong class="num" id="ss-gp">Rp 0</strong></div>
     </div>
     <div class="ks-sum__grand">
       <span>Sub Total</span>

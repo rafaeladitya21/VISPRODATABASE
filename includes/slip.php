@@ -3,7 +3,9 @@
  * Slip gaji karyawan — mengikuti spreadsheet slip gaji yang sudah dipakai:
  *   total per baris = fee output (per hari) × jumlah hari
  *   Total Fee       = jumlah semua baris
- *   Sub Total       = Total Fee + Gaji Pokok
+ *   Sub Total       = Total Fee + Gaji Pokok   (in-house)
+ *                   = Total Fee                (freelance: tanpa gaji pokok)
+ * Tipe karyawan disalin ke slip (tipe_snapshot) bersama gaji pokok, mengikuti aturan snapshot di bawah.
  *
  * Alur status: draft → diajukan → disetujui → dibayar
  *   - draft     : fee & gaji pokok mengikuti master terkini (disinkronkan setiap dibaca/diubah)
@@ -28,8 +30,9 @@ const SLIP_MAX_HARI = 31;
  * Hasil: items (urut tanggal, dengan 'total'), per_output [nama => total], total_fee, gaji_pokok,
  *        sub_total, jumlah_pekerjaan, jumlah_hari.
  */
-function slip_compute(array $items, int $gajiPokok): array
+function slip_compute(array $items, int $gajiPokok, string $tipe = 'inhouse'): array
 {
+    if ($tipe === 'freelance') $gajiPokok = 0;   // freelance: dibayar per job saja
     foreach ($items as $i => &$it) {
         $it['fee_snapshot'] = max(0, (int)$it['fee_snapshot']);
         $it['hari'] = max(1, (int)$it['hari']);
@@ -54,6 +57,7 @@ function slip_compute(array $items, int $gajiPokok): array
         'items'            => $items,
         'per_output'       => $perOutput,
         'total_fee'        => $totalFee,
+        'tipe'             => $tipe === 'freelance' ? 'freelance' : 'inhouse',
         'gaji_pokok'       => $gajiPokok,
         'sub_total'        => $totalFee + $gajiPokok,
         'jumlah_pekerjaan' => count($items),
@@ -110,9 +114,10 @@ function slip_row_by_id(int $id, bool $lock = false): ?array
 /** Slip ada → kembalikan; belum ada → buat draft kosong */
 function slip_ensure(int $userId, string $periode): array
 {
-    db()->prepare('INSERT INTO slip (user_id, periode, gaji_pokok_snapshot, sub_total)
-                   SELECT id, ?, gaji_pokok, gaji_pokok FROM users WHERE id = ?
-                   ON CONFLICT (user_id, periode) DO NOTHING')->execute([$periode, $userId]);
+    db()->prepare("INSERT INTO slip (user_id, periode, gaji_pokok_snapshot, sub_total, tipe_snapshot)
+                   SELECT id, ?, gp, gp, tipe
+                   FROM (SELECT id, tipe, CASE WHEN tipe = 'freelance' THEN 0 ELSE gaji_pokok END AS gp FROM users WHERE id = ?) u
+                   ON CONFLICT (user_id, periode) DO NOTHING")->execute([$periode, $userId]);
     return slip_row($userId, $periode, true);
 }
 
@@ -146,12 +151,12 @@ function slip_sync(int $slipId): void
                    WHERE si.slip_id = ? AND s.id = si.slip_id AND s.status = 'draft' AND t.id = si.tarif_output_id
                      AND (si.fee_snapshot <> t.fee_per_hari OR si.output_nama <> t.nama OR si.total <> t.fee_per_hari * si.hari)")
         ->execute([$slipId]);
-    $pdo->prepare("UPDATE slip s SET gaji_pokok_snapshot = x.gp, total_fee = x.fee, sub_total = x.gp + x.fee
-                   FROM (SELECT u.gaji_pokok AS gp,
+    $pdo->prepare("UPDATE slip s SET gaji_pokok_snapshot = x.gp, tipe_snapshot = x.tipe, total_fee = x.fee, sub_total = x.gp + x.fee
+                   FROM (SELECT CASE WHEN u.tipe = 'freelance' THEN 0 ELSE u.gaji_pokok END AS gp, u.tipe,
                                 (SELECT COALESCE(SUM(total), 0) FROM slip_item WHERE slip_id = ?) AS fee
                          FROM slip s2 JOIN users u ON u.id = s2.user_id WHERE s2.id = ?) x
                    WHERE s.id = ? AND s.status = 'draft'
-                     AND (s.gaji_pokok_snapshot <> x.gp OR s.total_fee <> x.fee OR s.sub_total <> x.gp + x.fee)")
+                     AND (s.gaji_pokok_snapshot <> x.gp OR s.tipe_snapshot <> x.tipe OR s.total_fee <> x.fee OR s.sub_total <> x.gp + x.fee)")
         ->execute([$slipId, $slipId, $slipId]);
 }
 
@@ -179,8 +184,9 @@ function slip_editable(?array $slip, string $periode): bool
 function slip_payload(array $user, string $periode, ?array $slip): array
 {
     $items = $slip ? slip_items((int)$slip['id']) : [];
-    $gp = $slip ? (int)$slip['gaji_pokok_snapshot'] : (int)$user['gaji_pokok'];
-    $calc = slip_compute($items, $gp);
+    $tipe = $slip ? $slip['tipe_snapshot'] : ($user['tipe'] ?? 'inhouse');
+    $gp = $slip ? (int)$slip['gaji_pokok_snapshot'] : ($tipe === 'freelance' ? 0 : (int)$user['gaji_pokok']);
+    $calc = slip_compute($items, $gp, $tipe);
     $status = $slip['status'] ?? 'draft';
     $editable = slip_editable($slip, $periode);
     $today = date('Y-m-d');
@@ -217,7 +223,7 @@ function slip_payload(array $user, string $periode, ?array $slip): array
         'diajukan_at'      => $slip['diajukan_at'] ?? null,
         'disetujui_at'     => $slip['disetujui_at'] ?? null,
         'dibayar_at'       => $slip['dibayar_at'] ?? null,
-        'karyawan'         => ['id' => (int)$user['id'], 'name' => $user['name'], 'jabatan' => $user['jabatan'] ?? null],
+        'karyawan'         => ['id' => (int)$user['id'], 'name' => $user['name'], 'jabatan' => $user['jabatan'] ?? null, 'tipe' => $user['tipe'] ?? 'inhouse'],
         'quick'            => $quick,
     ] + $calc;
 }
@@ -225,11 +231,11 @@ function slip_payload(array $user, string $periode, ?array $slip): array
 /** Data karyawan (id, name, jabatan, gaji_pokok) */
 function karyawan_row(int $userId): ?array
 {
-    $st = db()->prepare("SELECT id, name, email, jabatan, gaji_pokok, aktif FROM users WHERE id = ? AND role = 'karyawan'");
+    $st = db()->prepare("SELECT id, name, email, jabatan, gaji_pokok, tipe, aktif FROM users WHERE id = ? AND role = 'karyawan'");
     $st->execute([$userId]);
     $r = $st->fetch();
     return $r ? ['id' => (int)$r['id'], 'name' => $r['name'], 'email' => $r['email'], 'jabatan' => $r['jabatan'],
-                 'gaji_pokok' => (int)$r['gaji_pokok'], 'aktif' => (bool)$r['aktif']] : null;
+                 'gaji_pokok' => (int)$r['gaji_pokok'], 'tipe' => $r['tipe'], 'aktif' => (bool)$r['aktif']] : null;
 }
 
 /** Slip karyawan untuk satu periode, disinkronkan dulu bila masih draft */

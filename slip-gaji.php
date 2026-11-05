@@ -28,17 +28,23 @@ layout_start('Slip Gaji', 'slip-gaji');
 </div>
 
 <div id="pr-error" hidden></div>
+<div class="seg seg--count fbu" role="tablist" aria-label="Filter tipe karyawan" id="pr-tipe">
+  <button type="button" class="seg__btn" role="tab" data-tipe="semua">Semua <small class="num" data-tc="semua">0</small></button>
+  <button type="button" class="seg__btn" role="tab" data-tipe="inhouse">In-house <small class="num" data-tc="inhouse">0</small></button>
+  <button type="button" class="seg__btn" role="tab" data-tipe="freelance">Freelance <small class="num" data-tc="freelance">0</small></button>
+</div>
+
 
 <section class="card card--flush fbu">
   <div class="table-wrap">
     <table class="table">
       <thead>
         <tr>
-          <th>Karyawan</th><th>Periode</th><th class="r">Pekerjaan</th><th class="r">Total Fee</th><th class="r">Gaji Pokok</th>
+          <th>Karyawan</th><th>Tipe</th><th>Periode</th><th class="r">Pekerjaan</th><th class="r">Total Fee</th><th class="r">Gaji Pokok</th>
           <th class="r">Sub Total</th><th>Status</th><th class="chev"><span class="sr-only">Buka</span></th>
         </tr>
       </thead>
-      <tbody id="pr-body"><tr><td colspan="8" class="empty">Memuat…</td></tr></tbody>
+      <tbody id="pr-body"><tr><td colspan="9" class="empty">Memuat…</td></tr></tbody>
     </table>
   </div>
 </section>

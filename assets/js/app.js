@@ -141,6 +141,11 @@
     return '<p class="field__error">' + MH.icon('alert') + '<span>' + MH.esc(msg) + '</span></p>';
   };
 
+  /** Badge tipe karyawan: In-house = hitam solid, Freelance = putih dengan border putus-putus */
+  MH.tipeBadge = function (t) {
+    return t === 'freelance' ? '<span class="badge badge--muted">Freelance</span>' : '<span class="badge badge--solid">In-house</span>';
+  };
+
   /* --- Input rupiah: pemisah ribuan otomatis, kursor tetap di posisi wajar --- */
   MH.moneyInput = function (input) {
     if (input.dataset.money) return;

@@ -1,5 +1,5 @@
 <?php
-/** Akun Karyawan — admin: tambah / ubah akun, jabatan, gaji pokok, aktif/nonaktif. */
+/** Akun Karyawan — admin: tambah / ubah akun, tipe (in-house / freelance), jabatan, gaji pokok, aktif/nonaktif. */
 declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
 require __DIR__ . '/includes/layout.php';
@@ -19,6 +19,12 @@ layout_start('Akun Karyawan', 'akun-karyawan');
   </div>
 </header>
 
+<div class="seg seg--count fbu" role="tablist" aria-label="Filter tipe karyawan" id="st-tabs">
+  <button type="button" class="seg__btn is-active" role="tab" aria-selected="true" data-tipe="semua">Semua <small class="num" data-count="semua">0</small></button>
+  <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="inhouse">In-house <small class="num" data-count="inhouse">0</small></button>
+  <button type="button" class="seg__btn" role="tab" aria-selected="false" data-tipe="freelance">Freelance <small class="num" data-count="freelance">0</small></button>
+</div>
+
 <div id="st-error" hidden></div>
 
 <section class="card card--flush fbu">
@@ -26,11 +32,11 @@ layout_start('Akun Karyawan', 'akun-karyawan');
     <table class="table">
       <thead>
         <tr>
-          <th>Karyawan</th><th>Jabatan</th><th class="r">Gaji Pokok</th><th class="r">Job</th><th>Slip</th><th>Status</th>
+          <th>Karyawan</th><th>Jabatan</th><th>Tipe</th><th class="r">Gaji Pokok</th><th class="r">Job</th><th>Slip</th><th>Status</th>
           <th style="width:90px"><span class="sr-only">Aksi</span></th>
         </tr>
       </thead>
-      <tbody id="st-body"><tr><td colspan="7" class="empty">Memuat…</td></tr></tbody>
+      <tbody id="st-body"><tr><td colspan="8" class="empty">Memuat…</td></tr></tbody>
     </table>
   </div>
 </section>
@@ -46,6 +52,23 @@ layout_start('Akun Karyawan', 'akun-karyawan');
   </div>
   <form class="window__body adm-form" id="st-form" novalidate autocomplete="off" data-form-type="other">
     <input type="hidden" name="id">
+    <fieldset class="tipe-pick">
+      <legend class="field__label">Tipe karyawan</legend>
+      <label class="tipe-pick__opt">
+        <input type="radio" name="tipe" value="inhouse" checked>
+        <span class="tipe-pick__card">
+          <strong>In-house</strong>
+          <small>Karyawan tetap. Dapat gaji pokok + fee per job.</small>
+        </span>
+      </label>
+      <label class="tipe-pick__opt">
+        <input type="radio" name="tipe" value="freelance">
+        <span class="tipe-pick__card">
+          <strong>Freelance</strong>
+          <small>Dibayar per job saja. Tanpa gaji pokok.</small>
+        </span>
+      </label>
+    </fieldset>
     <div class="field">
       <label class="field__label" for="st-name">Nama lengkap</label>
       <input class="input" id="st-name" name="name" maxlength="150" required>
@@ -60,9 +83,9 @@ layout_start('Akun Karyawan', 'akun-karyawan');
         <label class="field__label" for="st-jabatan">Jabatan</label>
         <input class="input" id="st-jabatan" name="jabatan" maxlength="100" placeholder="mis. Videografer">
       </div>
-      <div class="field">
+      <div class="field" id="st-gp-field">
         <label class="field__label" for="st-gp">Gaji pokok (Rp)</label>
-        <input class="input input--money" id="st-gp" name="gaji_pokok" placeholder="1.000.000">
+        <input class="input input--money" id="st-gp" name="gaji_pokok" placeholder="1.000.000" required>
       </div>
     </div>
     <div class="field">

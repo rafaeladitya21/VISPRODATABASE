@@ -122,7 +122,7 @@ $autoPrint = empty($_GET['noprint']);
 
     <div class="info">
       <div><span>Nama</span><strong><?= e($k['name']) ?></strong></div>
-      <div><span>Jabatan</span><strong><?= e($k['jabatan'] ?: 'Karyawan') ?></strong></div>
+      <div><span>Jabatan · Tipe</span><strong><?= e(($k['jabatan'] ? $k['jabatan'] . ' · ' : '') . tipe_label($s['tipe'])) ?></strong></div>
       <div><span>Jumlah pekerjaan</span><strong class="num"><?= $s['jumlah_pekerjaan'] ?> pekerjaan · <?= $s['jumlah_hari'] ?> hari</strong></div>
       <div><span>Tanggal transfer</span><strong><?= e($s['tanggal_transfer'] ? tgl_id($s['tanggal_transfer']) : '—') ?></strong></div>
     </div>
@@ -159,7 +159,7 @@ $autoPrint = empty($_GET['noprint']);
         <h2>Ringkasan</h2>
         <div class="rows">
           <div><span>Total Fee</span><strong class="num"><?= e(rupiah($s['total_fee'])) ?></strong></div>
-          <div><span>Gaji Pokok</span><strong class="num"><?= e(rupiah($s['gaji_pokok'])) ?></strong></div>
+          <?php if ($s['tipe'] !== 'freelance'): ?><div><span>Gaji Pokok</span><strong class="num"><?= e(rupiah($s['gaji_pokok'])) ?></strong></div><?php endif; ?>
         </div>
         <div class="grand"><span>Sub Total</span><span class="big num"><?= e(rupiah($s['sub_total'])) ?></span></div>
         <?php if ($s['status'] === 'dibayar'): ?>

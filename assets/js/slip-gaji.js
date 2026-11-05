@@ -4,7 +4,9 @@
   var $ = MH.$, $$ = MH.$$, esc = MH.esc, rp = MH.rupiah;
   var D = window.MH_DATA || {};
   var params = new URLSearchParams(location.search);
-  var state = { status: params.get('status') || 'diajukan', periode: params.get('periode') || '', items: [], slip: null };
+  var TIPES = ['semua', 'inhouse', 'freelance'];
+  var state = { status: params.get('status') || 'diajukan', periode: params.get('periode') || '',
+                tipe: TIPES.indexOf(params.get('tipe')) !== -1 ? params.get('tipe') : 'semua', items: [], slip: null };
 
   var body = $('#pr-body'), modal = $('#pr-modal'), detail = $('#pr-detail'), err = $('#pr-error'), per = $('#pr-periode');
   per.value = state.periode;
@@ -18,7 +20,7 @@
   function load() {
     err.hidden = true;
     var q = '?status=' + state.status + (state.periode ? '&periode=' + state.periode : '');
-    history.replaceState(null, '', 'slip-gaji.php' + q);
+    history.replaceState(null, '', 'slip-gaji.php' + q + (state.tipe !== 'semua' ? '&tipe=' + state.tipe : ''));
     return MH.api('api/payroll.php' + q).then(function (d) {
       state.items = d.items;
       counts(d.counts);
@@ -29,18 +31,33 @@
     Object.keys(c).forEach(function (k) { var el = $('[data-c="' + k + '"]'); if (el) el.textContent = c[k]; });
     $$('[data-st]').forEach(function (b) { b.classList.toggle('is-active', b.dataset.st === state.status); });
   }
+  /** Filter tipe (snapshot slip) di sisi halaman; jumlah mengikuti filter status & periode */
+  function renderTipe() {
+    var n = { semua: state.items.length, inhouse: 0, freelance: 0 };
+    state.items.forEach(function (s) { n[s.tipe]++; });
+    $$('[data-tipe]').forEach(function (b) {
+      var on = b.dataset.tipe === state.tipe;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      $('[data-tc]', b).textContent = n[b.dataset.tipe];
+    });
+  }
+
   function render() {
-    if (!state.items.length) {
-      body.innerHTML = '<tr><td colspan="8" class="empty">Tidak ada slip' + (state.status === 'diajukan' ? ' yang menunggu persetujuan' : '') + '.</td></tr>';
+    renderTipe();
+    var list = state.items.filter(function (s) { return state.tipe === 'semua' || s.tipe === state.tipe; });
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="9" class="empty">Tidak ada slip' + (state.tipe !== 'semua' ? (state.tipe === 'inhouse' ? ' in-house' : ' freelance') : '') + (state.status === 'diajukan' ? ' yang menunggu persetujuan' : '') + '.</td></tr>';
       return;
     }
-    body.innerHTML = state.items.map(function (s) {
+    body.innerHTML = list.map(function (s) {
       return '<tr class="is-link" data-id="' + s.id + '" tabindex="0">' +
         '<td><strong>' + esc(s.name) + '</strong>' + (s.jabatan ? '<br><small class="muted">' + esc(s.jabatan) + '</small>' : '') + '</td>' +
+        '<td>' + MH.tipeBadge(s.tipe) + '</td>' +
         '<td class="nw">' + esc(s.periode_label) + '</td>' +
         '<td class="r">' + s.jumlah_pekerjaan + ' · ' + s.jumlah_hari + ' hari</td>' +
         '<td class="r">' + rp(s.total_fee) + '</td>' +
-        '<td class="r">' + rp(s.gaji_pokok) + '</td>' +
+        '<td class="r">' + (s.tipe === 'freelance' ? '<span class="muted">—</span>' : rp(s.gaji_pokok)) + '</td>' +
         '<td class="r strong">' + rp(s.sub_total) + '</td>' +
         '<td>' + badge(s) + '</td>' +
         '<td class="chev">' + MH.icon('chev') + '</td></tr>';
@@ -54,6 +71,14 @@
     load();
   });
   per.addEventListener('change', function () { state.periode = per.value; load(); });
+  $('#pr-tipe').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tipe]');
+    if (!b) return;
+    state.tipe = b.dataset.tipe;
+    render();
+    history.replaceState(null, '', 'slip-gaji.php?status=' + state.status + (state.periode ? '&periode=' + state.periode : '') +
+      (state.tipe !== 'semua' ? '&tipe=' + state.tipe : ''));
+  });
 
   function openRow(id) {
     detail.innerHTML = '<p class="empty">Memuat…</p>';
@@ -101,7 +126,7 @@
       '<div class="slip-detail__items"><table class="table"><thead><tr><th class="c">No</th><th>Tanggal</th><th>Event</th><th>Output</th><th class="r">Fee</th><th class="r">Hari</th><th class="r">Total</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="slip-detail__sum">' +
         '<div><span>Total Fee (' + s.jumlah_pekerjaan + ' pekerjaan · ' + s.jumlah_hari + ' hari)</span><strong class="num">' + rp(s.total_fee) + '</strong></div>' +
-        '<div><span>Gaji Pokok</span><strong class="num">' + rp(s.gaji_pokok) + '</strong></div>' +
+        (s.tipe === 'freelance' ? '<div><span>Gaji Pokok</span><strong class="num">— (freelance)</strong></div>' : '<div><span>Gaji Pokok</span><strong class="num">' + rp(s.gaji_pokok) + '</strong></div>') +
         '<div><span>Sub Total</span><strong class="num">' + rp(s.sub_total) + '</strong></div>' +
       '</div>' +
       '<div class="slip-detail__acts">' + acts + '<div id="pr-act-error" hidden></div>' +

@@ -97,6 +97,13 @@ const MH_MIGRATIONS = [
         ALTER TABLE slip_item    ENABLE ROW LEVEL SECURITY;
         ALTER TABLE pengaturan   ENABLE ROW LEVEL SECURITY;
         SQL,
+
+    // 2 — Tipe karyawan: in-house (gaji pokok + fee) / freelance (fee saja); disalin ke slip sebagai snapshot
+    2 => <<<'SQL'
+        ALTER TABLE users ADD COLUMN tipe VARCHAR(10) NOT NULL DEFAULT 'inhouse' CHECK (tipe IN ('inhouse', 'freelance'));
+        ALTER TABLE slip  ADD COLUMN tipe_snapshot VARCHAR(10) NOT NULL DEFAULT 'inhouse'
+                          CHECK (tipe_snapshot IN ('inhouse', 'freelance'));
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

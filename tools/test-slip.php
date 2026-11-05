@@ -82,6 +82,16 @@ check('Snapshot: tarif baru tidak mengubah total lama', $after['sub_total'], 460
 
 echo "\nAturan lain\n";
 check('Slip kosong = gaji pokok saja', slip_compute([], 1000000)['sub_total'], 1000000);
+
+echo "
+Freelance (data Oktober yang sama)
+";
+$fr = slip_compute($items, 1000000, 'freelance');
+check('Freelance: tipe', $fr['tipe'], 'freelance');
+check('Freelance: gaji pokok diabaikan = 0', $fr['gaji_pokok'], 0);
+check('Freelance: Sub Total = Total Fee = Rp 3.600.000', [$fr['total_fee'], $fr['sub_total']], [3600000, 3600000]);
+check('In-house eksplisit: Sub Total = Rp 4.600.000', slip_compute($items, 1000000, 'inhouse')['sub_total'], 4600000);
+check('Label tipe', [tipe_label('inhouse'), tipe_label('freelance')], ['In-house', 'Freelance']);
 check('Sapaan 04.00', sapaan(4), 'Selamat Pagi');
 check('Sapaan 10.59', sapaan(10), 'Selamat Pagi');
 check('Sapaan 11.00', sapaan(11), 'Selamat Siang');

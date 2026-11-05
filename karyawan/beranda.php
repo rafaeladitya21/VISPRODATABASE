@@ -109,7 +109,7 @@ layout_start('Beranda', 'k-beranda');
     <article class="card kpi kpi--dark fbu">
       <p class="kpi__label">Estimasi gaji bulan ini</p>
       <p class="kpi__value num"><?= e(rupiah($slipNow['sub_total'])) ?></p>
-      <p class="kpi__sub">Total fee + gaji pokok <?= e(rupiah($slipNow['gaji_pokok'])) ?></p>
+      <p class="kpi__sub"><?= $slipNow['tipe'] === 'freelance' ? 'dari fee per job' : e('fee + gaji pokok ' . rupiah($slipNow['gaji_pokok'])) ?></p>
     </article>
     <a class="card kpi kb-kpi-link fbu" href="karyawan/slip?periode=<?= e($prevPeriode) ?>">
       <p class="kpi__label">Slip <?= e(periode_label($prevPeriode)) ?></p>

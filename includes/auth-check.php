@@ -33,7 +33,7 @@ if (!$user && dev_no_login()) {
  */
 if ($user) {
     try {
-        $st = db()->prepare('SELECT id, name, email, role, jabatan, aktif, must_change_password FROM users WHERE id = ?');
+        $st = db()->prepare('SELECT id, name, email, role, jabatan, tipe, aktif, must_change_password FROM users WHERE id = ?');
         $st->execute([(int)($user['id'] ?? 0)]);
         $row = $st->fetch();
     } catch (PDOException $e) {
@@ -52,6 +52,7 @@ if ($user) {
             'email'   => (string)$row['email'],
             'role'    => $row['role'] === 'karyawan' ? 'karyawan' : 'admin',
             'jabatan' => $row['jabatan'],
+            'tipe'    => $row['tipe'] === 'freelance' ? 'freelance' : 'inhouse',
             'must_change_password' => (bool)$row['must_change_password'],
         ];
         if (($_SESSION['user'] ?? null) !== $fresh) $_SESSION['user'] = $fresh;

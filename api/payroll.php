@@ -2,6 +2,7 @@
 /**
  * API Slip Gaji — ADMIN
  *   GET ?status=diajukan|disetujui|dibayar|dikembalikan|semua [&periode=YYYY-MM]  → daftar slip
+ *        (tiap baris membawa tipe = tipe_snapshot slip; filter In-house/Freelance dilakukan di halaman)
  *   GET ?id=12                                         → detail slip (rincian + ringkasan)
  *   POST {action:'approve', id}                        → diajukan → disetujui
  *   POST {action:'return',  id, catatan}               → diajukan/disetujui → draft (+ catatan untuk karyawan)
@@ -26,7 +27,7 @@ function payroll_list(string $filter, ?string $periode): array
     $where = PAYROLL_FILTERS[$filter];
     $args = [];
     if ($periode) { $where .= ' AND s.periode = ?'; $args[] = $periode; }
-    $st = db()->prepare("SELECT s.id, s.periode, s.status, s.total_fee, s.sub_total, s.gaji_pokok_snapshot,
+    $st = db()->prepare("SELECT s.id, s.periode, s.status, s.total_fee, s.sub_total, s.gaji_pokok_snapshot, s.tipe_snapshot,
             s.diajukan_at, s.tanggal_transfer, s.catatan_admin, u.name, u.jabatan,
             (SELECT COUNT(*) FROM slip_item si WHERE si.slip_id = s.id) AS n,
             (SELECT COALESCE(SUM(hari), 0) FROM slip_item si WHERE si.slip_id = s.id) AS hari
@@ -37,7 +38,7 @@ function payroll_list(string $filter, ?string $periode): array
         'id' => (int)$r['id'], 'periode' => $r['periode'], 'periode_label' => periode_label($r['periode']),
         'status' => $r['status'], 'status_label' => SLIP_STATUS[$r['status']],
         'returned' => $r['status'] === 'draft',
-        'name' => $r['name'], 'jabatan' => $r['jabatan'],
+        'name' => $r['name'], 'jabatan' => $r['jabatan'], 'tipe' => $r['tipe_snapshot'],
         'jumlah_pekerjaan' => (int)$r['n'], 'jumlah_hari' => (int)$r['hari'],
         'total_fee' => (int)$r['total_fee'], 'gaji_pokok' => (int)$r['gaji_pokok_snapshot'], 'sub_total' => (int)$r['sub_total'],
         'diajukan_at' => $r['diajukan_at'], 'tanggal_transfer' => $r['tanggal_transfer'], 'catatan_admin' => $r['catatan_admin'],
