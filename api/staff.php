@@ -4,7 +4,8 @@
  *   GET                                                                → daftar karyawan + jumlah per tipe
  *   POST {name, email, jabatan, tipe, gaji_pokok, password, aktif}     → tambah
  *   PUT  {id, name, email, jabatan, tipe, gaji_pokok, aktif, password?} → ubah (password kosong = tidak diganti)
- *   tarif_khusus: {tarif_output_id: fee} (opsional, freelance saja) → fee khusus orang ini, kosong = tarif umum
+ *   tarif_khusus: {tarif_output_id: {fee, tampil}} (opsional, freelance saja) → harga khusus orang ini
+ *                 (kosong = tarif umum) dan tampil=false untuk menyembunyikan tarif itu dari orang ini
  * Tipe: 'inhouse' (gaji pokok wajib, > 0) atau 'freelance' (gaji pokok disimpan 0).
  * Akun tidak dihapus (slip lama tetap utuh) — cukup dinonaktifkan; akun nonaktif tidak bisa login
  * dan session yang masih ada langsung berakhir (lihat auth-check.php).
@@ -22,14 +23,16 @@ function staff_list(): array
             (SELECT COUNT(*) FROM slip s WHERE s.user_id = u.id AND s.status = 'diajukan') AS pending
         FROM users u WHERE u.role = 'karyawan' ORDER BY u.aktif DESC, u.name")->fetchAll();
     $khusus = [];
-    foreach (db()->query('SELECT user_id, tarif_output_id, fee FROM tarif_khusus') as $r) {
-        $khusus[(int)$r['user_id']][(string)$r['tarif_output_id']] = (int)$r['fee'];
+    foreach (db()->query('SELECT user_id, tarif_output_id, fee, tampil FROM tarif_khusus') as $r) {
+        $khusus[(int)$r['user_id']][(string)$r['tarif_output_id']] = [
+            'fee' => $r['fee'] === null ? null : (int)$r['fee'], 'tampil' => (bool)$r['tampil'],
+        ];
     }
     return array_map(fn($r) => [
         'id' => (int)$r['id'], 'name' => $r['name'], 'email' => $r['email'], 'jabatan' => $r['jabatan'],
         'tipe' => $r['tipe'], 'gaji_pokok' => (int)$r['gaji_pokok'], 'aktif' => (bool)$r['aktif'],
         'jobs' => (int)$r['jobs'], 'pending' => (int)$r['pending'],
-        'tarif_khusus' => (object)($khusus[(int)$r['id']] ?? []),   // {tarif_output_id: fee}
+        'tarif_khusus' => (object)($khusus[(int)$r['id']] ?? []),   // {tarif_output_id: {fee, tampil}}
     ], $rows);
 }
 
@@ -52,11 +55,16 @@ function save_tarif_khusus(int $userId, string $tipe, mixed $map): void
     $pdo->prepare('DELETE FROM tarif_khusus WHERE user_id = ?')->execute([$userId]);
     if ($tipe !== 'freelance' || !is_array($map)) return;
     $valid = array_flip(array_column(freelance_tarif(), 'id'));
-    $ins = $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee) VALUES (?, ?, ?)');
-    foreach ($map as $tid => $fee) {
+    $ins = $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee, tampil) VALUES (?, ?, ?, ?)');
+    foreach ($map as $tid => $row) {
         $tid = (int)$tid;
-        $fee = ($fee === null || $fee === '') ? 0 : to_rupiah($fee);
-        if (isset($valid[$tid]) && $fee > 0) $ins->execute([$userId, $tid, $fee]);
+        if (!isset($valid[$tid])) continue;
+        // {fee, tampil}; angka saja = format lama (fee)
+        $row = is_array($row) ? $row : ['fee' => $row];
+        $fee = ($row['fee'] ?? null) === null || $row['fee'] === '' ? 0 : to_rupiah($row['fee']);
+        $tampil = !array_key_exists('tampil', $row) || !empty($row['tampil']);
+        // Hanya simpan bila berbeda dari default (ada harga khusus, atau disembunyikan)
+        if ($fee > 0 || !$tampil) $ins->execute([$userId, $tid, $fee > 0 ? $fee : null, $tampil ? 1 : 0]);
     }
 }
 

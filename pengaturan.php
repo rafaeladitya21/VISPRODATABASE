@@ -24,10 +24,10 @@ layout_start('Pengaturan', 'pengaturan');
     <div class="card__head card__head--pad">
       <div>
         <h2 class="card__title" id="tf-title">Tarif output</h2>
-        <p class="card__sub" id="tf-sub">Karyawan hanya melihat tarif sesuai tipenya. Slip yang sudah diajukan tidak ikut berubah.</p>
+        <p class="card__sub" id="tf-sub">Karyawan hanya melihat tarif sesuai tipenya. Perubahan harga hanya berlaku untuk pekerjaan baru.</p>
       </div>
       <button class="btn btn--primary" type="button" id="tf-add">
-        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span id="tf-add-label">Tambah</span>
       </button>
     </div>
     <div class="tf-tabs">

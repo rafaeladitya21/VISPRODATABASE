@@ -101,7 +101,10 @@
 
     // Hanya tarif tipe karyawan ini (server sudah memfilter); fee khusus orang ini sudah diterapkan
     var cur = el.output.value;
-    el.output.innerHTML = '<option value="">' + (state.tarif.length ? 'Pilih output…' : 'Belum ada tarif dari Admin') + '</option>' +
+    // Kosong (belum ada harga dari Admin / semua disembunyikan) → dropdown & tombol Tambah nonaktif
+    el.output.disabled = !state.tarif.length;
+    $('#sl-output-empty').hidden = !!state.tarif.length;
+    el.output.innerHTML = '<option value="">' + (state.tarif.length ? 'Pilih output…' : 'Tidak ada tarif') + '</option>' +
       state.tarif.map(function (t) {
         return '<option value="' + t.id + '">' + esc(t.nama) + ' — ' + rp(t.fee) + '/' + t.satuan + '</option>';
       }).join('');

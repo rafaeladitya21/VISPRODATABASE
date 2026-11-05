@@ -8,7 +8,7 @@
  * Tipe karyawan disalin ke slip (tipe_snapshot) bersama gaji pokok, mengikuti aturan snapshot di bawah.
  *
  * Alur status: draft → diajukan → disetujui → dibayar
- *   - draft     : fee & gaji pokok mengikuti master terkini (disinkronkan setiap dibaca/diubah)
+ *   - draft     : gaji pokok & tipe mengikuti data karyawan terkini; fee tiap baris dibekukan saat ditambahkan
  *   - diajukan  : snapshot dibekukan; karyawan bisa "Tarik kembali" (→ draft)
  *   - Admin     : Setujui (diajukan → disetujui), Kembalikan + catatan (diajukan/disetujui → draft),
  *                 Tandai Dibayar + tanggal transfer (disetujui → dibayar)
@@ -112,7 +112,8 @@ function periode_shift(string $p, int $months): string
 /* ---------- Database ---------- */
 
 /**
- * Tarif yang BOLEH dipakai satu karyawan: aktif, tipe sama dengan tipe karyawan, fee = tarif khusus
+ * Tarif yang BOLEH dipakai satu karyawan: aktif, tipe sama dengan tipe karyawan, tidak disembunyikan untuk
+ * orang ini (tarif_khusus.tampil), dan fee efektif > 0 (fee 0 = harga belum diatur Admin). Fee efektif = tarif khusus
  * orang ini bila ada, selain itu fee umum. Satu-satunya sumber tarif untuk sisi karyawan — tarif tipe
  * lain tidak pernah dikirim ke browser maupun diterima saat menyimpan (lihat api/myslip.php).
  * $id → hanya tarif itu (null bila tidak boleh dipakai).
@@ -123,7 +124,8 @@ function tarif_for_user(array $user, ?int $id = null): array|null
                    COALESCE(tk.fee, t.fee_per_hari) AS fee
             FROM tarif_output t
             LEFT JOIN tarif_khusus tk ON tk.tarif_output_id = t.id AND tk.user_id = ?
-            WHERE t.aktif = 1 AND t.tipe = ?" . ($id !== null ? ' AND t.id = ?' : '') . '
+            WHERE t.aktif = 1 AND t.tipe = ? AND COALESCE(tk.tampil, 1) = 1
+              AND COALESCE(tk.fee, t.fee_per_hari) > 0" . ($id !== null ? ' AND t.id = ?' : '') . '
             ORDER BY t.sort_order, t.id';
     $args = [(int)$user['id'], ($user['tipe'] ?? 'inhouse') === 'freelance' ? 'freelance' : 'inhouse'];
     if ($id !== null) $args[] = $id;
@@ -184,27 +186,14 @@ function slip_items(int $slipId): array
 }
 
 /**
- * Slip draft: samakan fee & nama output dengan master tarif, gaji pokok dengan data karyawan,
+ * Slip draft: samakan gaji pokok & tipe dengan data karyawan,
  * lalu hitung ulang total. Slip yang sudah diajukan tidak disentuh (snapshot beku).
  */
 function slip_sync(int $slipId): void
 {
     $pdo = db();
-    // Fee = tarif khusus karyawan ini bila ada, selain itu fee umum; satuan project → jumlah 1
-    $pdo->prepare("UPDATE slip_item si
-                   SET fee_snapshot = x.fee, output_nama = x.nama, satuan_snapshot = x.satuan,
-                       hari = x.jml, total = x.fee * x.jml
-                   FROM (SELECT si2.id, t.nama, t.satuan, COALESCE(tk.fee, t.fee_per_hari) AS fee,
-                                CASE WHEN t.satuan = 'project' THEN 1 ELSE si2.hari END AS jml
-                         FROM slip_item si2
-                         JOIN slip s ON s.id = si2.slip_id AND s.status = 'draft'
-                         JOIN tarif_output t ON t.id = si2.tarif_output_id
-                         LEFT JOIN tarif_khusus tk ON tk.tarif_output_id = t.id AND tk.user_id = s.user_id
-                         WHERE si2.slip_id = ?) x
-                   WHERE si.id = x.id
-                     AND (si.fee_snapshot <> x.fee OR si.output_nama <> x.nama OR si.satuan_snapshot <> x.satuan
-                          OR si.hari <> x.jml OR si.total <> x.fee * x.jml)")
-        ->execute([$slipId]);
+    // Rincian TIDAK disentuh: fee, satuan & nama output dibekukan saat baris ditambahkan (fee_snapshot),
+    // jadi perubahan harga hanya berlaku untuk pekerjaan yang ditambahkan sesudahnya.
     $pdo->prepare("UPDATE slip s SET gaji_pokok_snapshot = x.gp, tipe_snapshot = x.tipe, total_fee = x.fee, sub_total = x.gp + x.fee
                    FROM (SELECT CASE WHEN u.tipe = 'freelance' THEN 0 ELSE u.gaji_pokok END AS gp, u.tipe,
                                 (SELECT COALESCE(SUM(total), 0) FROM slip_item WHERE slip_id = ?) AS fee

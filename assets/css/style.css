@@ -2075,3 +2075,22 @@ select.input option { color: var(--ink); }
 .tk__name strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 .tk__name small { font-size: 12px; color: var(--muted); }
 .tk__row .input { height: 38px; background: var(--white); }
+
+/* Pengaturan: baris tarif freelance yang diedit langsung */
+.tf-name { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.tf-note { display: block; margin-top: 2px; font-size: 12px; color: var(--red); }
+.tf-in { height: 38px; min-width: 120px; }
+td .tf-in.input--money { width: 140px; margin-left: auto; }
+.switch { position: relative; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch__track { position: relative; width: 36px; height: 20px; flex: none; background: var(--dash); border-radius: 999px; transition: background-color .15s ease; }
+.switch__track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--white); border-radius: 50%; box-shadow: 0 1px 2px rgba(0, 0, 0, .2); transition: transform .2s var(--ease-out); }
+.switch input:checked + .switch__track { background: var(--ink); }
+.switch input:checked + .switch__track::after { transform: translateX(16px); }
+.switch input:focus-visible + .switch__track { box-shadow: var(--ring); }
+
+/* Akun Karyawan: tarif orang ini (harga khusus + tampilkan) */
+.tk__row { grid-template-columns: minmax(0, 1fr) 140px auto; }
+.tk__show { min-height: 0; font-size: 12.5px; gap: 6px; }
+.ks-empty-tarif { color: var(--red); font-weight: 500; }
+@media (max-width: 480px) { .tk__row { grid-template-columns: minmax(0, 1fr) 120px; } .tk__show { grid-column: 1 / -1; } }

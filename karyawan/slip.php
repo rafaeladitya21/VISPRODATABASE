@@ -64,7 +64,8 @@ layout_start('Slip Gaji', 'k-slip');
         </div>
         <div class="field">
           <label class="field__label" for="sl-output">Output</label>
-          <select class="input" id="sl-output" name="tarif_output_id" required></select>
+          <select class="input" id="sl-output" name="tarif_output_id" required aria-describedby="sl-output-empty"></select>
+          <p class="field__hint ks-empty-tarif" id="sl-output-empty" hidden>Admin belum mengatur tarif untuk Anda. Hubungi Admin.</p>
         </div>
         <div class="field ks-form__hari" id="sl-hari-field">
           <label class="field__label" for="sl-hari" id="sl-hari-label">Jumlah</label>

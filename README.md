@@ -119,7 +119,10 @@ Total sewa        = Harga sewa × Qty × Day
 - **Tarif per tipe** (`tarif_output.tipe`, `satuan` = hari / project / jam): Pengaturan punya tab Tarif In-house dan
   Tarif Freelance. Karyawan hanya menerima & hanya boleh menyimpan tarif aktif bertipe sama dengan akunnya
   (`tarif_for_user()` di `includes/slip.php`; tarif tipe lain → 403). Fee khusus satu freelancer (`tarif_khusus`)
-  diatur di Akun Karyawan → Ubah dan menimpa fee umum. Fee & satuan disimpan di `slip_item` dari server.
+  diatur di Akun Karyawan → Ubah dan menimpa fee umum; `tarif_khusus.tampil = 0` menyembunyikan tarif dari orang itu.
+  Tarif dengan fee efektif 0 (mis. seed PHOTOGRAPHER/VIDEOGRAPHER sebelum Admin mengisi harga) tidak tampil.
+  Fee & satuan disimpan di `slip_item` dari server saat baris ditambahkan — perubahan harga hanya berlaku untuk
+  pekerjaan baru.
 - **Slip gaji**: total per baris = fee output × hari · Total Fee = Σ baris · Sub Total = Total Fee + Gaji Pokok
   (freelance: Sub Total = Total Fee).
   Alur: Draft → Diajukan → Disetujui → Dibayar. Selama Draft fee & gaji pokok mengikuti master terkini;

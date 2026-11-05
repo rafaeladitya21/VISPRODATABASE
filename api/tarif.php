@@ -7,7 +7,8 @@
  * fee_per_hari = fee per satuan (hari / project / jam).
  * Tarif tidak dihapus — dinonaktifkan saja, supaya tidak bisa dipilih lagi tanpa merusak slip lama.
  * Slip yang sudah diajukan menyimpan nama, fee & satuan sendiri (snapshot) → tidak berubah.
- * Slip yang masih draft langsung mengikuti tarif baru.
+ * Perubahan harga hanya berlaku untuk pekerjaan yang ditambahkan sesudahnya (fee_snapshot per baris slip).
+ * Fee 0 = belum diatur → tidak tampil di dropdown karyawan.
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
@@ -32,7 +33,7 @@ function tarif_input(array $in): array
     $nama = mb_strtoupper(trim(preg_replace('/\s+/u', ' ', (string)($in['nama'] ?? ''))));
     if ($nama === '' || mb_strlen($nama) > 80) json_error('Nama output wajib diisi (maks. 80 karakter).', 422);
     $fee = to_rupiah($in['fee_per_hari'] ?? 0);
-    if ($fee <= 0) json_error('Fee wajib diisi.', 422);
+    // Fee 0 boleh = "belum diatur": tarif tidak tampil di slip karyawan sampai harganya diisi
     $satuan = (string)($in['satuan'] ?? 'hari');
     if (!isset(SATUAN[$satuan])) json_error('Pilih satuan: per hari, per project, atau per jam.', 422);
     return [$nama, $fee, $satuan, !isset($in['aktif']) || !empty($in['aktif']) ? 1 : 0];

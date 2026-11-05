@@ -82,10 +82,10 @@ try {
     check('Bulan berjalan bisa diubah', slip_editable(null, periode_now()), true);
     check('Bulan depan tidak bisa', slip_editable(null, periode_shift(periode_now(), 1)), false);
 
-    // Draft mengikuti tarif terkini
+    // Draft: harga baru TIDAK mengubah pekerjaan yang sudah dicatat (fee_snapshot per baris)
     $pdo->prepare('UPDATE tarif_output SET fee_per_hari = 175000 WHERE id = ?')->execute([$tarif['TAKE VIDIO']['id']]);
     $p = slip_load($me, '2026-10');
-    check('Draft: tarif TAKE VIDIO naik → ikut (+7 hari × 25.000)', $p['sub_total'], 4775000);
+    check('Draft: tarif TAKE VIDIO naik → baris lama tetap', $p['sub_total'], 4600000);
     $pdo->prepare('UPDATE tarif_output SET fee_per_hari = 150000 WHERE id = ?')->execute([$tarif['TAKE VIDIO']['id']]);
     slip_load($me, '2026-10');
 
@@ -127,41 +127,68 @@ try {
     $pdo->prepare("UPDATE users SET tipe = 'inhouse', gaji_pokok = 1000000 WHERE id = ?")->execute([$uid]);
     $me = karyawan_row($uid);
 
-    // --- Tarif in-house vs freelance (pemisahan wajib di server) ---
+    // --- Tarif freelance (pemisahan wajib di server) — mulai dari kondisi seed: PHOTOGRAPHER/VIDEOGRAPHER fee 0 ---
     $fid = (int)$pdo->query("INSERT INTO users (name, email, password_hash, role, tipe, gaji_pokok)
         VALUES ('HAFIDZ AGIL ABIYASA', 'test-hafidz@example.invalid', 'x', 'karyawan', 'freelance', 0) RETURNING id")->fetchColumn();
-    $fTake = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'TAKE VIDIO', 200000, 'hari') RETURNING id")->fetchColumn();
-    $fProj = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'EDIT COMPRO', 500000, 'project') RETURNING id")->fetchColumn();
-    $fJam  = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'LIVECAM JAM', 75000, 'jam') RETURNING id")->fetchColumn();
-    $fOff  = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan, aktif) VALUES ('freelance', 'LAMA', 1, 'hari', 0) RETURNING id")->fetchColumn();
+    $fid2 = (int)$pdo->query("INSERT INTO users (name, email, password_hash, role, tipe, gaji_pokok)
+        VALUES ('FREELANCER LAIN', 'test-free2@example.invalid', 'x', 'karyawan', 'freelance', 0) RETURNING id")->fetchColumn();
+    $pdo->exec("UPDATE tarif_output SET aktif = 0 WHERE tipe = 'freelance' AND nama NOT IN ('PHOTOGRAPHER', 'VIDEOGRAPHER')");
+    $pdo->exec("UPDATE tarif_output SET fee_per_hari = 0, satuan = 'hari', aktif = 1 WHERE tipe = 'freelance' AND nama IN ('PHOTOGRAPHER', 'VIDEOGRAPHER')");
+    $pdo->exec("DELETE FROM tarif_khusus");
+    $ids = [];
+    foreach ($pdo->query("SELECT id, nama FROM tarif_output WHERE tipe = 'freelance' AND nama IN ('PHOTOGRAPHER', 'VIDEOGRAPHER')") as $r) $ids[$r['nama']] = (int)$r['id'];
+    check('Seed: PHOTOGRAPHER & VIDEOGRAPHER freelance ada (sekali)', [count($ids),
+        (int)$pdo->query("SELECT COUNT(*) FROM tarif_output WHERE tipe = 'freelance' AND nama = 'PHOTOGRAPHER'")->fetchColumn()], [2, 1]);
     $hafidz = karyawan_row($fid);
+    $lain = karyawan_row($fid2);
     $andhika = karyawan_row($uid);
-    $freeList = tarif_for_user($hafidz);
-    check('Freelance: dropdown hanya tarif freelance aktif', array_column($freeList, 'nama'), ['TAKE VIDIO', 'EDIT COMPRO', 'LIVECAM JAM']);
-    check('Freelance: satuan ikut', array_column($freeList, 'satuan'), ['hari', 'project', 'jam']);
-    check('In-house: tidak ada tarif freelance', array_intersect(array_column(tarif_for_user($andhika), 'id'), [$fTake, $fProj, $fJam]), []);
+
+    // Tes 1: sebelum harga diisi → kosong (dropdown nonaktif di halaman)
+    check('Tes 1: harga belum diatur → dropdown Hafidz kosong', tarif_for_user($hafidz), []);
+    check('Tes 1: fee 0 juga ditolak saat menyimpan', tarif_for_user($hafidz, $ids['PHOTOGRAPHER']), null);
+
+    // Tes 2: Admin mengisi harga
+    $pdo->prepare('UPDATE tarif_output SET fee_per_hari = ? WHERE id = ?')->execute([300000, $ids['PHOTOGRAPHER']]);
+    $pdo->prepare('UPDATE tarif_output SET fee_per_hari = ? WHERE id = ?')->execute([350000, $ids['VIDEOGRAPHER']]);
+    $l = tarif_for_user($hafidz);
+    check('Tes 2: PHOTOGRAPHER 300.000 & VIDEOGRAPHER 350.000 /hari', array_map(fn($t) => [$t['nama'], $t['fee'], $t['satuan']], $l),
+        [['PHOTOGRAPHER', 300000, 'hari'], ['VIDEOGRAPHER', 350000, 'hari']]);
+
+    // Tes 3: harga khusus hanya untuk Hafidz
+    $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee) VALUES (?, ?, 400000)')->execute([$fid, $ids['PHOTOGRAPHER']]);
+    check('Tes 3: Hafidz melihat PHOTOGRAPHER 400.000', tarif_for_user($hafidz, $ids['PHOTOGRAPHER'])['fee'], 400000);
+    check('Tes 3: freelancer lain tetap 300.000', tarif_for_user($lain, $ids['PHOTOGRAPHER'])['fee'], 300000);
+
+    // Tes 4: VIDEOGRAPHER disembunyikan untuk Hafidz
+    $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee, tampil) VALUES (?, ?, NULL, 0)')->execute([$fid, $ids['VIDEOGRAPHER']]);
+    check('Tes 4: Hafidz hanya melihat PHOTOGRAPHER', array_column(tarif_for_user($hafidz), 'nama'), ['PHOTOGRAPHER']);
+    check('Tes 4: VIDEOGRAPHER ditolak untuk Hafidz', tarif_for_user($hafidz, $ids['VIDEOGRAPHER']), null);
+    check('Tes 4: freelancer lain masih melihat keduanya', array_column(tarif_for_user($lain), 'nama'), ['PHOTOGRAPHER', 'VIDEOGRAPHER']);
+
+    // Tes 5: in-house tidak pernah melihat tarif freelance
+    check('Tes 5: in-house tidak melihat PHOTOGRAPHER/VIDEOGRAPHER', array_intersect(array_column(tarif_for_user($andhika), 'id'), array_values($ids)), []);
+    check('Tes 5: in-house memakai tarif freelance → ditolak', tarif_for_user($andhika, $ids['PHOTOGRAPHER']), null);
     check('Freelance memakai tarif in-house → ditolak', tarif_for_user($hafidz, $tarif['TAKE VIDIO']['id']), null);
-    check('In-house memakai tarif freelance → ditolak', tarif_for_user($andhika, $fTake), null);
+    $fOff = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan, aktif) VALUES ('freelance', 'TEST LAMA', 100000, 'hari', 0) RETURNING id")->fetchColumn();
     check('Tarif nonaktif → ditolak', tarif_for_user($hafidz, $fOff), null);
 
-    $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee) VALUES (?, ?, 250000)')->execute([$fid, $fTake]);
-    $t = tarif_for_user($hafidz, $fTake);
-    check('Tarif khusus menimpa fee umum', [$t['fee'], $t['khusus']], [250000, true]);
-    check('Tarif khusus tidak berlaku untuk orang lain',
-        tarif_for_user(['id' => $other, 'tipe' => 'freelance'], $fTake)['fee'], 200000);
-
+    // Slip freelance: satuan campuran, fee dibekukan saat ditambahkan
+    $fProj = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'TEST EDIT COMPRO', 500000, 'project') RETURNING id")->fetchColumn();
+    $fJam  = (int)$pdo->query("INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan) VALUES ('freelance', 'TEST LIVECAM JAM', 75000, 'jam') RETURNING id")->fetchColumn();
     $fs = slip_ensure($fid, '2026-10');
     $ins2 = $pdo->prepare('INSERT INTO slip_item (slip_id, tanggal, event, tarif_output_id, output_nama, fee_snapshot, satuan_snapshot, hari, total)
                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    $ins2->execute([$fs['id'], '2026-10-10', 'WEDDING A', $fTake, 'TAKE VIDIO', 200000, 'hari', 2, 400000]);   // fee lama → disinkron ke 250.000
-    $ins2->execute([$fs['id'], '2026-10-12', 'COMPRO B', $fProj, 'EDIT COMPRO', 500000, 'project', 3, 1500000]); // project → jumlah dipaksa 1
-    $ins2->execute([$fs['id'], '2026-10-14', 'KONSER C', $fJam, 'LIVECAM JAM', 75000, 'jam', 4, 300000]);
+    $ins2->execute([$fs['id'], '2026-10-10', 'WEDDING A', $ids['PHOTOGRAPHER'], 'PHOTOGRAPHER', 400000, 'hari', 2, 800000]);
+    $ins2->execute([$fs['id'], '2026-10-12', 'COMPRO B', $fProj, 'TEST EDIT COMPRO', 500000, 'project', 1, 500000]);
+    $ins2->execute([$fs['id'], '2026-10-14', 'KONSER C', $fJam, 'TEST LIVECAM JAM', 75000, 'jam', 4, 300000]);
     slip_sync((int)$fs['id']);
     $p = slip_load($hafidz, '2026-10');
-    check('Freelance: jumlah project = 1', array_column($p['items'], 'hari'), [2, 1, 4]);
-    check('Freelance: Total Fee = 2×250.000 + 500.000 + 4×75.000', $p['total_fee'], 1300000);
-    check('Freelance: tanpa gaji pokok, Sub Total = Total Fee', [$p['tipe'], $p['gaji_pokok'], $p['sub_total']], ['freelance', 0, 1300000]);
+    check('Freelance: Total Fee = 2×400.000 + 500.000 + 4×75.000', $p['total_fee'], 1600000);
+    check('Freelance: tanpa gaji pokok, Sub Total = Total Fee', [$p['tipe'], $p['gaji_pokok'], $p['sub_total']], ['freelance', 0, 1600000]);
     check('Freelance: ringkasan satuan', satuan_summary($p['per_satuan']), '2 hari · 4 jam · 1 project');
+    $pdo->prepare('UPDATE tarif_khusus SET fee = 450000 WHERE user_id = ? AND tarif_output_id = ?')->execute([$fid, $ids['PHOTOGRAPHER']]);
+    $pdo->prepare('UPDATE tarif_output SET fee_per_hari = 999000 WHERE id = ?')->execute([$fProj]);
+    check('Harga diubah → pekerjaan lama tetap (fee_snapshot)', slip_load($hafidz, '2026-10')['total_fee'], 1600000);
     check('In-house tetap 4.600.000', slip_load($andhika, '2026-10')['sub_total'], 4600000);
 
     // Slip karyawan lain terpisah

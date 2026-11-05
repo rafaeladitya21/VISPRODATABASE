@@ -128,6 +128,18 @@ const MH_MIGRATIONS = [
         );
         ALTER TABLE tarif_khusus ENABLE ROW LEVEL SECURITY;
         SQL,
+
+    // 4 — Tarif default freelance (harga diisi Admin; fee 0 = belum diatur, tidak tampil ke karyawan)
+    //     + tarif_khusus.tampil: sembunyikan tarif tertentu untuk satu freelancer
+    4 => <<<'SQL'
+        INSERT INTO tarif_output (tipe, nama, fee_per_hari, satuan, aktif, sort_order)
+        SELECT 'freelance', v.nama, 0, 'hari', 1, (SELECT COALESCE(MAX(sort_order), 0) FROM tarif_output) + v.n
+        FROM (VALUES ('PHOTOGRAPHER', 1), ('VIDEOGRAPHER', 2)) AS v(nama, n)
+        WHERE NOT EXISTS (SELECT 1 FROM tarif_output t WHERE t.tipe = 'freelance' AND t.nama = v.nama);
+
+        ALTER TABLE tarif_khusus ALTER COLUMN fee DROP NOT NULL;   -- NULL = pakai tarif umum
+        ALTER TABLE tarif_khusus ADD COLUMN tampil SMALLINT NOT NULL DEFAULT 1;
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

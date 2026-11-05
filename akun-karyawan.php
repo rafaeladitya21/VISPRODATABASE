@@ -89,8 +89,8 @@ layout_start('Akun Karyawan', 'akun-karyawan');
       </div>
     </div>
     <div class="field tk" id="st-khusus" hidden>
-      <p class="field__label">Tarif khusus orang ini (opsional)</p>
-      <p class="field__hint">Isi fee untuk menimpa tarif freelance umum khusus orang ini. Kosong = pakai tarif umum.</p>
+      <p class="field__label">Tarif orang ini</p>
+      <p class="field__hint">Harga khusus boleh kosong (= pakai tarif umum). Hapus centang "Tampilkan" untuk menyembunyikan tarif dari orang ini.</p>
       <div class="tk__list" id="st-khusus-list"></div>
     </div>
     <div class="field">

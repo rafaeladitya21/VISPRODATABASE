@@ -80,18 +80,26 @@
       return;
     }
     khususList.innerHTML = tarifFree.map(function (t) {
-      var v = own[t.id];
-      return '<label class="tk__row"><span class="tk__name"><strong>' + esc(t.nama) + '</strong>' +
-        '<small>Umum ' + MH.rupiah(t.fee) + SATUAN[t.satuan] + '</small></span>' +
-        '<input class="input input--money" data-tid="' + t.id + '" placeholder="' + MH.num(t.fee) + '" value="' + (v ? MH.num(v) : '') + '" aria-label="Fee khusus ' + esc(t.nama) + '"></label>';
+      var v = own[t.id] || {};
+      var fee = typeof v === 'number' ? v : v.fee;
+      var tampil = typeof v === 'object' && v.tampil === false ? false : true;
+      return '<div class="tk__row" data-row="' + t.id + '">' +
+        '<span class="tk__name"><strong>' + esc(t.nama) + '</strong>' +
+        '<small>' + (t.fee ? 'tarif umum ' + MH.rupiah(t.fee) + SATUAN[t.satuan] : 'tarif umum belum diatur') + '</small></span>' +
+        '<input class="input input--money" data-tid="' + t.id + '" placeholder="Harga khusus" value="' + (fee ? MH.num(fee) : '') + '" aria-label="Harga khusus ' + esc(t.nama) + '">' +
+        '<label class="check tk__show"><input type="checkbox" data-show="' + t.id + '"' + (tampil ? ' checked' : '') + '><span>Tampilkan</span></label>' +
+        '</div>';
     }).join('');
     $$('[data-tid]', khususList).forEach(MH.moneyInput);
   }
+  /** {tarif_id: {fee, tampil}} — hanya baris yang berbeda dari default */
   function collectKhusus() {
     var out = {};
-    $$('[data-tid]', khususList).forEach(function (i) {
-      var n = MH.parseRupiah(i.value);
-      if (n > 0) out[i.dataset.tid] = n;
+    $$('[data-row]', khususList).forEach(function (r) {
+      var id = r.dataset.row;
+      var fee = MH.parseRupiah($('[data-tid]', r).value);
+      var tampil = $('[data-show]', r).checked;
+      if (fee > 0 || !tampil) out[id] = { fee: fee > 0 ? fee : null, tampil: tampil };
     });
     return out;
   }
