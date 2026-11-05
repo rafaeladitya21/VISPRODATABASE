@@ -119,7 +119,8 @@
         '<td class="r">' + (s.tipe === 'freelance' ? '<span class="muted">—</span>' : rp(s.gaji_pokok)) + '</td>' +
         '<td class="r strong">' + rp(s.sub_total) + '</td>' +
         '<td>' + badge(s) + '</td>' +
-        '<td><div class="adm-actions"><button type="button" class="btn-icon" data-del="' + s.id + '" aria-label="Hapus ' + esc(s.kode) + '" title="Hapus slip">' + MH.icon('trash') + '</button>' +
+        // Hapus hanya tersedia di filter "Semua"
+        '<td><div class="adm-actions">' + (state.status === 'semua' ? '<button type="button" class="btn-icon" data-del="' + s.id + '" aria-label="Hapus ' + esc(s.kode) + '" title="Hapus slip">' + MH.icon('trash') + '</button>' : '') +
           '<span class="chev-icon" aria-hidden="true">' + MH.icon('chev') + '</span></div></td></tr>';
     }).join('');
   }
@@ -199,7 +200,7 @@
         '<div><span>Sub Total</span><strong class="num">' + rp(s.sub_total) + '</strong></div>' +
       '</div>' +
       '<div class="slip-detail__acts">' + acts + '<div id="pr-act-error" hidden></div>' +
-        '<div class="modal__actions"><button type="button" class="btn btn--danger-ghost" data-del-detail>' + MH.icon('trash') + 'Hapus slip</button>' +
+        '<div class="modal__actions">' + (state.status === 'semua' ? '<button type="button" class="btn btn--danger-ghost" data-del-detail>' + MH.icon('trash') + 'Hapus slip</button>' : '') +
           '<a class="btn btn--secondary" href="slip-cetak.php?id=' + s.id + '" target="_blank" rel="noopener">' + MH.icon('print') + 'Cetak / PDF</a></div>' +
       '</div>';
   }
