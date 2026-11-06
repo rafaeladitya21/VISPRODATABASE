@@ -2537,3 +2537,10 @@ a.jr-chip:hover { border-color: var(--ink); }
 .logo-up__actions label.btn { cursor: pointer; }
 .field__hint.is-error { color: var(--red); }
 .logo-up__actions:focus-within label.btn { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Harga Alat: daftar panjang → scroll di dalam kartu, header tabel menempel; HP bisa geser ke samping */
+.eq-scroll { max-height: calc(100vh - 260px); max-height: calc(100dvh - 260px); min-height: 320px; overflow: auto; }
+.eq-table { min-width: 680px; }
+.eq-table thead th { position: sticky; top: 0; z-index: 1; }
+.eq-table .r { font-variant-numeric: tabular-nums; }
+.eq-unit { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }

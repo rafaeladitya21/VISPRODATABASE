@@ -5,8 +5,9 @@
 declare(strict_types=1);
 
 const EQUIPMENT_CATEGORIES = [
-    'Kamera', 'Lensa', 'Stabilizer', 'Audio', 'Lighting', 'Tripod',
-    'Live & Switcher', 'Wireless & Intercom', 'Kabel', 'Drone',
+    'Kamera', 'Lensa', 'Action Cam', 'Drone', 'Stabilizer', 'Audio', 'Lighting', 'Tripod & Stand',
+    'Live & Switcher', 'Wireless & Intercom', 'Kabel & Konverter', 'TV & Proyektor',
+    'Baterai & Aksesoris', 'Backdrop', 'Paket',
 ];
 
 /** Pilihan role crew (urutan = urutan di dropdown). */

@@ -18,10 +18,17 @@
 
   MH.moneyInput($('#eq-price'));
 
-  function money(n) { return n === null ? '<span class="muted">Belum diisi</span>' : MH.rupiah(n); }
+  /** Harga normal: "Belum diisi" bila kosong. Diskon dihitung dari harga normal (tidak disimpan): 30% → × 0,7 · 50% → × 0,5 */
+  function normal(n) { return n === null ? '<span class="muted">Belum diisi</span>' : MH.rupiah(n); }
+  function disc(n, pay) { return n === null ? '<span class="muted">—</span>' : MH.rupiah(Math.round(n * pay)); }
 
+  var lastUpdate = null;
   function renderUpdated(lu) {
-    updated.textContent = lu ? 'Update terakhir ' + MH.dateShort(lu.at) + ' oleh ' + (lu.by || '—') : '';
+    if (lu !== undefined) lastUpdate = lu;
+    var parts = [];
+    if (lastUpdate) parts.push('Update terakhir ' + MH.dateShort(lastUpdate.at) + ' oleh ' + (lastUpdate.by || '—'));
+    parts.push(state.items.length + ' alat');
+    updated.textContent = parts.join(' · ');
   }
 
   function renderChips() {
@@ -38,20 +45,19 @@
     var q = state.q.toLowerCase();
     var rows = state.items.filter(function (it) {
       return (state.cat === 'Semua' || it.category === state.cat) &&
-             (!q || it.name.toLowerCase().indexOf(q) !== -1 || it.category.toLowerCase().indexOf(q) !== -1);
+             (!q || it.name.toLowerCase().indexOf(q) !== -1);
     });
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="6" class="empty">Tidak ada alat yang cocok.</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="empty">Tidak ada alat yang cocok.</td></tr>';
       return;
     }
-    body.innerHTML = rows.map(function (it, i) {
+    body.innerHTML = rows.map(function (it) {
       return '<tr class="is-link" tabindex="0" data-id="' + it.id + '" aria-label="Edit ' + MH.esc(it.name) + '">' +
-        '<td class="c muted num">' + (i + 1) + '</td>' +
-        '<td><strong class="strong">' + MH.esc(it.name) + '</strong></td>' +
+        '<td><strong class="strong">' + MH.esc(it.name) + '</strong><small class="eq-unit">' + it.unit + ' unit</small></td>' +
         '<td><span class="badge">' + MH.esc(it.category) + '</span></td>' +
-        '<td class="r">' + money(it.price_normal) + '</td>' +
-        '<td class="r">' + money(it.price_d70) + '</td>' +
-        '<td class="r">' + money(it.price_d30) + '</td>' +
+        '<td class="r">' + normal(it.price_normal) + '</td>' +
+        '<td class="r">' + disc(it.price_normal, 0.7) + '</td>' +
+        '<td class="r">' + disc(it.price_normal, 0.5) + '</td>' +
       '</tr>';
     }).join('');
   }
@@ -64,7 +70,7 @@
       renderChips();
       renderTable();
     }).catch(function (err) {
-      body.innerHTML = '<tr><td colspan="6" class="empty">' + MH.errorHtml(err.message) + '</td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="empty">' + MH.errorHtml(err.message) + '</td></tr>';
     });
   }
 
@@ -85,6 +91,7 @@
     form.elements.id.value = item ? item.id : '';
     form.elements.name.value = item ? item.name : '';
     form.elements.category.value = item ? item.category : (state.cat !== 'Semua' ? state.cat : state.categories[0]);
+    form.elements.unit.value = item ? item.unit : 1;
     MH.setMoney(form.elements.price_normal, item ? item.price_normal : 0);
     $('#eq-modal-title').textContent = item ? 'Edit Alat' : 'Tambah Alat';
     MH.openModal(modal);
@@ -116,6 +123,7 @@
       id: id ? Number(id) : undefined,
       name: name,
       category: form.elements.category.value,
+      unit: Math.max(0, parseInt(form.elements.unit.value, 10) || 0),
       price_normal: MH.parseRupiah(form.elements.price_normal.value)
     };
     saveBtn.disabled = true;

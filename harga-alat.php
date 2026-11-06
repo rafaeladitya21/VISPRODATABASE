@@ -28,26 +28,25 @@ layout_start('Harga Alat', 'harga-alat');
 <div class="chips fbu" id="eq-chips" role="group" aria-label="Filter kategori"></div>
 
 <section class="card card--flush fbu">
-  <div class="table-wrap">
-    <table class="table">
+  <div class="table-wrap eq-scroll">
+    <table class="table eq-table">
       <thead>
         <tr>
-          <th class="c" style="width:56px">No</th>
           <th>Nama Alat</th>
           <th>Kategori</th>
-          <th class="r">Harga Normal</th>
-          <th class="r">Diskon 70%</th>
+          <th class="r">Harga Normal / 24 jam</th>
           <th class="r">Diskon 30%</th>
+          <th class="r">Diskon 50%</th>
         </tr>
       </thead>
       <tbody id="eq-body">
-        <tr><td colspan="6" class="empty">Memuat…</td></tr>
+        <tr><td colspan="5" class="empty">Memuat…</td></tr>
       </tbody>
     </table>
   </div>
 </section>
 
-<p class="footnote fbu">Diskon 70% = 30% dari harga normal · Diskon 30% = 70% dari harga normal.</p>
+<p class="footnote fbu">Harga sewa per 24 jam · Diskon 30% = bayar 70% dari harga normal · Diskon 50% = bayar setengah harga.</p>
 
 <!-- Modal tambah / edit alat -->
 <dialog class="modal" id="eq-modal" aria-labelledby="eq-modal-title">
@@ -73,7 +72,11 @@ layout_start('Harga Alat', 'harga-alat');
       </select>
     </div>
     <div class="field">
-      <label class="field__label" for="eq-price">Harga normal (Rp)</label>
+      <label class="field__label" for="eq-unit">Jumlah unit</label>
+      <input class="input num" id="eq-unit" name="unit" type="number" min="0" max="9999" inputmode="numeric" value="1">
+    </div>
+    <div class="field">
+      <label class="field__label" for="eq-price">Harga normal / 24 jam (Rp)</label>
       <input class="input input--money" id="eq-price" name="price_normal" placeholder="0">
     </div>
     <div id="eq-error" hidden></div>

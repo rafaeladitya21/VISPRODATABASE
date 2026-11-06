@@ -180,9 +180,12 @@
   /* =========================================================
      Isi form dari data transaksi
      ========================================================= */
+  /** Kunci snapshot: id alat, atau nama bila alatnya sudah tidak ada di Harga Alat */
+  function snapKey(eqId, name) { return eqId ? String(eqId) : 'n:' + String(name || '').toLowerCase(); }
+
   function buildSnap(tx) {
     state.snap = {};
-    tx.equipment.forEach(function (e) { if (e.equipment_id) state.snap[e.equipment_id + '|' + e.tier] = e.unit_price; });
+    tx.equipment.forEach(function (e) { state.snap[snapKey(e.equipment_id, e.equipment_name) + '|' + e.tier] = e.unit_price; });
   }
 
   function fill(tx) {
@@ -481,10 +484,10 @@
   var eqBody = $('#eq-body');
 
   /** Harga per unit: snapshot bila alat+tarif sama dengan yang tersimpan, selain itu harga saat ini */
-  function unitPrice(eqId, tier) {
-    if (!eqId) return 0;
-    var k = eqId + '|' + tier;
+  function unitPrice(eqId, tier, name) {
+    var k = snapKey(eqId, name) + '|' + tier;
     if (k in state.snap) return state.snap[k];
+    if (!eqId) return null;
     var e = state.eqById[eqId];
     return e ? MH.tierPrice(e.price_normal, tier) : 0;
   }
@@ -670,11 +673,11 @@
     var tEq = 0;
     rows(eqBody).forEach(function (tr, i) {
       var r = d.equipment[i];
-      var unit = unitPrice(r.equipment_id, r.tier);
-      var total = unit * r.qty * r.days;
+      var unit = unitPrice(r.equipment_id, r.tier, r.equipment_name);
+      var total = (unit || 0) * r.qty * r.days;
       tEq += total;
-      $('[data-e="price"]', tr).textContent = r.equipment_id ? rp(unit) : '—';
-      $('[data-e="total"]', tr).textContent = r.equipment_id ? rp(total) : '—';
+      $('[data-e="price"]', tr).textContent = unit !== null ? rp(unit) : '—';
+      $('[data-e="total"]', tr).textContent = unit !== null ? rp(total) : '—';
     });
 
     var ops = tTr + tCr + tEq;

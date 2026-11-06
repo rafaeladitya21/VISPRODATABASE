@@ -240,10 +240,14 @@ function tx_save(int $id, array $in): array
     // 6. Sewa alat — harga per unit:
     //    alat & tarif sama dengan yang tersimpan → pakai snapshot lama,
     //    selain itu → ambil dari harga alat saat ini.
+    //    Baris tanpa equipment_id (alatnya sudah dihapus dari Harga Alat) → snapshot per nama + tarif.
     $snap = [];
-    $st = $pdo->prepare('SELECT equipment_id, tier, unit_price FROM transaction_equipment WHERE transaction_id = ? AND equipment_id IS NOT NULL');
+    $st = $pdo->prepare('SELECT equipment_id, equipment_name, tier, unit_price FROM transaction_equipment WHERE transaction_id = ?');
     $st->execute([$id]);
-    foreach ($st as $r) $snap[$r['equipment_id'] . '|' . $r['tier']] = (int)$r['unit_price'];
+    foreach ($st as $r) {
+        $k = $r['equipment_id'] !== null ? $r['equipment_id'] : 'n:' . mb_strtolower((string)$r['equipment_name']);
+        $snap[$k . '|' . $r['tier']] = (int)$r['unit_price'];
+    }
 
     $prices = [];
     foreach ($pdo->query('SELECT id, name, price_normal FROM equipment') as $r) {
@@ -259,7 +263,8 @@ function tx_save(int $id, array $in): array
         $tier = v_enum($row['tier'] ?? 'normal', TX_TIERS, 'normal');
         $qty  = v_int($row['qty'] ?? 1, 0, 9999, 1);
         $days = v_int($row['days'] ?? 1, 0, 999, 1);
-        $unit = $eqId ? ($snap[$eqId . '|' . $tier] ?? tier_price($prices[$eqId]['price'], $tier)) : 0;
+        $unit = $eqId ? ($snap[$eqId . '|' . $tier] ?? tier_price($prices[$eqId]['price'], $tier))
+                      : ($snap['n:' . mb_strtolower($name) . '|' . $tier] ?? 0);
         $total = $unit * $qty * $days;
         $equipment[] = [$eqId, $name, $tier, $unit, $qty, $days, $total];
         $totalEquipment += $total;
