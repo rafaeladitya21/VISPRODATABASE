@@ -363,7 +363,7 @@
   /* --- Modal (<dialog>) --- */
   MH.openModal = function (dlg) {
     if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
-    var f = dlg.querySelector('[autofocus], input, select, textarea, button');
+    var f = dlg.querySelector('[autofocus]') || dlg.querySelector('input, select, textarea, button');
     if (f) setTimeout(function () { f.focus(); }, 30);
   };
   MH.closeModal = function (dlg) {

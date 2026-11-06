@@ -44,50 +44,139 @@ layout_start('Akun Karyawan', 'akun-karyawan');
 </section>
 <p class="footnote fbu">Jadwal karyawan diambil dari crew di form Transaksi (bagian 5): nama crew yang sama dengan nama akun otomatis ditautkan.</p>
 
-<dialog class="modal" id="st-modal" aria-labelledby="st-modal-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name" id="st-modal-title">Tambah Karyawan</span>
-    <button class="btn-icon modal__close" type="button" data-close aria-label="Tutup">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
-    </button>
-  </div>
-  <form class="window__body adm-form" id="st-form" novalidate autocomplete="off" data-form-type="other">
-    <input type="hidden" name="id">
-    <fieldset class="tipe-pick">
-      <legend class="field__label">Tipe karyawan</legend>
-      <label class="tipe-pick__opt">
-        <input type="radio" name="tipe" value="inhouse" checked>
-        <span class="tipe-pick__card">
-          <strong>In-house</strong>
-          <small>Karyawan tetap. Dapat gaji pokok + fee per job.</small>
-        </span>
-      </label>
-      <label class="tipe-pick__opt">
-        <input type="radio" name="tipe" value="freelance">
-        <span class="tipe-pick__card">
-          <strong>Freelance</strong>
-          <small>Dibayar per job saja. Tanpa gaji pokok.</small>
-        </span>
-      </label>
-      <label class="tipe-pick__opt">
-        <input type="radio" name="tipe" value="intern">
-        <span class="tipe-pick__card">
-          <strong>Intern</strong>
-          <small>Anak magang. Absen &amp; jurnal harian, tanpa slip gaji.</small>
-        </span>
-      </label>
-      <label class="tipe-pick__opt">
-        <input type="radio" name="tipe" value="guru">
-        <span class="tipe-pick__card">
-          <strong>Guru Pendamping</strong>
-          <small>Guru dari sekolah. Hanya memantau siswa bimbingannya.</small>
-        </span>
-      </label>
-    </fieldset>
-    <fieldset class="adm-intern" id="st-guru" hidden>
-      <legend class="field__label">Data guru pendamping</legend>
-      <div class="grid2">
+<dialog class="modal mform" id="st-modal" aria-labelledby="st-modal-title" aria-describedby="st-modal-sub">
+  <form class="mform__form" id="st-form" novalidate autocomplete="off" data-form-type="other">
+    <header class="mform__head">
+      <div class="mform__heading">
+        <h2 class="mform__title" id="st-modal-title">Tambah Karyawan</h2>
+        <p class="mform__sub" id="st-modal-sub">Isi data karyawan baru. Akun bisa langsung dipakai untuk login.</p>
+      </div>
+      <button class="mform__close" type="button" data-close aria-label="Tutup">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+
+    <div class="mform__body">
+      <input type="hidden" name="id">
+      <fieldset class="mtipe">
+        <legend class="field__label">Tipe karyawan</legend>
+        <label class="mtipe__opt">
+          <input type="radio" name="tipe" value="inhouse" checked>
+          <span class="mtipe__txt">
+            <strong>In-house</strong>
+            <small title="Karyawan tetap · gaji pokok + fee per job">Karyawan tetap · gaji pokok + fee per job</small>
+          </span>
+        </label>
+        <label class="mtipe__opt">
+          <input type="radio" name="tipe" value="freelance">
+          <span class="mtipe__txt">
+            <strong>Freelance</strong>
+            <small title="Dibayar per job, tanpa gaji pokok">Dibayar per job, tanpa gaji pokok</small>
+          </span>
+        </label>
+        <label class="mtipe__opt">
+          <input type="radio" name="tipe" value="intern">
+          <span class="mtipe__txt">
+            <strong>Intern</strong>
+            <small title="Anak magang · absen &amp; jurnal harian">Anak magang · absen &amp; jurnal harian</small>
+          </span>
+        </label>
+        <label class="mtipe__opt">
+          <input type="radio" name="tipe" value="guru">
+          <span class="mtipe__txt">
+            <strong>Guru Pendamping</strong>
+            <small title="Guru sekolah · memantau siswa bimbingan">Guru sekolah · memantau siswa bimbingan</small>
+          </span>
+        </label>
+      </fieldset>
+
+      <div class="field">
+        <label class="field__label" for="st-name">Nama lengkap</label>
+        <input class="input" id="st-name" name="name" maxlength="150" required autofocus placeholder="mis. Andhika Rendy Ferdiansyah" aria-describedby="st-name-hint st-name-err">
+        <p class="field__hint" id="st-name-hint">Samakan dengan nama crew di transaksi supaya jadwal tertaut otomatis.</p>
+        <p class="mform__err" id="st-name-err" hidden></p>
+      </div>
+      <div class="field">
+        <label class="field__label" for="st-email">Email (untuk login)</label>
+        <input class="input" id="st-email" name="email" type="email" maxlength="190" required autocomplete="off" placeholder="nama@gmail.com" aria-describedby="st-email-err">
+        <p class="mform__err" id="st-email-err" hidden></p>
+      </div>
+      <div class="mform__grid2" id="st-job-row">
+        <div class="field" id="st-jabatan-field">
+          <label class="field__label" for="st-jabatan">Jabatan</label>
+          <input class="input" id="st-jabatan" name="jabatan" maxlength="100" placeholder="mis. Videografer">
+        </div>
+        <div class="field" id="st-gp-field">
+          <label class="field__label" for="st-gp">Gaji pokok</label>
+          <div class="mform__affix">
+            <span class="mform__prefix" aria-hidden="true">Rp</span>
+            <input class="input" id="st-gp" name="gaji_pokok" placeholder="1.000.000" aria-describedby="st-gp-err">
+          </div>
+          <p class="mform__err" id="st-gp-err" hidden></p>
+        </div>
+      </div>
+
+      <fieldset class="adm-intern" id="st-intern" hidden>
+        <legend class="field__label">Data magang</legend>
+        <div class="mform__grid2">
+          <div class="field">
+            <label class="field__label" for="st-isekolah">Asal sekolah</label>
+            <input class="input" id="st-isekolah" name="sekolah_intern" maxlength="150" placeholder="mis. SMKN 2 Singosari">
+          </div>
+          <div class="field">
+            <label class="field__label" for="st-kelas">Kelas / Jurusan</label>
+            <input class="input" id="st-kelas" name="kelas" maxlength="100" placeholder="mis. XII Multimedia">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="st-guru-id">Guru pendamping</label>
+          <select class="input" id="st-guru-id" name="guru_id"></select>
+          <p class="field__hint">Wajib. Bila dikosongkan dan asal sekolah sama dengan tepat satu akun guru, guru itu dipilih otomatis.</p>
+        </div>
+        <div class="mform__grid2">
+          <div class="field">
+            <label class="field__label" for="st-mulai">Mulai magang</label>
+            <input class="input" id="st-mulai" name="magang_mulai" type="date">
+          </div>
+          <div class="field">
+            <label class="field__label" for="st-selesai">Selesai magang</label>
+            <input class="input" id="st-selesai" name="magang_selesai" type="date">
+          </div>
+          <div class="field">
+            <label class="field__label" for="st-jm">Jam masuk</label>
+            <input class="input" id="st-jm" name="jam_masuk" type="time" value="08:00">
+          </div>
+          <div class="field">
+            <label class="field__label" for="st-jp">Jam pulang</label>
+            <input class="input" id="st-jp" name="jam_pulang" type="time" value="16:00">
+          </div>
+          <div class="field">
+            <label class="field__label" for="st-divisi">Divisi</label>
+            <input class="input" id="st-divisi" name="divisi" maxlength="100" placeholder="mis. Marketing">
+          </div>
+          <div class="field">
+            <label class="field__label" for="st-mentor">Mentor</label>
+            <select class="input" id="st-mentor" name="mentor_id"></select>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="adm-intern" id="st-guru" hidden>
+        <legend class="field__label">Data guru pendamping</legend>
+        <div class="field">
+          <label class="field__label" for="st-sekolah">Asal sekolah</label>
+          <input class="input" id="st-sekolah" name="sekolah" maxlength="150" placeholder="mis. SMK Negeri 4 Malang">
+        </div>
+        <div class="mform__grid2">
+          <div class="field">
+            <label class="field__label" for="st-kota">Kota sekolah</label>
+            <input class="input" id="st-kota" name="kota_sekolah" maxlength="100" placeholder="mis. Malang, Jawa Timur">
+          </div>
+          <div class="field">
+            <label class="field__label" for="st-wa">No. WhatsApp</label>
+            <input class="input" id="st-wa" name="whatsapp" type="tel" maxlength="20" placeholder="0812xxxxxxx">
+          </div>
+        </div>
         <div class="field">
           <label class="field__label" for="st-panggilan">Panggilan</label>
           <select class="input" id="st-panggilan" name="panggilan">
@@ -96,129 +185,62 @@ layout_start('Akun Karyawan', 'akun-karyawan');
           <p class="field__hint">Dipakai di sapaan, mis. "Selamat Pagi, Pak Fauzi".</p>
         </div>
         <div class="field">
-          <label class="field__label" for="st-wa">No. WhatsApp</label>
-          <input class="input" id="st-wa" name="whatsapp" type="tel" maxlength="20" placeholder="0812xxxxxxx">
-        </div>
-        <div class="field">
-          <label class="field__label" for="st-sekolah">Asal sekolah</label>
-          <input class="input" id="st-sekolah" name="sekolah" maxlength="150" placeholder="mis. SMK Negeri 4 Malang">
-        </div>
-        <div class="field">
-          <label class="field__label" for="st-kota">Kota sekolah</label>
-          <input class="input" id="st-kota" name="kota_sekolah" maxlength="100" placeholder="mis. Malang, Jawa Timur">
-        </div>
-      </div>
-      <div class="field">
-        <span class="field__label">Logo sekolah</span>
-        <div class="logo-up">
-          <span class="logo-up__preview" id="st-logo-preview" aria-hidden="true"></span>
-          <div class="logo-up__body">
-            <div class="logo-up__actions">
-              <label class="btn btn--secondary" for="st-logo">Pilih gambar</label>
-              <input class="sr-only" id="st-logo" type="file" accept="image/png,image/jpeg,image/webp">
-              <button type="button" class="btn btn--secondary" id="st-logo-del" hidden>Hapus logo</button>
+          <span class="field__label">Logo sekolah</span>
+          <div class="logo-up">
+            <span class="logo-up__preview" id="st-logo-preview" aria-hidden="true"></span>
+            <div class="logo-up__body">
+              <div class="logo-up__actions">
+                <label class="btn btn--secondary" for="st-logo">Pilih gambar</label>
+                <input class="sr-only" id="st-logo" type="file" accept="image/png,image/jpeg,image/webp">
+                <button type="button" class="btn btn--secondary" id="st-logo-del" hidden>Hapus logo</button>
+              </div>
+              <p class="field__hint" id="st-logo-hint">PNG, JPG, atau WebP, maks. 1 MB. Tampil di banner halaman guru.</p>
             </div>
-            <p class="field__hint" id="st-logo-hint">PNG, JPG, atau WebP, maks. 1 MB. Tampil di banner halaman guru.</p>
           </div>
         </div>
-      </div>
-      <p class="field__hint">Guru hanya melihat absen &amp; jurnal siswa yang ditautkan ke akunnya, dan bisa memberi catatan jurnal.</p>
-      <div class="field g-bimb">
-        <div class="g-bimb__head">
-          <span class="field__label">Siswa bimbingan</span>
-          <button type="button" class="btn btn--secondary" id="st-tautkan">+ Tautkan siswa</button>
+        <div class="field g-bimb">
+          <div class="g-bimb__head">
+            <span class="field__label">Siswa bimbingan</span>
+            <button type="button" class="btn btn--secondary" id="st-tautkan">+ Tautkan siswa</button>
+          </div>
+          <ul class="g-bimb__list" id="st-bimb-list"></ul>
+          <div class="g-bimb__pick" id="st-bimb-pick" hidden></div>
+          <p class="field__hint">Guru hanya melihat absen &amp; jurnal siswa yang ditautkan ke akunnya, dan bisa memberi catatan jurnal.</p>
         </div>
-        <ul class="g-bimb__list" id="st-bimb-list"></ul>
-        <div class="g-bimb__pick" id="st-bimb-pick" hidden></div>
+      </fieldset>
+
+      <div class="field tk" id="st-khusus" hidden>
+        <p class="field__label">Tarif orang ini</p>
+        <p class="field__hint">Centang "Dipakai" hanya untuk tarif role orang ini (mis. videografer → VIDEOGRAPHER). Tarif yang tidak dicentang tidak terlihat olehnya di slip gaji. Harga khusus boleh kosong (= pakai tarif umum).</p>
+        <div class="tk__list" id="st-khusus-list"></div>
       </div>
-    </fieldset>
-    <fieldset class="adm-intern" id="st-intern" hidden>
-      <legend class="field__label">Data magang</legend>
+
       <div class="field">
-        <label class="field__label" for="st-divisi">Divisi</label>
-        <input class="input" id="st-divisi" name="divisi" maxlength="100" placeholder="mis. Marketing">
+        <div class="mform__labelrow">
+          <label class="field__label" for="st-pass" id="st-pass-label">Kata sandi awal</label>
+          <button type="button" class="mform__link" id="st-pass-gen">Buat otomatis</button>
+        </div>
+        <div class="mform__affix mform__affix--end">
+          <input class="input" id="st-pass" name="password" type="password" minlength="8" autocomplete="new-password" data-lpignore="true" aria-describedby="st-pass-hint st-pass-err">
+          <button type="button" class="mform__eye" id="st-pass-eye" aria-label="Tampilkan kata sandi" aria-pressed="false">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" data-eye="show"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" data-eye="hide" hidden><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.7-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+          </button>
+        </div>
+        <p class="field__hint" id="st-pass-hint">Minimal 8 karakter. Berikan ke karyawan secara langsung.</p>
+        <p class="mform__err" id="st-pass-err" hidden></p>
       </div>
-      <div class="grid2">
-        <div class="field">
-          <label class="field__label" for="st-mulai">Mulai magang</label>
-          <input class="input" id="st-mulai" name="magang_mulai" type="date">
-        </div>
-        <div class="field">
-          <label class="field__label" for="st-selesai">Selesai magang</label>
-          <input class="input" id="st-selesai" name="magang_selesai" type="date">
-        </div>
-        <div class="field">
-          <label class="field__label" for="st-jm">Jam masuk</label>
-          <input class="input" id="st-jm" name="jam_masuk" type="time" value="08:00">
-        </div>
-        <div class="field">
-          <label class="field__label" for="st-jp">Jam pulang</label>
-          <input class="input" id="st-jp" name="jam_pulang" type="time" value="16:00">
-        </div>
-      </div>
-      <div class="grid2">
-        <div class="field">
-          <label class="field__label" for="st-mentor">Mentor</label>
-          <select class="input" id="st-mentor" name="mentor_id"></select>
-        </div>
-        <div class="field">
-          <label class="field__label" for="st-kelas">Kelas / Jurusan</label>
-          <input class="input" id="st-kelas" name="kelas" maxlength="100" placeholder="mis. XII Multimedia">
-        </div>
-      </div>
-      <div class="grid2">
-        <div class="field">
-          <label class="field__label" for="st-isekolah">Asal sekolah</label>
-          <input class="input" id="st-isekolah" name="sekolah_intern" maxlength="150" placeholder="mis. SMKN 2 Singosari">
-        </div>
-        <div class="field">
-          <label class="field__label" for="st-guru-id">Guru pendamping</label>
-          <select class="input" id="st-guru-id" name="guru_id"></select>
-        </div>
-      </div>
-      <p class="field__hint">Wajib. Bila dikosongkan dan asal sekolah sama dengan tepat satu akun guru, guru itu dipilih otomatis.</p>
-    </fieldset>
-    <div class="field">
-      <label class="field__label" for="st-name">Nama lengkap</label>
-      <input class="input" id="st-name" name="name" maxlength="150" required>
-      <p class="field__hint" id="st-name-hint">Samakan dengan nama crew di transaksi supaya jadwal tertaut otomatis.</p>
+      <label class="check" for="st-aktif">
+        <input type="checkbox" id="st-aktif" name="aktif" checked>
+        <span>Akun aktif (bisa login)</span>
+      </label>
+      <div id="st-form-error" hidden></div>
     </div>
-    <div class="field">
-      <label class="field__label" for="st-email">Email (untuk login)</label>
-      <input class="input" id="st-email" name="email" type="email" maxlength="190" required autocomplete="off">
-    </div>
-    <div class="grid2">
-      <div class="field" id="st-jabatan-field">
-        <label class="field__label" for="st-jabatan">Jabatan</label>
-        <input class="input" id="st-jabatan" name="jabatan" maxlength="100" placeholder="mis. Videografer">
-      </div>
-      <div class="field" id="st-gp-field">
-        <label class="field__label" for="st-gp">Gaji pokok (Rp)</label>
-        <input class="input input--money" id="st-gp" name="gaji_pokok" placeholder="1.000.000" required>
-      </div>
-    </div>
-    <div class="field tk" id="st-khusus" hidden>
-      <p class="field__label">Tarif orang ini</p>
-      <p class="field__hint">Centang "Dipakai" hanya untuk tarif role orang ini (mis. videografer → VIDEOGRAPHER). Tarif yang tidak dicentang tidak terlihat olehnya di slip gaji. Harga khusus boleh kosong (= pakai tarif umum).</p>
-      <div class="tk__list" id="st-khusus-list"></div>
-    </div>
-    <div class="field">
-      <label class="field__label" for="st-pass" id="st-pass-label">Kata sandi awal</label>
-      <input class="input" id="st-pass" name="password" type="text" minlength="8" autocomplete="new-password" data-lpignore="true">
-      <p class="field__hint" id="st-pass-hint">Minimal 8 karakter. Berikan ke karyawan secara langsung.</p>
-    </div>
-    <label class="check" for="st-aktif">
-      <input type="checkbox" id="st-aktif" name="aktif" checked>
-      <span>Akun aktif (bisa login)</span>
-    </label>
-    <div id="st-form-error" hidden></div>
-    <div class="modal__actions">
+
+    <footer class="mform__foot">
       <button class="btn btn--secondary" type="button" data-close>Batal</button>
-      <button class="btn btn--primary" type="submit" id="st-save">
-        <span class="spinner btn__spinner" aria-hidden="true"></span>
-        <span>Simpan</span>
-      </button>
-    </div>
+      <button class="btn btn--primary" type="submit" id="st-save">Simpan Karyawan</button>
+    </footer>
   </form>
 </dialog>
 <?php layout_end(['akun-karyawan.js']); ?>

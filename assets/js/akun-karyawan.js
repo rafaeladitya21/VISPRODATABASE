@@ -2,13 +2,12 @@
 (function () {
   'use strict';
   var $ = MH.$, $$ = MH.$$, esc = MH.esc;
-  var DEFAULT_GP = 1000000;
   var TIPE_LABEL = { inhouse: 'in-house', freelance: 'freelance', intern: 'intern', guru: 'guru pendamping' };
   var items = [], filter = 'semua', tarifFree = [], mentors = [], gurus = [], bimb = [];
   var SATUAN = { hari: '/hari', project: '/project', jam: '/jam' };
   var body = $('#st-body'), modal = $('#st-modal'), form = $('#st-form'), save = $('#st-save'), formErr = $('#st-form-error');
   var f = form.elements, gpField = $('#st-gp-field'), khususBox = $('#st-khusus'), khususList = $('#st-khusus-list');
-  var internBox = $('#st-intern'), jabatanField = $('#st-jabatan-field'), guruBox = $('#st-guru');
+  var internBox = $('#st-intern'), jabatanField = $('#st-jabatan-field'), guruBox = $('#st-guru'), jobRow = $('#st-job-row');
   MH.moneyInput(f.gaji_pokok);
 
   function initials(n) {
@@ -112,9 +111,11 @@
     guruBox.hidden = t !== 'guru';
     f.sekolah.required = t === 'guru';
     jabatanField.hidden = t === 'intern' || t === 'guru';
+    jobRow.hidden = jabatanField.hidden && gpField.hidden;
+    jobRow.classList.toggle('is-single', jabatanField.hidden !== gpField.hidden);
+    if (t !== 'inhouse') clearErr(f.gaji_pokok);
     $('#st-name-hint').hidden = t === 'guru';
     f.magang_mulai.required = f.magang_selesai.required = t === 'intern';
-    if (t === 'inhouse' && !MH.parseRupiah(f.gaji_pokok.value)) MH.setMoney(f.gaji_pokok, DEFAULT_GP);
   }
   $$('input[name="tipe"]', form).forEach(function (r) { r.addEventListener('change', function () { syncTipe(); syncJabatan(); }); });
 
@@ -259,12 +260,15 @@
   function open(k) {
     form.reset();
     formErr.hidden = true;
+    clearErrs();
+    showPass(false);
+    editing = k || null;
     f.id.value = k ? k.id : '';
     f.tipe.value = k ? k.tipe : (filter === 'intern' || filter === 'guru' ? filter : 'inhouse');
     f.name.value = k ? k.name : '';
     f.email.value = k ? k.email : '';
     f.jabatan.value = k ? (k.jabatan || '') : '';
-    MH.setMoney(f.gaji_pokok, k && k.tipe === 'inhouse' ? k.gaji_pokok : DEFAULT_GP);
+    if (k && k.tipe === 'inhouse' && k.gaji_pokok) MH.setMoney(f.gaji_pokok, k.gaji_pokok); else f.gaji_pokok.value = '';
     f.divisi.value = k && k.divisi ? k.divisi : '';
     f.magang_mulai.value = k && k.magang_mulai ? k.magang_mulai : '';
     f.magang_selesai.value = k && k.magang_selesai ? k.magang_selesai : '';
@@ -291,9 +295,12 @@
     renderKhusus(k);
     syncTipe();
     $('#st-modal-title').textContent = k ? 'Ubah Karyawan' : 'Tambah Karyawan';
+    $('#st-modal-sub').textContent = k ? 'Ubah data akun ' + k.name + '.' : 'Isi data karyawan baru. Akun bisa langsung dipakai untuk login.';
+    setSaving(false);
     $('#st-pass-label').textContent = k ? 'Kata sandi baru (opsional)' : 'Kata sandi awal';
     $('#st-pass-hint').textContent = k ? 'Kosongkan bila tidak ingin mengganti. Minimal 8 karakter.' : 'Minimal 8 karakter. Berikan ke karyawan secara langsung.';
     MH.openModal(modal);
+    modal.querySelector('.mform__body').scrollTop = 0;
   }
 
   $('#st-add').addEventListener('click', function () { open(null); });
@@ -303,16 +310,82 @@
   });
 
   function fail(msg, input) {
+    // Pesan server tentang email (mis. sudah terdaftar) → tampil di bawah field email
+    if (!input && /email/i.test(msg)) { setErr(f.email, msg); f.email.focus(); return; }
     formErr.innerHTML = MH.errorHtml(msg);
     formErr.hidden = false;
-    if (input) input.focus();
+    if (input) input.focus(); else formErr.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  /* --- Error per field (merah kecil di bawah field) --- */
+  var ERR = { name: '#st-name-err', email: '#st-email-err', gaji_pokok: '#st-gp-err', password: '#st-pass-err' };
+  function setErr(input, msg) {
+    var el = $(ERR[input.name]);
+    el.textContent = msg; el.hidden = false;
+    input.classList.add('is-invalid'); input.setAttribute('aria-invalid', 'true');
+  }
+  function clearErr(input) {
+    var el = $(ERR[input.name]);
+    if (el) { el.textContent = ''; el.hidden = true; }
+    input.classList.remove('is-invalid'); input.removeAttribute('aria-invalid');
+  }
+  function clearErrs() { [f.name, f.email, f.gaji_pokok, f.password].forEach(clearErr); }
+  [f.name, f.email, f.gaji_pokok, f.password].forEach(function (i) { i.addEventListener('input', function () { clearErr(i); }); });
+
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  /** Validasi field dasar; mengembalikan input pertama yang salah (atau null) */
+  function validateBasic(tipe) {
+    clearErrs();
+    var bad = [];
+    var name = f.name.value.trim(), email = f.email.value.trim().toLowerCase(), pass = f.password.value;
+    if (!name) { setErr(f.name, 'Nama lengkap wajib diisi.'); bad.push(f.name); }
+    if (!email) { setErr(f.email, 'Email wajib diisi.'); bad.push(f.email); }
+    else if (!EMAIL_RE.test(email)) { setErr(f.email, 'Format email tidak valid.'); bad.push(f.email); }
+    else if (items.some(function (k) { return String(k.email).toLowerCase() === email && (!editing || k.id !== editing.id); })) {
+      setErr(f.email, 'Email ini sudah terdaftar.'); bad.push(f.email);
+    }
+    if (tipe === 'inhouse' && !MH.parseRupiah(f.gaji_pokok.value)) { setErr(f.gaji_pokok, 'Gaji pokok wajib diisi untuk karyawan in-house.'); bad.push(f.gaji_pokok); }
+    if (!editing && !pass) { setErr(f.password, 'Kata sandi wajib diisi.'); bad.push(f.password); }
+    else if (pass && pass.length < 8) { setErr(f.password, 'Kata sandi minimal 8 karakter.'); bad.push(f.password); }
+    return bad[0] || null;
+  }
+
+  /* --- Kata sandi: tampil/sembunyi + buat otomatis --- */
+  var eyeBtn = $('#st-pass-eye');
+  function showPass(on) {
+    f.password.type = on ? 'text' : 'password';
+    eyeBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    eyeBtn.setAttribute('aria-label', on ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+    $('[data-eye="show"]', eyeBtn).hidden = on;
+    $('[data-eye="hide"]', eyeBtn).hidden = !on;
+  }
+  eyeBtn.addEventListener('click', function () { showPass(f.password.type === 'password'); });
+  // 10 karakter acak tanpa huruf/angka yang mirip (0/O, 1/l/I) supaya mudah didiktekan
+  var PASS_CHARS = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  $('#st-pass-gen').addEventListener('click', function () {
+    var buf = new Uint32Array(10), out = '';
+    (window.crypto || window.msCrypto).getRandomValues(buf);
+    for (var i = 0; i < buf.length; i++) out += PASS_CHARS.charAt(buf[i] % PASS_CHARS.length);
+    f.password.value = out;
+    clearErr(f.password);
+    showPass(true);
+    f.password.focus();
+    f.password.select();
+  });
+
+  var editing = null;
+  function setSaving(on) {
+    save.disabled = on;
+    save.textContent = on ? 'Menyimpan…' : (editing ? 'Simpan Perubahan' : 'Simpan Karyawan');
   }
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var tipe = tipeValue();
+    formErr.hidden = true;
+    var bad = validateBasic(tipe);
+    if (bad) { bad.focus(); return; }
     var gp = tipe === 'inhouse' ? MH.parseRupiah(f.gaji_pokok.value) : 0;
-    if (tipe === 'inhouse' && !gp) return fail('Gaji pokok wajib diisi untuk karyawan in-house.', f.gaji_pokok);
     if (tipe === 'intern') {
       if (!f.magang_mulai.value || !f.magang_selesai.value) return fail('Isi tanggal mulai dan selesai magang.', f.magang_mulai.value ? f.magang_selesai : f.magang_mulai);
       if (f.magang_selesai.value < f.magang_mulai.value) return fail('Tanggal selesai magang harus sesudah tanggal mulai.', f.magang_selesai);
@@ -350,11 +423,11 @@
       if (logo.data) data.logo_sekolah = logo.data;
       else if (logo.del) data.hapus_logo = true;
     }
-    save.disabled = true; save.classList.add('is-loading'); formErr.hidden = true;
+    setSaving(true); formErr.hidden = true;
     MH.api('api/staff.php', { method: id ? 'PUT' : 'POST', body: data })
       .then(function (d) { items = d.items; tarifFree = d.tarif_freelance || tarifFree; mentors = d.mentors || mentors; gurus = d.gurus || gurus; render(); MH.closeModal(modal); })
       .catch(function (err) { fail(err.message); })
-      .finally(function () { save.disabled = false; save.classList.remove('is-loading'); });
+      .finally(function () { setSaving(false); });
   });
 
   load();

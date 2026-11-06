@@ -2544,3 +2544,114 @@ a.jr-chip:hover { border-color: var(--ink); }
 .eq-table thead th { position: sticky; top: 0; z-index: 1; }
 .eq-table .r { font-variant-numeric: tabular-nums; }
 .eq-unit { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; color: var(--muted); }
+
+/* =========================================================
+   Modal form (Akun Karyawan: Tambah / Ubah) — header tetap · body scroll · footer tetap
+   ========================================================= */
+.modal.mform {
+  width: min(640px, calc(100vw - 32px)); max-width: none;
+  max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px);
+  overflow: hidden; background: var(--white);
+  border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, .25), 0 2px 6px rgba(0, 0, 0, .08);
+}
+.modal.mform[open] { display: flex; }
+.modal.mform::backdrop { background: rgba(0, 0, 0, .45); }
+html:has(.modal.mform[open]) { overflow: hidden; }   /* halaman belakang tidak ikut scroll */
+.mform__form { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
+
+.mform__head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex: none;
+  padding: 20px 24px 16px; border-bottom: 1px solid var(--line);
+}
+.mform__title { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; color: var(--ink); }
+.mform__sub { margin: 4px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.mform__close {
+  display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; margin: -4px -8px 0 0; padding: 0;
+  color: var(--muted); background: transparent; border: 0; border-radius: 8px; cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+.mform__close:hover { color: var(--ink); background: var(--line-2); }
+.mform__close:focus { outline: none; }
+.mform__close:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mform__close .icon { width: 18px; height: 18px; }
+
+.mform__body {
+  display: flex; flex-direction: column; gap: 16px; flex: 1; min-height: 0;
+  padding: 20px 24px 24px; overflow-y: auto; overscroll-behavior: contain;
+}
+.mform__foot {
+  display: flex; justify-content: flex-end; gap: 10px; flex: none;
+  padding: 16px 24px; border-top: 1px solid var(--line); background: var(--white);
+}
+.mform__foot .btn { height: 44px; }
+
+/* Field */
+.mform .field { gap: 6px; }
+.mform .field__label { font-size: 13px; font-weight: 600; }
+.mform .field__hint { margin-top: 0; }
+.mform .input { height: 44px; border-radius: 10px; font-size: 14px; }
+.mform .input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(10, 10, 10, .08); }
+:root[data-theme="dark"] .mform .input:focus { box-shadow: var(--ring); }
+.mform .input.is-invalid { border-color: var(--red); box-shadow: none; }
+.mform__err { margin: 0; font-size: 12px; line-height: 1.4; font-weight: 500; color: var(--red); }
+.mform__grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.mform__grid2[hidden] { display: none; }
+.mform__grid2.is-single { grid-template-columns: minmax(0, 1fr); }
+.mform .adm-intern { gap: 16px; padding: 16px; }
+.mform .check { min-height: 36px; }
+
+/* Rp di dalam input · tombol mata di ujung input */
+.mform__affix { position: relative; }
+.mform__prefix {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; font-weight: 600; color: var(--muted); pointer-events: none;
+}
+.mform__affix .mform__prefix + .input { padding-left: 40px; font-variant-numeric: tabular-nums; }
+.mform__affix--end .input { padding-right: 48px; }
+.mform__eye {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0;
+  color: var(--muted); background: transparent; border: 0; border-radius: 8px; cursor: pointer;
+}
+.mform__eye:hover { color: var(--ink); background: var(--line-2); }
+.mform__eye:focus { outline: none; }
+.mform__eye:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.mform__eye .icon { width: 18px; height: 18px; }
+.mform__labelrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mform__link {
+  height: 28px; padding: 0 10px; font: 600 12px/1 var(--font-body); color: var(--ink);
+  background: var(--soft); border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+}
+.mform__link:hover { border-color: var(--dash); background: var(--line-2); }
+
+/* Pilihan tipe: 4 kartu, 2 kolom, seluruh kartu bisa diklik */
+.mtipe { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.mtipe legend { grid-column: 1 / -1; margin-bottom: 6px; padding: 0; }
+.mtipe__opt {
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; column-gap: 10px; row-gap: 2px; align-content: start; min-width: 0; height: 100%; padding: 14px;
+  background: var(--white); border: 1px solid var(--line); border-radius: 12px; cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.mtipe__opt:hover { border-color: var(--dash); }
+.mtipe__opt input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); cursor: pointer; }
+.mtipe__opt:has(input:checked) { padding: 13px; border: 2px solid var(--ink); background: var(--soft); }
+.mtipe__opt:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mtipe__opt input:focus-visible { outline: none; }
+.mtipe__txt { display: contents; }
+.mtipe__txt strong { font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--ink); }
+.mtipe__txt small { grid-column: 1 / -1; font-size: 13px; line-height: 1.4; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* HP: bottom sheet, satu kolom */
+@media (max-width: 639px) {
+  .modal.mform {
+    width: 100%; max-height: calc(100dvh - 24px); margin: auto 0 0;
+    border-width: 1px 0 0; border-radius: 16px 16px 0 0;
+  }
+  .mform__head { padding: 16px 16px 14px; }
+  .mform__body { padding: 16px; }
+  .mform__foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .mform__foot .btn { flex: 1; }
+  .mtipe, .mform__grid2 { grid-template-columns: minmax(0, 1fr); }
+  .mtipe__txt small { white-space: normal; }
+}
