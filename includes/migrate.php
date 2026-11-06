@@ -586,6 +586,24 @@ const MH_MIGRATIONS = [
         ) AS v(ord, name, category, unit, price)
         ORDER BY v.ord;
         SQL,
+
+    // 16 — Tarif sewa alat di transaksi: Normal / Diskon 30% (d30 = 70%) / Diskon 50% (d50 = 50%).
+    //      d70 (bayar 30%) tetap sah untuk transaksi lama. Nama constraint CHECK bawaan bisa berbeda
+    //      (skema awal vs migrasi dari MySQL) → semua CHECK pada kolom tier dihapus lalu dibuat ulang.
+    16 => <<<'SQL'
+        DO $$
+        DECLARE c record;
+        BEGIN
+          FOR c IN SELECT conname FROM pg_constraint
+                    WHERE conrelid = 'transaction_equipment'::regclass AND contype = 'c'
+                      AND pg_get_constraintdef(oid) ILIKE '%tier%'
+          LOOP
+            EXECUTE format('ALTER TABLE transaction_equipment DROP CONSTRAINT %I', c.conname);
+          END LOOP;
+        END $$;
+        ALTER TABLE transaction_equipment ADD CONSTRAINT transaction_equipment_tier_check
+          CHECK (tier IN ('normal', 'd30', 'd50', 'd70'));
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

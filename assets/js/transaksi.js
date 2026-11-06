@@ -7,7 +7,8 @@
   var $ = MH.$, $$ = MH.$$, esc = MH.esc, rp = MH.rupiah;
 
   var TRANSPORT = MH_DATA.transport;
-  var TIERS = [['normal', 'Normal'], ['d70', 'Diskon 70%'], ['d30', 'Diskon 30%']];
+  var TIERS = [['normal', 'Normal'], ['d30', 'Diskon 30%'], ['d50', 'Diskon 50%']];
+  var TIER_LEGACY = ['d70', 'Diskon 70% (lama)'];   // hanya tampil di baris transaksi lama yang memakainya
   var DEFAULT_CREW_ROWS = 3, DEFAULT_EQ_ROWS = 5;
 
   var state = {
@@ -503,7 +504,8 @@
       '<td><input class="input" type="search" data-field="equipment" name="q_alt_' + (++eqSeq) + '" placeholder="Pilih alat…" aria-label="Nama alat"' +
         ' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-noac readonly></td>' +
       '<td><select class="input" data-e="tier" aria-label="Tarif">' +
-        TIERS.map(function (t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('') + '</select></td>' +
+        TIERS.concat(r.tier === TIER_LEGACY[0] ? [TIER_LEGACY] : [])
+          .map(function (t) { return '<option value="' + t[0] + '">' + t[1] + '</option>'; }).join('') + '</select></td>' +
       '<td class="r num" data-e="price"></td>' +
       '<td><input class="input num" data-e="qty" type="number" min="0" max="9999" inputmode="numeric" aria-label="Qty"></td>' +
       '<td><input class="input num" data-e="days" type="number" min="0" max="999" inputmode="numeric" aria-label="Day"></td>' +

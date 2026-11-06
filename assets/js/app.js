@@ -76,11 +76,12 @@
     return (part / whole * 100).toLocaleString('id-ID', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + '%';
   };
 
-  /** Harga sewa per tarif: d70 = 30% normal, d30 = 70% normal */
+  /** Harga sewa per tarif: d30 = 70% normal, d50 = 50% normal (d70 = 30% normal, hanya transaksi lama) */
   MH.tierPrice = function (normal, tier) {
     normal = Number(normal) || 0;
     if (tier === 'd70') return Math.round(normal * 0.3);
     if (tier === 'd30') return Math.round(normal * 0.7);
+    if (tier === 'd50') return Math.round(normal * 0.5);
     return normal;
   };
 

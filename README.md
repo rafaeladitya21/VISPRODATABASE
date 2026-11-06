@@ -91,7 +91,7 @@ Net Profit        = Revenue − Total Operasional
 Margin            = Net Profit / Revenue × 100      (1 desimal, "—" bila revenue 0)
 % Operasional     = Total Operasional / Revenue × 100 (2 desimal)
 Sisa Tagihan      = max(0, Revenue − DP)
-Harga sewa        Normal = harga normal · Diskon 70% = 30% × normal · Diskon 30% = 70% × normal
+Harga sewa        Normal = harga normal · Diskon 30% = 70% × normal · Diskon 50% = 50% × normal
 Total sewa        = Harga sewa × Qty × Day
 ```
 

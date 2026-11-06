@@ -43,7 +43,8 @@ const TRANSPORT_ITEMS = [
 
 /**
  * Harga sewa per tarif.
- * Diskon 70% = 30% × normal · Diskon 30% = 70% × normal (dibulatkan ke rupiah).
+ * Diskon 30% = 70% × normal · Diskon 50% = 50% × normal (dibulatkan ke rupiah).
+ * Diskon 70% (d70 = 30% × normal) hanya untuk transaksi lama — tidak bisa dipilih lagi di form.
  */
 function tier_price(?int $normal, string $tier): int
 {
@@ -51,6 +52,7 @@ function tier_price(?int $normal, string $tier): int
     return match ($tier) {
         'd70'   => (int)round($normal * 0.3),
         'd30'   => (int)round($normal * 0.7),
+        'd50'   => (int)round($normal * 0.5),
         default => $normal,
     };
 }

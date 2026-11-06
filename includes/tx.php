@@ -11,7 +11,7 @@ require_once __DIR__ . '/karyawan.php';
 const TX_PREP    = ['Belum dimulai', 'Persiapan', 'Siap'];
 const TX_TERMIN  = ['Belum DP', 'Termin Berjalan', 'Lunas'];
 const TX_STATUS  = ['Draft', 'Confirmed', 'Selesai', 'Batal'];
-const TX_TIERS   = ['normal', 'd70', 'd30'];
+const TX_TIERS   = ['normal', 'd30', 'd50', 'd70'];   // d70 = tarif lama, tetap sah untuk transaksi lama
 
 /** Kolom ringkas untuk daftar / riwayat */
 const TX_LIST_SQL = "SELECT t.id, t.invoice_no, t.event_name, t.event_date, t.location, t.revenue, t.dp,

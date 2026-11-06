@@ -6,7 +6,7 @@
   'use strict';
   var esc = MH.esc, rp = MH.rupiah;
   var TRANSPORT = (window.MH_DATA && MH_DATA.transport) || {};
-  var TIER_LABEL = { normal: 'Normal', d70: 'Diskon 70%', d30: 'Diskon 30%' };
+  var TIER_LABEL = { normal: 'Normal', d30: 'Diskon 30%', d50: 'Diskon 50%', d70: 'Diskon 70%' };
 
   function eventName(tx) { return tx.event_name || 'Event belum diberi nama'; }
 
