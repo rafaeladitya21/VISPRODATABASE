@@ -171,17 +171,19 @@
    * ulang jenis & ukuran). logo.data = gambar baru, logo.del = hapus logo lama, logo.url = logo tersimpan.
    */
   var LOGO_MAX = 1048576, LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
-  var logo = { url: null, data: null, del: false };
+  var logo = { url: null, data: null, del: false, bawaan: null };
   var logoInput = $('#st-logo'), logoPrev = $('#st-logo-preview'), logoDel = $('#st-logo-del'), logoHint = $('#st-logo-hint');
   var LOGO_HINT = logoHint.textContent;
   function sekolahInisial(s) {
     return String(s || '').trim().split(/\s+/).filter(Boolean).slice(0, 4).map(function (w) { return w.charAt(0).toUpperCase(); }).join('') || '—';
   }
   function renderLogo() {
-    var src = logo.data || (logo.del ? null : logo.url);
+    // Upload baru → logo tersimpan → logo bawaan sekolah (assets/img) → inisial
+    var own = logo.data || (logo.del ? null : logo.url);
+    var src = own || logo.bawaan;
     logoPrev.innerHTML = src ? '<img src="' + esc(src) + '" alt="">' : '<span>' + esc(sekolahInisial(f.sekolah.value)) + '</span>';
     logoPrev.classList.toggle('is-empty', !src);
-    logoDel.hidden = !src;
+    logoDel.hidden = !own;
   }
   logoInput.addEventListener('change', function () {
     var file = logoInput.files && logoInput.files[0];
@@ -272,7 +274,8 @@
     f.whatsapp.value = k && k.whatsapp ? k.whatsapp : '';
     f.sekolah.value = k && k.tipe === 'guru' && k.sekolah ? k.sekolah : '';
     f.kota_sekolah.value = k && k.tipe === 'guru' && k.kota_sekolah ? k.kota_sekolah : '';
-    logo = { url: k && k.tipe === 'guru' ? k.logo_sekolah || null : null, data: null, del: false };
+    logo = { url: k && k.tipe === 'guru' ? k.logo_sekolah || null : null, data: null, del: false,
+             bawaan: k && k.tipe === 'guru' ? k.logo_bawaan || null : null };
     logoHint.textContent = LOGO_HINT;
     logoHint.classList.remove('is-error');
     renderLogo();

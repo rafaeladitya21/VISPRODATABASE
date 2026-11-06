@@ -54,6 +54,7 @@ function staff_list(): array
         // Guru pendamping
         'whatsapp' => $r['whatsapp'], 'wa_url' => wa_url($r['whatsapp']), 'sekolah' => $r['sekolah'], 'panggilan' => $r['panggilan'], 'siswa' => (int)$r['siswa'],
         'kota_sekolah' => $r['kota_sekolah'], 'logo_sekolah' => $r['logo_sekolah'],
+        'logo_bawaan' => LOGO_SEKOLAH_BAWAAN[logo_sekolah_key($r['sekolah'])] ?? null,   // file assets/img bila belum upload
     ], $rows);
 }
 

@@ -92,6 +92,26 @@ function logo_sekolah_save(int $userId, ?array $logo): void
         ->execute(['api/logosekolah.php?id=' . $userId . '&v=' . substr(md5($b64), 0, 10), $userId]);
 }
 
+/**
+ * Logo bawaan (file di assets/img) untuk sekolah tertentu — dipakai bila Admin belum meng-upload logo.
+ * Kunci = nama sekolah dinormalisasi (lihat logo_sekolah_key): "SMK Negeri 2 Singosari" = "SMKN 2 Singosari".
+ */
+const LOGO_SEKOLAH_BAWAAN = [
+    'smkn2singosari' => 'assets/img/smk2sgs.png',
+];
+
+function logo_sekolah_key(?string $sekolah): string
+{
+    $s = preg_replace('/\bsmk\s+negeri\b/u', 'smkn', mb_strtolower(trim((string)$sekolah)));
+    return (string)preg_replace('/[^a-z0-9]+/', '', (string)$s);
+}
+
+/** Logo yang ditampilkan: upload Admin → logo bawaan sekolah → null (inisial) */
+function logo_sekolah_url(array $guru): ?string
+{
+    return ($guru['logo_sekolah'] ?? null) ?: (LOGO_SEKOLAH_BAWAAN[logo_sekolah_key($guru['sekolah'] ?? '')] ?? null);
+}
+
 /** Inisial sekolah untuk kotak pengganti logo: "SMK Negeri 2 Singosari" → "SN2S" (maks. 4 huruf) */
 function sekolah_inisial(?string $sekolah): string
 {
@@ -127,7 +147,7 @@ function guru_banner(array $guru, array $siswa, string $today): array
         'tahun'   => $y1 === $y2 ? $y1 : "$y1/$y2",
         'sekolah' => $sekolah !== '' ? $sekolah : 'Sekolah',
         'kota'    => trim((string)($guru['kota_sekolah'] ?? '')),
-        'logo'    => $guru['logo_sekolah'] ?? null,
+        'logo'    => logo_sekolah_url($guru),
         'inisial' => sekolah_inisial($sekolah),
         'periode' => $from && $to ? rentang_tanggal($from, $to) : '—',
         'peserta' => count($siswa),
