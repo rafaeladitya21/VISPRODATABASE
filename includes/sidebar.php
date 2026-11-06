@@ -49,7 +49,6 @@ function sidebar_menu(string $area): array
             'transaksi'  => ['Transaksi',  'transaksi.php',  'doc'],
             'jadwal'     => ['Jadwal',     'jadwal.php',     'calendar'],
             'customer'   => ['Customer',   'customer.php',   'users'],
-            'harga-alat' => ['Harga Alat', 'harga-alat.php', 'camera'],
             'inventaris' => ['Inventaris', 'inventaris.php', 'box'],
             'laporan'    => ['Laporan',    null /* halaman belum ada di spesifikasi */, 'chart'],
         ],

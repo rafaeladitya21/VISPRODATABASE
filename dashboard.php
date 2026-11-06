@@ -182,7 +182,7 @@ layout_start('Ringkasan', 'ringkasan');
     <h2 class="card__title">Database</h2>
     <div class="dbl">
       <a class="dbl__item" href="customer.php"><span>Customer</span><strong class="num" id="d-cust">—</strong><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
-      <a class="dbl__item" href="harga-alat.php"><span>Alat</span><strong class="num" id="d-eq">—</strong><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+      <a class="dbl__item" href="pengaturan.php?tab=harga-alat"><span>Alat</span><strong class="num" id="d-eq">—</strong><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
       <a class="dbl__item" href="transaksi.php"><span>Total Order</span><strong class="num" id="d-tx">—</strong><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
     </div>
   </section>

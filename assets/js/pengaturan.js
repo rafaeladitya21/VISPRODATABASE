@@ -166,3 +166,40 @@
       .finally(function () { psSave.disabled = false; psSave.classList.remove('is-loading'); });
   });
 })();
+
+/* Tab halaman Pengaturan: Umum · Harga Alat (?tab=harga-alat). Tab awal dipilih server; di sini hanya
+   perpindahan tab + URL ikut berubah (replaceState) supaya refresh tetap di tab yang sama. */
+(function () {
+  'use strict';
+  var bar = document.getElementById('ptabs');
+  if (!bar) return;
+  var btns = Array.prototype.slice.call(bar.querySelectorAll('[role="tab"]'));
+
+  function select(name, focus) {
+    btns.forEach(function (b) {
+      var on = b.dataset.tab === name;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+      document.getElementById(b.getAttribute('aria-controls')).hidden = !on;
+      if (on && focus) b.focus();
+    });
+    var url = new URL(location.href);
+    if (name === btns[0].dataset.tab) url.searchParams.delete('tab'); else url.searchParams.set('tab', name);
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+    window.dispatchEvent(new Event('resize'));   // peta Lokasi Absen (Leaflet) dibuat saat tab tersembunyi → hitung ulang ukuran
+  }
+
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest('[role="tab"]');
+    if (b) select(b.dataset.tab, false);
+  });
+  // Panah kiri/kanan, Home/End antar tab
+  bar.addEventListener('keydown', function (e) {
+    var i = btns.indexOf(document.activeElement);
+    if (i < 0) return;
+    var n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: btns.length - 1 }[e.key];
+    if (n === undefined) return;
+    e.preventDefault();
+    select(btns[(n + btns.length) % btns.length].dataset.tab, true);
+  });
+})();

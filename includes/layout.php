@@ -4,9 +4,9 @@
  * Pemakaian:
  *   require 'includes/auth-check.php';
  *   require 'includes/layout.php';
- *   layout_start('Harga Alat', 'harga-alat');
+ *   layout_start('Pengaturan', 'pengaturan');
  *   ...konten...
- *   layout_end(['harga-alat.js']);
+ *   layout_end(['pengaturan.js']);
  */
 declare(strict_types=1);
 require_once __DIR__ . '/sidebar.php';

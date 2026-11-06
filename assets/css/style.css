@@ -2655,3 +2655,23 @@ html:has(.modal.mform[open]) { overflow: hidden; }   /* halaman belakang tidak i
   .mtipe, .mform__grid2 { grid-template-columns: minmax(0, 1fr); }
   .mtipe__txt small { white-space: normal; }
 }
+
+/* Pengaturan: tab Umum · Harga Alat */
+.ptabs {
+  display: flex; gap: 4px; margin: 0 0 20px; overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--line); -webkit-overflow-scrolling: touch;
+}
+.ptabs::-webkit-scrollbar { display: none; }
+.ptabs__btn {
+  flex: none; height: 44px; margin-bottom: -1px; padding: 0 14px;
+  font: 600 14px/1 var(--font-body); color: var(--muted); white-space: nowrap;
+  background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+  transition: color .15s ease, border-color .15s ease;
+}
+.ptabs__btn:hover { color: var(--ink); }
+.ptabs__btn[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.ptabs__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: 6px; }
+.ptabs-panel[hidden] { display: none; }
+/* Bar atas tab Harga Alat: info update kiri · cari + Tambah Alat kanan */
+.eq-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.eq-bar__meta { margin: 0; }
