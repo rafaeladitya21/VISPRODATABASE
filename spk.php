@@ -5,6 +5,7 @@
  *   spk.php?inv=INV-2026-0011&crew=2     → SPK perorangan (crew urutan ke-2 di section 5)
  *   &honor=1                              → tampilkan honor (hanya SPK perorangan)
  *   &noprint=1                            → jangan panggil window.print() otomatis
+ * Urutan: ① Detail Event · ② Crew · ③ Alat (dari transaction_equipment, tanpa harga) · ④ Tanda Tangan (PIC Event)
  */
 declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
@@ -12,8 +13,8 @@ require_once __DIR__ . '/includes/tx.php';
 require_once __DIR__ . '/includes/maps.php';
 
 // tgl_id() ("2026-11-14" → "Sabtu, 14 November 2026") ada di includes/karyawan.php (dimuat lewat tx.php)
-function jam(?string $hm): string { return $hm ? str_replace(':', '.', $hm) . ' WIB' : '—'; }
-function dash(?string $s): string { return ($s === null || trim($s) === '') ? '—' : e($s); }
+function jam(?string $hm): string { return $hm ? str_replace(':', '.', $hm) . ' WIB' : ''; }
+function filled(?string $s): bool { return $s !== null && trim($s) !== ''; }
 function rp(int $n): string { return 'Rp ' . number_format($n, 0, ',', '.'); }
 
 function spk_fail(int $code, string $msg): never
@@ -41,25 +42,48 @@ if ($single && !isset($crew[$crewNo - 1])) spk_fail(404, 'Crew tidak ditemukan. 
 if (!$single && !$crew) spk_fail(404, 'Belum ada crew di transaksi ini.');
 
 $person    = $single ? $crew[$crewNo - 1] : null;
+$crewRows  = $single ? [$person] : $crew;
 $showHonor = $single && !empty($_GET['honor']);
 $autoPrint = empty($_GET['noprint']);
 
 $spkNo  = 'SPK-' . $tx['invoice_no'] . '-' . ($single ? str_pad((string)$crewNo, 2, '0', STR_PAD_LEFT) : 'TIM');
 $c      = $tx['customer'] ?? [];
-$equip  = array_values(array_filter($tx['equipment'], fn($q) => $q['equipment_name'] && $q['qty'] > 0));
 
-// Jadwal: Standby & Loading In selalu tampil; jam lain hanya bila terisi (sudah tidak ada di form)
-$jadwal = [
-    ['Standby Lokasi', $tx['standby_time'], true],
-    ['Jam Loading In', $tx['load_in_time'], true],
-    ['Jam Ready Alat', $tx['ready_time'], false],
-    ['Jam Running Event', $tx['running_time'], false],
-    ['Jam Loading Out', $tx['load_out_time'], false],
-];
-$jadwal = array_filter($jadwal, fn($j) => $j[2] || $j[1]);
+// Alat: baris alat transaksi ini (transaction_equipment) — hanya nama & jumlah, tanpa harga
+$equip  = array_values(array_filter($tx['equipment'], fn($q) => filled($q['equipment_name']) && $q['qty'] > 0));
+$units  = array_sum(array_map(fn($q) => (int)$q['qty'], $equip));
 
 // Shareloc → link Google Maps + nama tempat (ditampilkan sebagai QR code)
-$loc = trim((string)$tx['shareloc']) !== '' ? maps_link((string)$tx['shareloc']) : null;
+$loc = filled($tx['shareloc']) ? maps_link((string)$tx['shareloc']) : null;
+
+// ① Detail Event: [label, isi HTML]; field kosong tidak ditampilkan
+$detail = [];
+if (filled($tx['event_name'])) $detail[] = ['Nama Event', e($tx['event_name'])];
+if (filled($c['name'] ?? null)) {
+    $detail[] = ['Klien / Customer', e($c['name']) . (filled($c['code'] ?? null) ? ' <span class="muted num">(' . e($c['code']) . ')</span>' : '')];
+}
+if (filled($c['vendor'] ?? null)) $detail[] = ['Vendor', e($c['vendor'])];
+if (filled($tx['event_date']))   $detail[] = ['Tanggal Event', '<strong>' . e(tgl_id($tx['event_date'])) . '</strong>'];
+if (filled($tx['standby_time'])) $detail[] = ['Standby Lokasi', '<strong class="num">' . e(jam($tx['standby_time'])) . '</strong>'];
+if (filled($tx['load_in_time'])) $detail[] = ['Jam Loading In', '<strong class="num">' . e(jam($tx['load_in_time'])) . '</strong>'];
+if (filled($tx['location']))     $detail[] = ['Lokasi Acara', e($tx['location'])];
+if ($loc) {
+    $detail[] = ['Shareloc',
+        '<div class="sl">'
+      .   '<div class="sl__qr" data-qr="' . e($loc['url']) . '" role="img" aria-label="QR code lokasi di Google Maps"></div>'
+      .   '<div class="sl__text">'
+      .     ($loc['place'] ? '<strong>' . e($loc['place']) . '</strong>' : '')
+      .     '<span class="sl__hint">Scan untuk buka di Google Maps</span>'
+      .     '<a class="sl__link" href="' . e($loc['url']) . '" target="_blank" rel="noopener">Buka di Google Maps</a>'
+      .   '</div>'
+      . '</div>'];
+}
+if (filled($tx['pic']) || filled($tx['whatsapp'])) {
+    $detail[] = ['PIC Event', implode(' · ', array_filter([
+        filled($tx['pic']) ? e($tx['pic']) : '',
+        filled($tx['whatsapp']) ? 'WA <span class="num">' . e($tx['whatsapp']) . '</span>' : '',
+    ]))];
+}
 
 $sec = 0; // penomoran bagian otomatis
 ?>
@@ -68,28 +92,33 @@ $sec = 0; // penomoran bagian otomatis
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title><?= e($spkNo) ?></title>
   <link rel="preload" href="assets/fonts/Satoshi-Bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
   <style>
     @font-face {
       font-family: 'Satoshi';
       src: url('assets/fonts/Satoshi-Bold.woff2') format('woff2');
       font-weight: 700; font-style: normal; font-display: block;
     }
-    @page { size: A4 portrait; margin: 15mm; }
+    /* Margin 0 → judul / tanggal / URL bawaan browser tidak ikut tercetak; jarak tepi diatur padding .sheet */
+    @page { size: A4; margin: 0; }
 
-    :root { --ink: #0A0A0A; --text-2: #404040; --muted: #6B6B6B; --line: #D4D4D4; --line-2: #EEEEEE; --soft: #F5F5F5; }
+    :root { --ink: #0A0A0A; --text-2: #404040; --muted: #6B6B6B; --line: #D4D4D4; --line-2: #EEEEEE; --soft: #F5F5F5; color-scheme: light; }
     * { box-sizing: border-box; }
     html, body { margin: 0; }
     body {
-      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 10.5pt; line-height: 1.5;
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 9pt; line-height: 1.45;
       color: var(--ink); background: #E5E5E5;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-    h1, h2, .brand, .num-big { font-family: 'Satoshi', 'Plus Jakarta Sans', sans-serif; font-weight: 700; margin: 0; }
+    h1, h2, .brand { font-family: 'Satoshi', 'Plus Jakarta Sans', sans-serif; font-weight: 700; margin: 0; }
+    p { margin: 0; }
+    .muted { color: var(--muted); }
+    .num { font-variant-numeric: tabular-nums; }
 
     /* Toolbar layar */
     .toolbar {
@@ -103,99 +132,88 @@ $sec = 0; // penomoran bagian otomatis
     }
     .toolbar button:hover { background: #EEEEEE; }
 
-    /* Lembar A4 (210mm − 2×15mm margin) */
+    /* Lembar A4: 11mm atas, 15mm kiri-kanan */
     .sheet {
-      width: 210mm; min-height: 297mm; margin: 24px auto; padding: 15mm;
+      width: 210mm; min-height: 297mm; margin: 24px auto; padding: 11mm 15mm;
       background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,.12);
     }
 
     /* Kop */
-    .kop { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+    .kop { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
     .kop__brand { display: flex; align-items: center; gap: 12px; }
-    .kop__logo { height: 34px; width: auto; filter: invert(1); }
-    .brand { font-size: 15pt; letter-spacing: -0.02em; }
-    .kop__sub { font-size: 8.5pt; color: var(--muted); }
-    .kop__meta { text-align: right; font-size: 9pt; color: var(--text-2); }
-    .kop__meta strong { display: block; font-size: 10pt; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .kop__logo { height: 32px; width: auto; filter: invert(1); }
+    .brand { font-size: 14pt; letter-spacing: -0.02em; }
+    .kop__sub { font-size: 8pt; color: var(--muted); }
+    .kop__meta { text-align: right; font-size: 8.5pt; color: var(--text-2); }
+    .kop__meta strong { display: block; font-size: 9.5pt; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-    .title { margin: 18px 0 16px; text-align: center; }
-    h1 { font-size: 18pt; letter-spacing: .04em; }
-    .title p { margin: 2px 0 0; font-size: 9.5pt; color: var(--muted); }
+    .title { margin: 14px 0 4px; text-align: center; }
+    h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14pt; font-weight: 800; letter-spacing: .04em; }
+    .title p { margin-top: 1px; font-size: 8.5pt; color: var(--muted); }
 
-    section { margin-top: 14px; break-inside: avoid; }
+    /* Bagian: jarak ±14px */
+    section { margin-top: 14px; }
     h2 {
       display: flex; align-items: center; gap: 8px;
-      margin-bottom: 6px; padding-bottom: 4px; font-size: 11pt; letter-spacing: -0.01em;
+      margin-bottom: 6px; padding-bottom: 4px; font-size: 10pt; letter-spacing: -0.01em;
       border-bottom: 1px solid var(--line);
+      break-after: avoid; page-break-after: avoid;
     }
     h2 .n {
-      display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
-      font: 700 8pt 'Plus Jakarta Sans', sans-serif; color: #fff; background: var(--ink);
+      display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%;
+      font: 700 7.5pt 'Plus Jakarta Sans', sans-serif; color: #fff; background: var(--ink);
     }
-    p { margin: 0; }
 
-    /* Daftar label : isi */
-    .kv { display: grid; grid-template-columns: 42mm 1fr; gap: 3px 10px; margin: 0; }
+    /* Detail: label abu-abu ±130px : isi hitam */
+    .kv { display: grid; grid-template-columns: 130px 1fr; gap: 3px 10px; margin: 0; }
     .kv dt { color: var(--muted); }
     .kv dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
-    .kv a { color: inherit; }
-    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
-    .cols .kv { grid-template-columns: 30mm 1fr; }
+    .kv strong { font-weight: 700; }
 
-    /* Shareloc: QR code (selalu kotak putih + kode hitam supaya bisa di-scan) */
-    .sl { display: flex; align-items: center; gap: 12px; }
+    /* Shareloc: QR ±66px dalam kotak bergaris tipis (selalu putih + hitam) */
+    .sl { display: flex; align-items: center; gap: 10px; }
     .sl__qr {
-      flex: none; width: 96px; height: 96px; padding: 6px;
-      background: #fff; border: 1px solid var(--line); border-radius: 6px;
+      flex: none; width: 66px; height: 66px; padding: 3px;
+      background: #fff; border: 1px solid var(--line); border-radius: 4px;
     }
     .sl__qr:empty { display: none; }   /* library QR gagal dimuat → tinggal teks & link */
     .sl__qr svg { display: block; width: 100%; height: 100%; }
-    .sl__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .sl__place { font-weight: 700; }
-    .sl__hint { font-size: 8.5pt; font-weight: 400; color: var(--muted); }
-    .sl__link { font-size: 9pt; font-weight: 600; color: var(--ink); text-underline-offset: 2px; }
+    .sl__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .sl__hint { font-size: 8pt; font-weight: 400; color: var(--muted); }
+    .sl__link { font-size: 8.5pt; font-weight: 600; color: var(--ink); text-underline-offset: 2px; }
 
-    .to { padding: 10px 12px; border: 1.5px solid var(--ink); border-radius: 8px; }
-    .to__name { font-family: 'Satoshi', sans-serif; font-weight: 700; font-size: 14pt; letter-spacing: -0.01em; }
-    .to__role { color: var(--text-2); }
-
-    table { width: 100%; border-collapse: collapse; font-size: 10pt; }
-    th { text-align: left; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px; background: var(--soft); border-bottom: 1px solid var(--line); }
-    td { padding: 6px 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
-    tr { break-inside: avoid; }
+    /* Tabel */
+    table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    th {
+      text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); padding: 5px 8px; background: var(--soft); border-bottom: 1px solid var(--line);
+    }
+    td { padding: 5px 8px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+    tr { break-inside: avoid; page-break-inside: avoid; }
     .c { text-align: center; } .r { text-align: right; } .no { width: 10mm; }
-    .num { font-variant-numeric: tabular-nums; }
-
-    .times { display: grid; grid-template-columns: repeat(auto-fit, minmax(30mm, 1fr)); gap: 8px; }
-    .time { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
-    .time span { display: block; font-size: 8.5pt; color: var(--muted); }
-    .time strong { font-family: 'Satoshi', sans-serif; font-size: 13pt; font-variant-numeric: tabular-nums; }
-
-    .notes { white-space: pre-wrap; padding: 8px 10px; background: var(--soft); border-radius: 6px; }
     .empty { color: var(--muted); font-style: italic; }
 
-    .honor { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; color: #fff; background: var(--ink); border-radius: 8px; }
-    .honor .num-big { font-size: 14pt; }
+    .box { display: inline-block; width: 12px; height: 12px; border: 1px solid var(--ink); border-radius: 2px; vertical-align: middle; }
+    .total { margin-top: 6px; text-align: right; font-size: 8pt; color: var(--muted); }
+    .total strong { color: var(--ink); font-weight: 700; }
+    .honor { display: flex; justify-content: space-between; margin-top: 6px; padding: 6px 8px; background: var(--soft); border-radius: 4px; }
 
-    ol.rules { margin: 0; padding-left: 18px; color: var(--text-2); }
-    ol.rules li { margin: 2px 0; }
-
-    .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 22px; text-align: center; break-inside: avoid; }
-    .sign__label { font-size: 9.5pt; color: var(--muted); }
-    .sign__space { height: 22mm; }
-    .sign__name { display: inline-block; min-width: 55mm; padding-top: 4px; border-top: 1px solid var(--ink); font-weight: 600; }
-    .sign__sub { font-size: 9pt; color: var(--muted); }
-
-    .foot { margin-top: 18px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 8pt; color: var(--muted); display: flex; justify-content: space-between; }
+    /* Tanda tangan: satu kolom rata kanan ±220px */
+    .sign { width: 220px; margin-left: auto; break-inside: avoid; page-break-inside: avoid; }
+    .sign__label { font-size: 8pt; color: var(--muted); }
+    .sign__space { height: 60px; }
+    .sign__line { border-top: 1px solid var(--ink); padding-top: 4px; }
+    .sign__name { font-weight: 700; min-height: 1.45em; }
+    .sign__sub { font-size: 8pt; color: var(--muted); }
 
     @media screen and (max-width: 840px) {
       .sheet { width: auto; min-height: 0; margin: 16px; padding: 20px; }
-      .cols, .sign { grid-template-columns: 1fr; }
+      .kv { grid-template-columns: 110px 1fr; }
     }
     @media print {
-      body { background: #fff; }
-      .toolbar { display: none !important; }
-      .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+      html, body { background: #fff !important; color: var(--ink); }
+      .toolbar, .sl__link { display: none !important; }
+      .sheet { width: auto; min-height: 0; margin: 0; padding: 11mm 15mm; box-shadow: none; }
     }
   </style>
 </head>
@@ -226,125 +244,73 @@ $sec = 0; // penomoran bagian otomatis
       <p>Ref. Invoice <span class="num"><?= e($tx['invoice_no']) ?></span></p>
     </div>
 
-    <!-- Diberikan kepada -->
-    <section>
-      <h2><span class="n"><?= ++$sec ?></span>Diberikan kepada</h2>
-      <?php if ($single): ?>
-        <div class="to">
-          <p class="to__name"><?= $person['name'] ? e($person['name']) : '<span class="empty">Nama belum diisi</span>' ?></p>
-          <p class="to__role">Jobdesk: <strong><?= dash($person['role']) ?></strong></p>
-        </div>
-      <?php else: ?>
-        <table>
-          <thead><tr><th class="c no">No</th><th>Nama</th><th>Jobdesk</th></tr></thead>
-          <tbody>
-            <?php foreach ($crew as $i => $m): ?>
-              <tr>
-                <td class="c num"><?= $i + 1 ?></td>
-                <td><?= $m['name'] ? e($m['name']) : '<span class="empty">Belum diisi</span>' ?></td>
-                <td><?= dash($m['role']) ?></td>
-              </tr>
-            <?php endforeach; ?>
-          </tbody>
-        </table>
-      <?php endif; ?>
-    </section>
-
-    <!-- Detail event -->
+    <!-- ① Detail Event -->
     <section>
       <h2><span class="n"><?= ++$sec ?></span>Detail Event</h2>
       <dl class="kv">
-        <dt>Nama Event</dt><dd><?= dash($tx['event_name']) ?></dd>
-        <dt>Klien / Customer</dt><dd><?= dash($c['name'] ?? null) ?><?= !empty($c['code']) ? ' <span class="num" style="color:var(--muted)">(' . e($c['code']) . ')</span>' : '' ?></dd>
-        <dt>Vendor</dt><dd><?= dash($c['vendor'] ?? null) ?></dd>
-        <dt>Tanggal Event</dt><dd><?= e(tgl_id($tx['event_date'])) ?></dd>
-        <dt>Lokasi Acara</dt><dd><?= dash($tx['location']) ?></dd>
-        <dt>Shareloc</dt><dd><?php if ($loc): ?>
-          <div class="sl">
-            <div class="sl__qr" data-qr="<?= e($loc['url']) ?>" role="img" aria-label="QR code lokasi di Google Maps"></div>
-            <div class="sl__text">
-              <?php if ($loc['place']): ?><strong class="sl__place"><?= e($loc['place']) ?></strong><?php endif; ?>
-              <span class="sl__hint">Scan untuk buka di Google Maps</span>
-              <a class="sl__link" href="<?= e($loc['url']) ?>" target="_blank" rel="noopener">Buka di Google Maps</a>
-            </div>
-          </div>
-        <?php else: ?>—<?php endif; ?></dd>
-        <dt>PIC Event</dt><dd><?= dash($tx['pic']) ?><?= $tx['whatsapp'] ? ' · WA <span class="num">' . e($tx['whatsapp']) . '</span>' : '' ?></dd>
+        <?php foreach ($detail as [$label, $html]): ?>
+          <dt><?= e($label) ?></dt><dd><?= $html ?></dd>
+        <?php endforeach; ?>
       </dl>
     </section>
 
-    <!-- Jadwal -->
+    <!-- ② Crew -->
     <section>
-      <h2><span class="n"><?= ++$sec ?></span>Jadwal</h2>
-      <div class="times">
-        <?php foreach ($jadwal as $j): ?>
-          <div class="time"><span><?= e($j[0]) ?></span><strong><?= e(jam($j[1])) ?></strong></div>
-        <?php endforeach; ?>
-      </div>
-    </section>
-
-    <!-- Catatan teknis -->
-    <?php if ($tx['tech_notes']): ?>
-    <section>
-      <h2><span class="n"><?= ++$sec ?></span>Catatan Teknis</h2>
-      <div class="notes"><?= e($tx['tech_notes']) ?></div>
-    </section>
-    <?php endif; ?>
-
-    <!-- Peralatan -->
-    <?php if ($equip): ?>
-    <section>
-      <h2><span class="n"><?= ++$sec ?></span>Peralatan yang Dibawa</h2>
+      <h2><span class="n"><?= ++$sec ?></span>Crew</h2>
       <table>
-        <thead><tr><th class="c no">No</th><th>Nama Alat</th><th class="r" style="width:20mm">Qty</th></tr></thead>
+        <thead><tr><th class="c no">No</th><th>Nama</th><th>Jobdesk</th></tr></thead>
         <tbody>
-          <?php foreach ($equip as $i => $q): ?>
-            <tr><td class="c num"><?= $i + 1 ?></td><td><?= e($q['equipment_name']) ?></td><td class="r num"><?= (int)$q['qty'] ?></td></tr>
+          <?php foreach ($crewRows as $i => $m): ?>
+            <tr>
+              <td class="c num"><?= $i + 1 ?></td>
+              <td><?= filled($m['name']) ? e($m['name']) : '<span class="empty">Belum diisi</span>' ?></td>
+              <td><?= filled($m['role']) ? e($m['role']) : '<span class="muted">—</span>' ?></td>
+            </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
+      <?php if ($showHonor): ?>
+        <div class="honor"><span>Honor + Uang Makan</span><strong class="num"><?= e(rp((int)$person['honor'])) ?></strong></div>
+      <?php endif; ?>
+    </section>
+
+    <!-- ③ Alat (transaction_equipment, tanpa harga) -->
+    <?php if ($equip): ?>
+    <section>
+      <h2><span class="n"><?= ++$sec ?></span>Alat</h2>
+      <table>
+        <thead><tr>
+          <th class="c no">No</th><th>Nama Alat</th>
+          <th class="c" style="width:16mm">Jml</th><th class="c" style="width:24mm">Berangkat</th><th class="c" style="width:22mm">Pulang</th>
+        </tr></thead>
+        <tbody>
+          <?php foreach ($equip as $i => $q): ?>
+            <tr>
+              <td class="c num"><?= $i + 1 ?></td>
+              <td><?= e($q['equipment_name']) ?></td>
+              <td class="c num"><?= (int)$q['qty'] ?></td>
+              <td class="c"><span class="box" aria-hidden="true"></span></td>
+              <td class="c"><span class="box" aria-hidden="true"></span></td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+      <p class="total">Total: <strong class="num"><?= count($equip) ?></strong> alat · <strong class="num"><?= $units ?></strong> unit</p>
     </section>
     <?php endif; ?>
 
-    <!-- Honor (perorangan) -->
-    <?php if ($showHonor): ?>
+    <!-- ④ Tanda Tangan (PIC Event) -->
     <section>
-      <h2><span class="n"><?= ++$sec ?></span>Honor</h2>
-      <div class="honor"><span>Honor + Uang Makan</span><span class="num-big num"><?= e(rp((int)$person['honor'])) ?></span></div>
-    </section>
-    <?php endif; ?>
-
-    <!-- Ketentuan -->
-    <section>
-      <h2><span class="n"><?= ++$sec ?></span>Ketentuan</h2>
-      <ol class="rules">
-        <li>Hadir di lokasi sesuai jam <strong>Standby Lokasi</strong>. Bila berhalangan atau terlambat, segera kabari PIC.</li>
-        <li>Menjalankan jobdesk sesuai arahan PIC event dan menjaga sikap profesional selama acara.</li>
-        <li>Bertanggung jawab atas peralatan yang digunakan, termasuk saat loading in dan loading out.</li>
-        <li>Seluruh hasil kerja (file foto/video) diserahkan kepada Visual Production.id dan tidak dipublikasikan tanpa izin.</li>
-      </ol>
-    </section>
-
-    <!-- Tanda tangan -->
-    <div class="sign">
-      <div>
-        <p class="sign__label">Pemberi Tugas</p>
+      <h2><span class="n"><?= ++$sec ?></span>Tanda Tangan</h2>
+      <div class="sign">
+        <p class="sign__label">PIC Event</p>
         <div class="sign__space"></div>
-        <p class="sign__name"><?= e($user['name'] ?? 'Visual Production.id') ?></p>
-        <p class="sign__sub">Visual Production.id</p>
+        <div class="sign__line">
+          <p class="sign__name"><?= filled($tx['pic']) ? e($tx['pic']) : '&nbsp;' ?></p>
+          <?php if (filled($tx['whatsapp'])): ?><p class="sign__sub">WA <span class="num"><?= e($tx['whatsapp']) ?></span></p><?php endif; ?>
+        </div>
       </div>
-      <div>
-        <p class="sign__label">Penerima Tugas</p>
-        <div class="sign__space"></div>
-        <p class="sign__name"><?= $single ? dash($person['name']) : '&nbsp;' ?></p>
-        <p class="sign__sub"><?= $single ? dash($person['role']) : 'Perwakilan Tim' ?></p>
-      </div>
-    </div>
-
-    <footer class="foot">
-      <span><?= e($spkNo) ?></span>
-      <span>Dicetak <?= e(date('d/m/Y H.i')) ?> WIB</span>
-    </footer>
+    </section>
   </main>
 
 <?php if ($loc): ?>
