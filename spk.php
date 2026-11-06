@@ -9,6 +9,7 @@
 declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
 require_once __DIR__ . '/includes/tx.php';
+require_once __DIR__ . '/includes/maps.php';
 
 // tgl_id() ("2026-11-14" → "Sabtu, 14 November 2026") ada di includes/karyawan.php (dimuat lewat tx.php)
 function jam(?string $hm): string { return $hm ? str_replace(':', '.', $hm) . ' WIB' : '—'; }
@@ -56,6 +57,9 @@ $jadwal = [
     ['Jam Loading Out', $tx['load_out_time'], false],
 ];
 $jadwal = array_filter($jadwal, fn($j) => $j[2] || $j[1]);
+
+// Shareloc → link Google Maps + nama tempat (ditampilkan sebagai QR code)
+$loc = trim((string)$tx['shareloc']) !== '' ? maps_link((string)$tx['shareloc']) : null;
 
 $sec = 0; // penomoran bagian otomatis
 ?>
@@ -137,6 +141,19 @@ $sec = 0; // penomoran bagian otomatis
     .kv a { color: inherit; }
     .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
     .cols .kv { grid-template-columns: 30mm 1fr; }
+
+    /* Shareloc: QR code (selalu kotak putih + kode hitam supaya bisa di-scan) */
+    .sl { display: flex; align-items: center; gap: 12px; }
+    .sl__qr {
+      flex: none; width: 96px; height: 96px; padding: 6px;
+      background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    }
+    .sl__qr:empty { display: none; }   /* library QR gagal dimuat → tinggal teks & link */
+    .sl__qr svg { display: block; width: 100%; height: 100%; }
+    .sl__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .sl__place { font-weight: 700; }
+    .sl__hint { font-size: 8.5pt; font-weight: 400; color: var(--muted); }
+    .sl__link { font-size: 9pt; font-weight: 600; color: var(--ink); text-underline-offset: 2px; }
 
     .to { padding: 10px 12px; border: 1.5px solid var(--ink); border-radius: 8px; }
     .to__name { font-family: 'Satoshi', sans-serif; font-weight: 700; font-size: 14pt; letter-spacing: -0.01em; }
@@ -242,7 +259,16 @@ $sec = 0; // penomoran bagian otomatis
         <dt>Vendor</dt><dd><?= dash($c['vendor'] ?? null) ?></dd>
         <dt>Tanggal Event</dt><dd><?= e(tgl_id($tx['event_date'])) ?></dd>
         <dt>Lokasi Acara</dt><dd><?= dash($tx['location']) ?></dd>
-        <dt>Shareloc</dt><dd><?= $tx['shareloc'] ? '<a href="' . e($tx['shareloc']) . '">' . e($tx['shareloc']) . '</a>' : '—' ?></dd>
+        <dt>Shareloc</dt><dd><?php if ($loc): ?>
+          <div class="sl">
+            <div class="sl__qr" data-qr="<?= e($loc['url']) ?>" role="img" aria-label="QR code lokasi di Google Maps"></div>
+            <div class="sl__text">
+              <?php if ($loc['place']): ?><strong class="sl__place"><?= e($loc['place']) ?></strong><?php endif; ?>
+              <span class="sl__hint">Scan untuk buka di Google Maps</span>
+              <a class="sl__link" href="<?= e($loc['url']) ?>" target="_blank" rel="noopener">Buka di Google Maps</a>
+            </div>
+          </div>
+        <?php else: ?>—<?php endif; ?></dd>
         <dt>PIC Event</dt><dd><?= dash($tx['pic']) ?><?= $tx['whatsapp'] ? ' · WA <span class="num">' . e($tx['whatsapp']) . '</span>' : '' ?></dd>
       </dl>
     </section>
@@ -321,6 +347,29 @@ $sec = 0; // penomoran bagian otomatis
     </footer>
   </main>
 
+<?php if ($loc): ?>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"
+          integrity="sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    // QR shareloc sebagai SVG (tajam saat dicetak / disimpan PDF), error correction M, dibuat di browser
+    (function () {
+      if (!window.qrcode) return;
+      qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+      document.querySelectorAll('[data-qr]').forEach(function (el) {
+        try {
+          var qr = qrcode(0, 'M');
+          qr.addData(el.getAttribute('data-qr'));
+          qr.make();
+          el.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+          var svg = el.querySelector('svg');
+          svg.setAttribute('aria-hidden', 'true');
+          svg.setAttribute('shape-rendering', 'crispEdges');
+        } catch (e) { el.innerHTML = ''; }
+      });
+    })();
+  </script>
+<?php endif; ?>
 <?php if ($autoPrint): ?>
   <script>
     // Tunggu font & logo termuat agar hasil PDF rapi, lalu buka dialog cetak
