@@ -12,7 +12,7 @@ const EQUIPMENT_CATEGORIES = [
 
 /** Pilihan role crew (urutan = urutan di dropdown). */
 const CREW_ROLES = [
-    'Kameramen',
+    'Videographer',
     'Fotografer',
     'Operator Switcher',
     'Operator Live Streaming',
