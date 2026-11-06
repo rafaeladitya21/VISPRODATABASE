@@ -153,7 +153,7 @@
   function fillSettings(s) {
     pe.pesan_semangat.value = s.pesan_semangat || '';
     pe.pesan_semangat_intern.value = s.pesan_semangat_intern || '';
-    saved.textContent = s.updated_at ? 'Terakhir disimpan ' + MH.when(s.updated_at) + (s.updated_by ? ' oleh ' + s.updated_by : '') : '';
+    saved.textContent = s.updated_at ? 'Terakhir disimpan ' + MH.when(s.updated_at) + ' oleh ' + (s.updated_by || 'Admin') : '';
   }
   MH.api('api/settings.php').then(function (d) { fillSettings(d.settings); }).catch(function (e) { showErr(psErr, e); });
 

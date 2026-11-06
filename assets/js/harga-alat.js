@@ -26,7 +26,11 @@
   function renderUpdated(lu) {
     if (lu !== undefined) lastUpdate = lu;
     var parts = [];
-    if (lastUpdate) parts.push('Update terakhir ' + MH.dateShort(lastUpdate.at) + ' oleh ' + (lastUpdate.by || '—'));
+    // "Update terakhir 06/11/2026 14.32 oleh Nama" — user terhapus / data lama tanpa pencatat → "Admin"
+    if (lastUpdate && lastUpdate.at) {
+      parts.push('Update terakhir ' + MH.dateShort(lastUpdate.at) + ' ' + MH.jam(String(lastUpdate.at).slice(11, 16)) +
+        ' oleh ' + (lastUpdate.by || 'Admin'));
+    }
     parts.push(state.items.length + ' alat');
     updated.textContent = parts.join(' · ');
   }

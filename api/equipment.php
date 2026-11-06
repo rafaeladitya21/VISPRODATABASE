@@ -43,7 +43,7 @@ function equipment_input(array $in): array
 function last_update(): ?array
 {
     $r = db()->query('SELECT e.updated_at, u.name FROM equipment e LEFT JOIN users u ON u.id = e.updated_by
-                      ORDER BY e.updated_at DESC LIMIT 1')->fetch();
+                      ORDER BY e.updated_at DESC, e.id DESC LIMIT 1')->fetch();
     return $r ? ['at' => $r['updated_at'], 'by' => $r['name']] : null;
 }
 

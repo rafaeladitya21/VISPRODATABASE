@@ -502,7 +502,7 @@
       (d.logs.length ? '<ol class="dd-log">' + d.logs.map(function (l) {
         return '<li class="dd-log__item"><span class="dd-log__dot" aria-hidden="true"></span>' +
           '<div><p class="dd-log__text"><strong>' + esc(LOG_LABEL[l.action] || l.action) + '</strong> · ' + esc(l.detail || '') + '</p>' +
-          '<p class="dd-log__meta">' + esc(dateTime(l.created_at)) + (l.user_name ? ' · ' + esc(l.user_name) : '') + '</p></div></li>';
+          '<p class="dd-log__meta">' + esc(dateTime(l.created_at)) + ' · ' + esc(l.user_name || 'Admin') + '</p></div></li>';
       }).join('') + '</ol>' : '<p class="dd-note">Belum ada aktivitas.</p>') +
     '</section>';
 
