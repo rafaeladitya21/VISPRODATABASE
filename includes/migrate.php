@@ -348,6 +348,23 @@ const MH_MIGRATIONS = [
     12 => <<<'SQL'
         ALTER TABLE users ADD COLUMN panggilan VARCHAR(10) NULL CHECK (panggilan IN ('Pak', 'Bu'));
         SQL,
+
+    // 13 — Tarif freelance jadi PILIHAN per orang: freelancer hanya melihat tarif yang dicentang Admin
+    //      (baris tarif_khusus dengan tampil = 1). Sebelumnya semua tarif freelance tampil kecuali disembunyikan.
+    //      Data lama: baris "disembunyikan" dihapus; baris harga khusus tetap (= dipakai); lalu tiap freelancer
+    //      otomatis mendapat tarif yang namanya cocok dengan jabatannya (Videografer ↔ VIDEOGRAPHER, PH = F).
+    13 => <<<'SQL'
+        DELETE FROM tarif_khusus WHERE tampil = 0;
+        INSERT INTO tarif_khusus (user_id, tarif_output_id, fee, tampil)
+        SELECT x.uid, x.tid, NULL, 1
+        FROM (SELECT u.id AS uid, t.id AS tid,
+                     regexp_replace(replace(upper(u.jabatan::text), 'PH', 'F'), '[^A-Z0-9]', '', 'g') AS j,
+                     regexp_replace(replace(upper(t.nama::text), 'PH', 'F'), '[^A-Z0-9]', '', 'g') AS n
+              FROM users u JOIN tarif_output t ON t.tipe = 'freelance'
+              WHERE u.role = 'karyawan' AND u.tipe = 'freelance' AND u.jabatan IS NOT NULL) x
+        WHERE x.j <> '' AND x.n <> '' AND (strpos(x.j, x.n) > 0 OR strpos(x.n, x.j) > 0)
+        ON CONFLICT (user_id, tarif_output_id) DO NOTHING;
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

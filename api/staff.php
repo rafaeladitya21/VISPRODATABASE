@@ -4,8 +4,9 @@
  *   GET                                                                → daftar karyawan + jumlah per tipe
  *   POST {name, email, jabatan, tipe, gaji_pokok, password, aktif}     → tambah
  *   PUT  {id, name, email, jabatan, tipe, gaji_pokok, aktif, password?} → ubah (password kosong = tidak diganti)
- *   tarif_khusus: {tarif_output_id: {fee, tampil}} (opsional, freelance saja) → harga khusus orang ini
- *                 (kosong = tarif umum) dan tampil=false untuk menyembunyikan tarif itu dari orang ini
+ *   tarif_khusus: {tarif_output_id: {fee, tampil}} (freelance saja) → tarif yang DIPAKAI orang ini (tampil=true),
+ *                 dengan harga khusus opsional (kosong = tarif umum). Tarif yang tidak dipilih tidak terlihat
+ *                 oleh freelancer itu (mis. videografer hanya melihat VIDEOGRAPHER).
  * Tipe: 'inhouse' (gaji pokok wajib, > 0), 'freelance' (gaji pokok 0), atau 'intern' (anak magang: gaji 0, tanpa
  *       tarif; wajib magang_mulai/magang_selesai; divisi, jam_masuk (08:00), jam_pulang (16:00), mentor_id opsional).
  *       Intern juga: guru_id (akun bertipe guru, WAJIB — kosong → otomatis bila tepat satu guru dengan sekolah sama),
@@ -64,7 +65,7 @@ function freelance_tarif(): array
 }
 
 /**
- * Simpan tarif khusus: hanya untuk freelance & hanya tarif bertipe freelance; fee kosong/0 = pakai tarif umum.
+ * Simpan tarif yang dipakai: hanya untuk freelance & hanya tarif bertipe freelance; fee kosong/0 = pakai tarif umum.
  * Karyawan in-house → semua tarif khusus dihapus.
  */
 function save_tarif_khusus(int $userId, string $tipe, mixed $map): void
@@ -81,8 +82,8 @@ function save_tarif_khusus(int $userId, string $tipe, mixed $map): void
         $row = is_array($row) ? $row : ['fee' => $row];
         $fee = ($row['fee'] ?? null) === null || $row['fee'] === '' ? 0 : to_rupiah($row['fee']);
         $tampil = !array_key_exists('tampil', $row) || !empty($row['tampil']);
-        // Hanya simpan bila berbeda dari default (ada harga khusus, atau disembunyikan)
-        if ($fee > 0 || !$tampil) $ins->execute([$userId, $tid, $fee > 0 ? $fee : null, $tampil ? 1 : 0]);
+        // Freelancer hanya melihat tarif yang dipilih di sini; tidak dipilih = tidak disimpan (tidak terlihat)
+        if ($tampil) $ins->execute([$userId, $tid, $fee > 0 ? $fee : null, 1]);
     }
 }
 

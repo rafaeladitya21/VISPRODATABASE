@@ -116,7 +116,7 @@
     f.magang_mulai.required = f.magang_selesai.required = t === 'intern';
     if (t === 'inhouse' && !MH.parseRupiah(f.gaji_pokok.value)) MH.setMoney(f.gaji_pokok, DEFAULT_GP);
   }
-  $$('input[name="tipe"]', form).forEach(function (r) { r.addEventListener('change', syncTipe); });
+  $$('input[name="tipe"]', form).forEach(function (r) { r.addEventListener('change', function () { syncTipe(); syncJabatan(); }); });
 
   function renderMentors(k) {
     var cur = k ? k.mentor_id : null;
@@ -176,27 +176,50 @@
     khususList.innerHTML = tarifFree.map(function (t) {
       var v = own[t.id] || {};
       var fee = typeof v === 'number' ? v : v.fee;
-      var tampil = typeof v === 'object' && v.tampil === false ? false : true;
+      // Dipakai = tersimpan untuk orang ini; tarif lain tidak terlihat oleh freelancer.
+      // Karyawan baru: tarif yang namanya cocok dengan jabatan dicentang otomatis (lihat syncJabatan)
+      var tampil = !!own[t.id] && !(typeof v === 'object' && v.tampil === false);
       return '<div class="tk__row" data-row="' + t.id + '">' +
         '<span class="tk__name"><strong>' + esc(t.nama) + '</strong>' +
         '<small>' + (t.fee ? 'tarif umum ' + MH.rupiah(t.fee) + SATUAN[t.satuan] : 'tarif umum belum diatur') + '</small></span>' +
         '<input class="input input--money" data-tid="' + t.id + '" placeholder="Harga khusus" value="' + (fee ? MH.num(fee) : '') + '" aria-label="Harga khusus ' + esc(t.nama) + '">' +
-        '<label class="check tk__show"><input type="checkbox" data-show="' + t.id + '"' + (tampil ? ' checked' : '') + '><span>Tampilkan</span></label>' +
+        '<label class="check tk__show"><input type="checkbox" data-show="' + t.id + '"' + (tampil ? ' checked' : '') + '><span>Dipakai</span></label>' +
         '</div>';
     }).join('');
     $$('[data-tid]', khususList).forEach(MH.moneyInput);
   }
-  /** {tarif_id: {fee, tampil}} — hanya baris yang berbeda dari default */
+  /** {tarif_id: {fee, tampil: true}} — hanya tarif yang dicentang "Dipakai" */
   function collectKhusus() {
     var out = {};
     $$('[data-row]', khususList).forEach(function (r) {
-      var id = r.dataset.row;
+      if (!$('[data-show]', r).checked) return;
       var fee = MH.parseRupiah($('[data-tid]', r).value);
-      var tampil = $('[data-show]', r).checked;
-      if (fee > 0 || !tampil) out[id] = { fee: fee > 0 ? fee : null, tampil: tampil };
+      out[r.dataset.row] = { fee: fee > 0 ? fee : null, tampil: true };
     });
     return out;
   }
+  /* Nama tarif ↔ jabatan: "Videografer" cocok dengan VIDEOGRAPHER (PH = F, abaikan spasi/tanda baca) */
+  function normRole(s) { return String(s || '').toUpperCase().replace(/PH/g, 'F').replace(/[^A-Z0-9]/g, ''); }
+  function roleMatch(jabatan, nama) {
+    var j = normRole(jabatan), n = normRole(nama);
+    return !!j && !!n && (j.indexOf(n) >= 0 || n.indexOf(j) >= 0);
+  }
+  /* Belum ada tarif yang dicentang → centang otomatis tarif yang cocok dengan jabatan (Admin tetap bisa mengubah) */
+  function syncJabatan() {
+    if (tipeValue() !== 'freelance') return;
+    var boxes = $$('[data-show]', khususList);
+    if (boxes.some(function (c) { return c.checked; })) return;
+    boxes.forEach(function (c) {
+      var t = tarifFree.find(function (x) { return String(x.id) === c.dataset.show; });
+      if (t && roleMatch(f.jabatan.value, t.nama)) c.checked = true;
+    });
+  }
+  f.jabatan.addEventListener('change', syncJabatan);
+  // Harga khusus diisi → otomatis dicentang "Dipakai"
+  khususList.addEventListener('input', function (e) {
+    var inp = e.target.closest('[data-tid]');
+    if (inp && MH.parseRupiah(inp.value) > 0) $('[data-show="' + inp.dataset.tid + '"]', khususList).checked = true;
+  });
 
   function open(k) {
     form.reset();

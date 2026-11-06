@@ -181,7 +181,7 @@ layout_start('Akun Karyawan', 'akun-karyawan');
     </div>
     <div class="field tk" id="st-khusus" hidden>
       <p class="field__label">Tarif orang ini</p>
-      <p class="field__hint">Harga khusus boleh kosong (= pakai tarif umum). Hapus centang "Tampilkan" untuk menyembunyikan tarif dari orang ini.</p>
+      <p class="field__hint">Centang "Dipakai" hanya untuk tarif role orang ini (mis. videografer → VIDEOGRAPHER). Tarif yang tidak dicentang tidak terlihat olehnya di slip gaji. Harga khusus boleh kosong (= pakai tarif umum).</p>
       <div class="tk__list" id="st-khusus-list"></div>
     </div>
     <div class="field">

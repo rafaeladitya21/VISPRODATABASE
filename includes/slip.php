@@ -117,8 +117,10 @@ function periode_shift(string $p, int $months): string
 /* ---------- Database ---------- */
 
 /**
- * Tarif yang BOLEH dipakai satu karyawan: aktif, tipe sama dengan tipe karyawan, tidak disembunyikan untuk
- * orang ini (tarif_khusus.tampil), dan fee efektif > 0 (fee 0 = harga belum diatur Admin). Fee efektif = tarif khusus
+ * Tarif yang BOLEH dipakai satu karyawan: aktif, tipe sama dengan tipe karyawan, dan fee efektif > 0
+ * (fee 0 = harga belum diatur Admin). Freelance: HANYA tarif yang dipilih Admin untuk orang ini (baris
+ * tarif_khusus dengan tampil = 1, mis. videografer → VIDEOGRAPHER saja) — tarif role lain tidak pernah terlihat.
+ * In-house: semua tarif in-house. Fee efektif = tarif khusus
  * orang ini bila ada, selain itu fee umum. Satu-satunya sumber tarif untuk sisi karyawan — tarif tipe
  * lain tidak pernah dikirim ke browser maupun diterima saat menyimpan (lihat api/myslip.php).
  * $id → hanya tarif itu (null bila tidak boleh dipakai).
@@ -126,14 +128,16 @@ function periode_shift(string $p, int $months): string
 function tarif_for_user(array $user, ?int $id = null): array|null
 {
     if (($user['tipe'] ?? 'inhouse') === 'intern') return $id !== null ? null : [];   // anak magang tidak punya tarif
+    $free = ($user['tipe'] ?? 'inhouse') === 'freelance';
     $sql = "SELECT t.id, t.nama, t.satuan, t.fee_per_hari AS fee_umum, tk.fee AS fee_khusus,
                    COALESCE(tk.fee, t.fee_per_hari) AS fee
             FROM tarif_output t
             LEFT JOIN tarif_khusus tk ON tk.tarif_output_id = t.id AND tk.user_id = ?
-            WHERE t.aktif = 1 AND t.tipe = ? AND COALESCE(tk.tampil, 1) = 1
+            WHERE t.aktif = 1 AND t.tipe = ?
+              AND " . ($free ? 'tk.tampil = 1' : 'COALESCE(tk.tampil, 1) = 1') . "
               AND COALESCE(tk.fee, t.fee_per_hari) > 0" . ($id !== null ? ' AND t.id = ?' : '') . '
             ORDER BY t.sort_order, t.id';
-    $args = [(int)$user['id'], ($user['tipe'] ?? 'inhouse') === 'freelance' ? 'freelance' : 'inhouse'];
+    $args = [(int)$user['id'], $free ? 'freelance' : 'inhouse'];
     if ($id !== null) $args[] = $id;
     $st = db()->prepare($sql);
     $st->execute($args);

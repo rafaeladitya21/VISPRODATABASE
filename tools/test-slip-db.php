@@ -148,23 +148,23 @@ try {
     check('Tes 1: harga belum diatur → dropdown Hafidz kosong', tarif_for_user($hafidz), []);
     check('Tes 1: fee 0 juga ditolak saat menyimpan', tarif_for_user($hafidz, $ids['PHOTOGRAPHER']), null);
 
-    // Tes 2: Admin mengisi harga
+    // Tes 2: Admin mengisi harga — belum ada tarif yang dipilih untuk orang ini → tetap kosong
     $pdo->prepare('UPDATE tarif_output SET fee_per_hari = ? WHERE id = ?')->execute([300000, $ids['PHOTOGRAPHER']]);
     $pdo->prepare('UPDATE tarif_output SET fee_per_hari = ? WHERE id = ?')->execute([350000, $ids['VIDEOGRAPHER']]);
-    $l = tarif_for_user($hafidz);
-    check('Tes 2: PHOTOGRAPHER 300.000 & VIDEOGRAPHER 350.000 /hari', array_map(fn($t) => [$t['nama'], $t['fee'], $t['satuan']], $l),
-        [['PHOTOGRAPHER', 300000, 'hari'], ['VIDEOGRAPHER', 350000, 'hari']]);
+    check('Tes 2: tarif belum dipilih Admin → Hafidz tidak melihat apa pun', tarif_for_user($hafidz), []);
 
-    // Tes 3: harga khusus hanya untuk Hafidz
-    $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee) VALUES (?, ?, 400000)')->execute([$fid, $ids['PHOTOGRAPHER']]);
+    // Tes 3: Hafidz = photographer (harga khusus), freelancer lain = videographer (tarif umum)
+    $tk = $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee, tampil) VALUES (?, ?, ?, 1)');
+    $tk->execute([$fid, $ids['PHOTOGRAPHER'], 400000]);
+    $tk->execute([$fid2, $ids['VIDEOGRAPHER'], null]);
     check('Tes 3: Hafidz melihat PHOTOGRAPHER 400.000', tarif_for_user($hafidz, $ids['PHOTOGRAPHER'])['fee'], 400000);
-    check('Tes 3: freelancer lain tetap 300.000', tarif_for_user($lain, $ids['PHOTOGRAPHER'])['fee'], 300000);
+    check('Tes 3: videographer melihat VIDEOGRAPHER 350.000 /hari', array_map(fn($t) => [$t['nama'], $t['fee'], $t['satuan']], tarif_for_user($lain)),
+        [['VIDEOGRAPHER', 350000, 'hari']]);
 
-    // Tes 4: VIDEOGRAPHER disembunyikan untuk Hafidz
-    $pdo->prepare('INSERT INTO tarif_khusus (user_id, tarif_output_id, fee, tampil) VALUES (?, ?, NULL, 0)')->execute([$fid, $ids['VIDEOGRAPHER']]);
+    // Tes 4: role lain tidak terlihat & ditolak saat menyimpan
     check('Tes 4: Hafidz hanya melihat PHOTOGRAPHER', array_column(tarif_for_user($hafidz), 'nama'), ['PHOTOGRAPHER']);
     check('Tes 4: VIDEOGRAPHER ditolak untuk Hafidz', tarif_for_user($hafidz, $ids['VIDEOGRAPHER']), null);
-    check('Tes 4: freelancer lain masih melihat keduanya', array_column(tarif_for_user($lain), 'nama'), ['PHOTOGRAPHER', 'VIDEOGRAPHER']);
+    check('Tes 4: PHOTOGRAPHER ditolak untuk videographer', tarif_for_user($lain, $ids['PHOTOGRAPHER']), null);
 
     // Tes 5: in-house tidak pernah melihat tarif freelance
     check('Tes 5: in-house tidak melihat PHOTOGRAPHER/VIDEOGRAPHER', array_intersect(array_column(tarif_for_user($andhika), 'id'), array_values($ids)), []);
