@@ -63,6 +63,27 @@ function sidebar_menu(string $area): array
     ];
 }
 
+/**
+ * Logo sekolah untuk sidebar intern: diambil dari akun guru pendamping (users.guru_id) — logo yang sama
+ * dengan banner halaman guru (upload Admin, atau logo bawaan sekolah). null = tanpa guru / guru tanpa logo.
+ */
+function sidebar_logo_sekolah(int $internId): ?array
+{
+    require_once __DIR__ . '/guru.php';
+    try {
+        $st = db()->prepare("SELECT g.sekolah, g.logo_sekolah FROM users i
+                             JOIN users g ON g.id = i.guru_id AND g.role = 'karyawan' AND g.tipe = 'guru'
+                             WHERE i.id = ?");
+        $st->execute([$internId]);
+        $g = $st->fetch();
+    } catch (PDOException $e) {
+        error_log('[sidebar] ' . $e->getMessage());
+        return null;
+    }
+    $logo = $g ? logo_sekolah_url($g) : null;
+    return $logo ? ['logo' => $logo, 'nama' => trim((string)$g['sekolah']) ?: 'Logo sekolah'] : null;
+}
+
 function render_sidebar(string $active, array $user): void
 {
     $area = user_area($user);
@@ -75,8 +96,13 @@ function render_sidebar(string $active, array $user): void
     };
     ?>
     <aside class="sidebar" aria-label="Navigasi utama">
-      <a class="sidebar__logo" href="<?= e(home_path($user)) ?>">
+      <?php $sekolah = $area === 'magang' ? sidebar_logo_sekolah((int)$user['id']) : null; ?>
+      <a class="sidebar__logo<?= $sekolah ? ' sidebar__logo--duo' : '' ?>" href="<?= e(home_path($user)) ?>">
         <img src="assets/img/logo.png" alt="Visual Production.id">
+        <?php if ($sekolah): ?>
+        <span class="sidebar__sep" aria-hidden="true"></span>
+        <span class="sidebar__school"><img src="<?= e($sekolah['logo']) ?>" alt="<?= e($sekolah['nama']) ?>"></span>
+        <?php endif; ?>
       </a>
 
       <nav class="sidebar__nav">

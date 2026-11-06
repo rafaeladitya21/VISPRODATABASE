@@ -582,6 +582,11 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
 }
 .sidebar__logo { display: inline-flex; align-self: flex-start; padding: 4px 8px; border-radius: 8px; }
 .sidebar__logo img { display: block; height: 36px; width: auto; }
+/* Intern: logo VP | logo sekolah (dari guru pendamping) dalam lingkaran putih */
+.sidebar__logo--duo { align-items: center; gap: 12px; }
+.sidebar__sep { flex: none; width: 1px; height: 30px; background: rgba(255, 255, 255, .22); }
+.sidebar__school { flex: none; display: grid; place-items: center; width: 40px; height: 40px; background: #FFFFFF; border-radius: 50%; overflow: hidden; }
+.sidebar__logo .sidebar__school img { width: 36px; height: 36px; object-fit: contain; }
 
 .sidebar__nav { flex: 1; }
 .sidebar__label {
@@ -723,6 +728,10 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
     padding: 12px 16px;
   }
   .sidebar__logo img { height: 30px; }
+  .sidebar__logo--duo { gap: 10px; flex: none; }
+  .sidebar__sep { height: 26px; }
+  .sidebar__school { width: 36px; height: 36px; }
+  .sidebar__logo .sidebar__school img { width: 32px; height: 32px; }
   .sidebar__nav { order: 3; flex-basis: 100%; margin: 0 -16px; padding: 0 16px; overflow-x: auto; }
   .sidebar__label { display: none; }
   .sidebar__list { flex-direction: row; }
