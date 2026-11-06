@@ -14,6 +14,24 @@ const INV_CATEGORIES = [
     'Live & Switcher', 'Wireless & Intercom', 'Kabel', 'Drone', 'Lainnya',
 ];
 
+/**
+ * Semua kategori: daftar bawaan + kategori yang sudah dipakai di database (tanpa duplikat,
+ * tidak peka huruf besar/kecil). Kategori baru diletakkan sebelum "Lainnya".
+ */
+function inv_categories(): array
+{
+    $base = array_values(array_diff(INV_CATEGORIES, ['Lainnya']));
+    $seen = array_map('mb_strtolower', INV_CATEGORIES);
+    $extra = [];
+    foreach (db()->query('SELECT DISTINCT category FROM inventory_items ORDER BY category')->fetchAll(PDO::FETCH_COLUMN) as $c) {
+        $c = trim((string)$c);
+        if ($c === '' || in_array(mb_strtolower($c), $seen, true)) continue;
+        $seen[] = mb_strtolower($c);
+        $extra[] = $c;
+    }
+    return [...$base, ...$extra, 'Lainnya'];
+}
+
 /** SELECT item + hitungan dipakai & servis (tambahkan WHERE/ORDER sendiri) */
 const INV_ITEM_SQL = "SELECT i.id, i.name, i.category, i.qty, i.rent_price, i.note, i.last_checked_at,
         i.created_at, i.updated_at,

@@ -87,6 +87,7 @@
   function renderChips() {
     var counts = { 'Semua': state.items.length };
     state.items.forEach(function (it) { counts[it.category] = (counts[it.category] || 0) + 1; });
+    if (!counts[state.cat]) state.cat = 'Semua';   // kategori terpilih jadi 0 alat → kembali ke Semua
     chips.innerHTML = ['Semua'].concat(state.categories.filter(function (c) { return counts[c]; })).map(function (c) {
       var on = c === state.cat;
       return '<button type="button" class="chip' + (on ? ' is-active' : '') + '" data-cat="' + esc(c) + '" aria-pressed="' + on + '">' +
@@ -296,6 +297,7 @@
   }
 
   function openDetail(id, trigger) {
+    closeEdit(false);
     lastFocus = trigger || document.activeElement;
     state.currentId = id;
     state.detail = null;
@@ -314,6 +316,7 @@
 
   function closeDetail(skipFocus) {
     if (drawer.hidden) return;
+    closeEdit(false);
     drawer.classList.remove('is-open');
     document.body.classList.remove('no-scroll');
     var finish = function () { drawer.hidden = true; };
@@ -340,7 +343,107 @@
     if (fk) { var el = ddBody.querySelector('[data-k="' + fk + '"]'); if (el && !el.disabled) el.focus(); else panel.focus(); }
   }
 
-  var LOG_LABEL = { create: 'Ditambahkan', qty: 'Jumlah unit', update: 'Data diubah', checkout: 'Check-out', checkin: 'Check-in',
+  /* =========================================================
+     Edit nama & kategori (header panel, hanya Admin)
+     ========================================================= */
+  var NEW_CAT = '__new__';
+  var editBtn = $('#dd-edit'), editForm = $('#dd-edit-form');
+  var edName = editForm && $('#dd-edit-name'), edCat = editForm && $('#dd-edit-cat'), edNew = editForm && $('#dd-edit-newcat');
+  var edSave = editForm && $('#dd-edit-save');
+
+  function editing() { return !!editForm && !editForm.hidden; }
+  function normSpace(s) { return String(s || '').trim().replace(/\s+/g, ' '); }
+
+  function setEditErr(id, input, msg) {
+    $(id).innerHTML = msg ? MH.errorHtml(msg) : '';
+    if (input) { input.classList.toggle('is-invalid', !!msg); input.setAttribute('aria-invalid', msg ? 'true' : 'false'); }
+  }
+  function clearEditErrs() {
+    setEditErr('#dd-edit-name-err', edName, '');
+    setEditErr('#dd-edit-cat-err', edNew, '');
+    setEditErr('#dd-edit-err', null, '');
+  }
+
+  function openEdit() {
+    var it = state.detail ? state.detail.item : byId(state.currentId);
+    if (!editForm || !it) return;
+    var cats = state.categories.slice();
+    if (cats.indexOf(it.category) === -1) cats.push(it.category);
+    edCat.innerHTML = cats.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('') +
+      '<option value="' + NEW_CAT + '">+ Kategori baru…</option>';
+    edCat.value = it.category;
+    edName.value = it.name;
+    edNew.value = ''; edNew.hidden = true;
+    clearEditErrs();
+    $('#dd-cat').hidden = true; $('#dd-name').hidden = true; editBtn.hidden = true;
+    editForm.hidden = false;
+    edName.focus();
+  }
+
+  function closeEdit(focusBtn) {
+    if (!editing()) return;
+    editForm.hidden = true;
+    $('#dd-cat').hidden = false; $('#dd-name').hidden = false; editBtn.hidden = false;
+    if (focusBtn) editBtn.focus();
+  }
+
+  /** Toast kecil di bawah layar */
+  function toast(msg) {
+    var t = document.createElement('div');
+    t.className = 'inv-toast';
+    t.setAttribute('role', 'status');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function () { t.classList.add('is-in'); });
+    setTimeout(function () { t.classList.remove('is-in'); setTimeout(function () { t.remove(); }, 300); }, 2400);
+  }
+
+  if (editForm) {
+    editBtn.addEventListener('click', openEdit);
+    $('#dd-edit-cancel').addEventListener('click', function () { closeEdit(true); });
+
+    edCat.addEventListener('change', function () {
+      var isNew = edCat.value === NEW_CAT;
+      edNew.hidden = !isNew;
+      setEditErr('#dd-edit-cat-err', edNew, '');
+      if (isNew) edNew.focus();
+    });
+    edName.addEventListener('input', function () { setEditErr('#dd-edit-name-err', edName, ''); });
+    edNew.addEventListener('input', function () { setEditErr('#dd-edit-cat-err', edNew, ''); });
+
+    editForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var it = state.detail ? state.detail.item : null;
+      if (!it || edSave.disabled) return;
+      var name = normSpace(edName.value);
+      var cat = edCat.value === NEW_CAT ? normSpace(edNew.value) : edCat.value;
+      clearEditErrs();
+
+      var key = name.toLowerCase();
+      var nameMsg = !name ? 'Nama alat wajib diisi.'
+        : state.items.some(function (x) { return x.id !== it.id && x.name.toLowerCase() === key; }) ? 'Nama alat sudah dipakai.' : '';
+      var catMsg = !cat ? 'Nama kategori baru wajib diisi.' : '';
+      if (nameMsg) setEditErr('#dd-edit-name-err', edName, nameMsg);
+      if (catMsg) setEditErr('#dd-edit-cat-err', edNew, catMsg);
+      if (nameMsg) { edName.focus(); return; }
+      if (catMsg) { edNew.focus(); return; }
+      if (name === it.name && cat === it.category) { closeEdit(true); return; }
+
+      edSave.disabled = true; edSave.textContent = 'Menyimpan…';
+      MH.api('api/inventory.php', { method: 'PUT', body: { id: it.id, name: name, category: cat } }).then(function (d) {
+        closeEdit(true);
+        if (state.currentId === d.item.id) showDetail(d);
+        toast('Perubahan disimpan');
+        return load();
+      }).catch(function (err) {
+        if (/nama/i.test(err.message)) { setEditErr('#dd-edit-name-err', edName, err.message); edName.focus(); }
+        else if (/kategori/i.test(err.message) && !edNew.hidden) { setEditErr('#dd-edit-cat-err', edNew, err.message); edNew.focus(); }
+        else setEditErr('#dd-edit-err', null, err.message);
+      }).finally(function () { edSave.disabled = false; edSave.textContent = 'Simpan'; });
+    });
+  }
+
+  var LOG_LABEL = { edit: 'Diubah', create: 'Ditambahkan', qty: 'Jumlah unit', update: 'Data diubah', checkout: 'Check-out', checkin: 'Check-in',
                     service: 'Lapor rusak', fixed: 'Selesai servis', check: 'Pengecekan' };
 
   function detailHtml(d) {
@@ -474,7 +577,7 @@
   drawer.addEventListener('click', function (e) { if (e.target.closest('[data-drawer-close]')) closeDetail(); });
   document.addEventListener('keydown', function (e) {
     if (drawer.hidden || document.querySelector('dialog[open]')) return;
-    if (e.key === 'Escape') { closeDetail(); return; }
+    if (e.key === 'Escape') { if (editing()) closeEdit(true); else closeDetail(); return; }
     if (e.key === 'Tab') {   // fokus tetap di dalam panel
       var f = $$('button:not(:disabled), a[href], input:not(:disabled), select, [tabindex]:not([tabindex="-1"])', panel)
         .filter(function (el) { return el.offsetParent !== null; });

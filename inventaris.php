@@ -18,7 +18,10 @@ const I_MINUS = '<path d="M5 12h14"/>';
 const I_PLUS  = '<path d="M12 5v14M5 12h14"/>';
 const I_X     = '<path d="M18 6 6 18M6 6l12 12"/>';
 const I_BOX   = '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M7.8 5.2l8.5 4.6"/>';
+const I_PEN   = '<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>';
 
+$invCats = inv_categories();
+$isAdmin = ($user['role'] ?? '') === 'admin';
 layout_start('Inventaris', 'inventaris');
 ?>
 <header class="page-head fbu">
@@ -117,7 +120,7 @@ layout_start('Inventaris', 'inventaris');
     <div class="field">
       <label class="field__label" for="add-cat">Kategori</label>
       <select class="input" id="add-cat" name="category">
-        <?php foreach (INV_CATEGORIES as $c): ?><option value="<?= e($c) ?>"><?= e($c) ?></option><?php endforeach; ?>
+        <?php foreach ($invCats as $c): ?><option value="<?= e($c) ?>"><?= e($c) ?></option><?php endforeach; ?>
       </select>
     </div>
     <div class="grid2">
@@ -169,12 +172,39 @@ layout_start('Inventaris', 'inventaris');
   <div class="drawer__backdrop" data-drawer-close></div>
   <aside class="drawer__panel inv-drawer" role="dialog" aria-modal="true" aria-labelledby="dd-name" tabindex="-1">
     <header class="drawer__head">
+      <?php if ($isAdmin): ?>
+      <button class="btn-icon drawer__edit" type="button" id="dd-edit" aria-label="Edit nama &amp; kategori"><?= inv_icon(I_PEN) ?></button>
+      <?php endif; ?>
       <button class="btn-icon drawer__close" type="button" data-drawer-close aria-label="Tutup"><?= inv_icon(I_X) ?></button>
       <p class="drawer__meta" id="dd-cat"></p>
       <h2 class="drawer__name" id="dd-name"></h2>
+      <?php if ($isAdmin): ?>
+      <form class="dd-edit" id="dd-edit-form" hidden novalidate autocomplete="off" data-form-type="other">
+        <div class="dd-edit__grid">
+          <div class="dd-edit__field">
+            <label class="dd-edit__label" for="dd-edit-name">Nama alat</label>
+            <input class="input" id="dd-edit-name" maxlength="100" required aria-describedby="dd-edit-name-err"
+                   autocomplete="off" data-lpignore="true" data-form-type="other">
+            <div id="dd-edit-name-err" class="field__msg" aria-live="polite"></div>
+          </div>
+          <div class="dd-edit__field">
+            <label class="dd-edit__label" for="dd-edit-cat">Kategori</label>
+            <select class="input" id="dd-edit-cat"></select>
+            <input class="input" id="dd-edit-newcat" maxlength="50" placeholder="Nama kategori baru" aria-label="Nama kategori baru"
+                   aria-describedby="dd-edit-cat-err" autocomplete="off" data-lpignore="true" data-form-type="other" hidden>
+            <div id="dd-edit-cat-err" class="field__msg" aria-live="polite"></div>
+          </div>
+        </div>
+        <div id="dd-edit-err" class="field__msg" aria-live="polite"></div>
+        <div class="dd-edit__actions">
+          <button class="btn dd-edit__cancel" type="button" id="dd-edit-cancel">Batal</button>
+          <button class="btn dd-edit__save" type="submit" id="dd-edit-save">Simpan</button>
+        </div>
+      </form>
+      <?php endif; ?>
       <div class="drawer__stats" id="dd-stats"></div>
     </header>
     <div class="drawer__body" id="dd-body" aria-live="polite"></div>
   </aside>
 </div>
-<?php layout_end(['inventaris.js'], ['inv_categories' => INV_CATEGORIES]); ?>
+<?php layout_end(['inventaris.js'], ['inv_categories' => $invCats, 'is_admin' => $isAdmin]); ?>

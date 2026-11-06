@@ -68,8 +68,12 @@ function inv_input(array $in, bool $partial): array
         $out['name'] = $name;
     }
     if (!$partial || array_key_exists('category', $in)) {
-        $cat = (string)($in['category'] ?? '');
-        if (!in_array($cat, INV_CATEGORIES, true)) json_error('Kategori tidak valid.', 422);
+        $cat = trim(preg_replace('/\s+/u', ' ', (string)($in['category'] ?? '')));
+        if ($cat === '') json_error('Kategori wajib diisi.', 422);
+        if (mb_strlen($cat) > 50) json_error('Kategori maksimal 50 karakter.', 422);
+        foreach (inv_categories() as $c) {   // ejaan kategori yang sudah ada dipakai ulang
+            if (mb_strtolower($c) === mb_strtolower($cat)) { $cat = $c; break; }
+        }
         $out['category'] = $cat;
     }
     if (!$partial || array_key_exists('qty', $in)) {
@@ -90,7 +94,7 @@ function inv_input(array $in, bool $partial): array
 
 function inv_name_taken(string $name, int $exceptId = 0): bool
 {
-    $st = db()->prepare('SELECT 1 FROM inventory_items WHERE name = ? AND id <> ?'); // collation _ci: tidak peka huruf besar/kecil
+    $st = db()->prepare('SELECT 1 FROM inventory_items WHERE LOWER(name) = LOWER(?) AND id <> ?'); // tidak peka huruf besar/kecil
     $st->execute([$name, $exceptId]);
     return (bool)$st->fetchColumn();
 }
@@ -109,7 +113,7 @@ try {
         $pos = inv_positions();
         foreach ($rows as &$r) $r['positions'] = $pos[$r['id']] ?? [];
         unset($r);
-        json_response(['ok' => true, 'items' => $rows, 'totals' => inv_totals(), 'categories' => INV_CATEGORIES]);
+        json_response(['ok' => true, 'items' => $rows, 'totals' => inv_totals(), 'categories' => inv_categories()]);
     }
 
     /* ---------------- Tambah ---------------- */
@@ -128,11 +132,15 @@ try {
         $in = read_json();
         $id = (int)($in['id'] ?? 0);
         $d = inv_input($in, true);
+        if ((isset($d['name']) || isset($d['category'])) && ($user['role'] ?? '') !== 'admin') {
+            json_error('Hanya Admin yang boleh mengubah nama & kategori alat.', 403);
+        }
+        if (isset($d['name']) && mb_strlen($d['name']) > 100) json_error('Nama alat maksimal 100 karakter.', 422);
         $pdo->beginTransaction();
         $item = inv_get($id, true);
         if (!$item) { $pdo->rollBack(); json_error('Alat tidak ditemukan.', 404); }
 
-        if (isset($d['name']) && inv_name_taken($d['name'], $id)) { $pdo->rollBack(); json_error('Alat dengan nama ini sudah ada.', 422); }
+        if (isset($d['name']) && inv_name_taken($d['name'], $id)) { $pdo->rollBack(); json_error('Nama alat sudah dipakai.', 422); }
         if (isset($d['qty'])) {
             $min = max(1, $item['used'] + $item['broken']);
             if ($d['qty'] < $min) {
@@ -145,10 +153,14 @@ try {
         if ($changes) {
             $set = implode(', ', array_map(fn($k) => "$k = ?", array_keys($changes)));   // kunci dari daftar tetap di inv_input
             $pdo->prepare("UPDATE inventory_items SET $set WHERE id = ?")->execute([...array_values($changes), $id]);
-            $label = ['name' => 'nama', 'category' => 'kategori', 'rent_price' => 'harga sewa', 'note' => 'lokasi simpan'];
-            if (isset($changes['qty'])) inv_log($id, $changes['name'] ?? $item['name'], 'qty', "Jumlah unit {$item['qty']} → {$changes['qty']}", $uid);
-            $other = array_values(array_intersect_key($label, $changes));
-            if ($other) inv_log($id, $changes['name'] ?? $item['name'], 'update', 'Data diubah: ' . implode(', ', $other), $uid);
+            $logName = $changes['name'] ?? $item['name'];
+            if (isset($changes['qty'])) inv_log($id, $logName, 'qty', "Jumlah unit {$item['qty']} → {$changes['qty']}", $uid);
+            $edit = [];
+            if (isset($changes['name']))     $edit[] = "Nama: {$item['name']} → {$changes['name']}";
+            if (isset($changes['category'])) $edit[] = "Kategori: {$item['category']} → {$changes['category']}";
+            if ($edit) inv_log($id, $logName, 'edit', implode(' · ', $edit), $uid);
+            $other = array_values(array_intersect_key(['rent_price' => 'harga sewa', 'note' => 'lokasi simpan'], $changes));
+            if ($other) inv_log($id, $logName, 'update', 'Data diubah: ' . implode(', ', $other), $uid);
         }
         $pdo->commit();
         json_response(inv_detail($id));
