@@ -365,6 +365,22 @@ const MH_MIGRATIONS = [
         WHERE x.j <> '' AND x.n <> '' AND (strpos(x.j, x.n) > 0 OR strpos(x.n, x.j) > 0)
         ON CONFLICT (user_id, tarif_output_id) DO NOTHING;
         SQL,
+
+    // 14 — Banner sekolah di halaman guru: logo & kota sekolah akun guru.
+    //      Hosting (Vercel) tidak punya disk permanen → gambar disimpan di tabel sekolah_logo (base64) dan
+    //      disajikan api/logosekolah.php; users.logo_sekolah = URL gambar itu (NULL = belum ada logo).
+    14 => <<<'SQL'
+        ALTER TABLE users
+          ADD COLUMN logo_sekolah TEXT         NULL,
+          ADD COLUMN kota_sekolah VARCHAR(100) NULL;
+        CREATE TABLE sekolah_logo (
+          user_id    INTEGER      PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          mime       VARCHAR(20)  NOT NULL CHECK (mime IN ('image/png', 'image/jpeg', 'image/webp')),
+          data       TEXT         NOT NULL,   -- base64
+          updated_at TIMESTAMP(0) NOT NULL DEFAULT LOCALTIMESTAMP(0)
+        );
+        ALTER TABLE sekolah_logo ENABLE ROW LEVEL SECURITY;
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

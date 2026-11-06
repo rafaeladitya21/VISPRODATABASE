@@ -2496,3 +2496,35 @@ a.jr-chip:hover { border-color: var(--ink); }
 .ah-more { display: block; width: 100%; min-height: 44px; margin-top: 12px; padding: 10px 16px; font: 600 14px/1.35 var(--font-body); color: var(--ink);
   text-align: center; white-space: normal; background: var(--white); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .ah-more:hover { background: var(--soft); border-color: var(--dash); }
+
+/* ---------- Banner sekolah — halaman guru (guru/siswa.php) ---------- */
+.card.sb-banner { padding: 0; margin-bottom: 24px; overflow: hidden; background: var(--white); border: 1px solid var(--line); border-radius: 16px; box-shadow: none; }
+.sb-banner__top { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; padding: 26px 30px; }
+.sb-banner__logo { flex: none; width: 88px; height: 88px; object-fit: contain; }
+.sb-banner__logo--empty { display: grid; place-items: center; background: var(--soft); border: 1px solid var(--line-2); border-radius: 12px; font: 700 22px/1 var(--font-display); letter-spacing: -0.02em; color: var(--muted); }
+.sb-banner__txt { flex: 1 1 240px; min-width: 0; }
+.sb-banner__label, .sb-banner__kota { margin: 0; font-size: 13px; color: var(--muted); }
+.sb-banner__title { margin: 4px 0; font-family: var(--font-display); font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.sb-banner__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; background: var(--soft); border-top: 1px solid var(--line-2); }
+.sb-banner__stats > div { min-width: 0; padding: 14px 30px; }
+.sb-banner__stats > div + div { border-left: 1px solid var(--line-2); }
+.sb-banner__stats dt { font-size: 12px; color: var(--muted); }
+.sb-banner__stats dd { margin: 2px 0 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .sb-banner__top { gap: 16px; padding: 20px; }
+  .sb-banner__title { font-size: 20px; }
+  .sb-banner__stats { grid-template-columns: minmax(0, 1fr); }
+  .sb-banner__stats > div { padding: 12px 20px; }
+  .sb-banner__stats > div + div { border-left: 0; border-top: 1px solid var(--line-2); }
+}
+
+/* Upload logo sekolah (form guru di Akun Karyawan) */
+.logo-up { display: flex; align-items: center; gap: 14px; }
+.logo-up__preview { flex: none; display: grid; place-items: center; width: 64px; height: 64px; overflow: hidden; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
+.logo-up__preview img { width: 100%; height: 100%; object-fit: contain; }
+.logo-up__preview.is-empty { background: var(--soft); font: 700 16px/1 var(--font-display); color: var(--muted); }
+.logo-up__body { min-width: 0; }
+.logo-up__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.logo-up__actions label.btn { cursor: pointer; }
+.field__hint.is-error { color: var(--red); }
+.logo-up__actions:focus-within label.btn { outline: 2px solid var(--ink); outline-offset: 2px; }

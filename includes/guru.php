@@ -44,12 +44,95 @@ function guru_by_sekolah(?string $sekolah): ?int
 /** Data akun guru (null bila bukan guru) */
 function guru_row(int $id): ?array
 {
-    $st = db()->prepare("SELECT id, name, email, sekolah, whatsapp, aktif, panggilan FROM users WHERE id = ? AND role = 'karyawan' AND tipe = 'guru'");
+    $st = db()->prepare("SELECT id, name, email, sekolah, whatsapp, aktif, panggilan, logo_sekolah, kota_sekolah
+                         FROM users WHERE id = ? AND role = 'karyawan' AND tipe = 'guru'");
     $st->execute([$id]);
     $r = $st->fetch();
     return $r ? ['id' => (int)$r['id'], 'name' => $r['name'], 'email' => $r['email'], 'sekolah' => $r['sekolah'],
+                 'logo_sekolah' => $r['logo_sekolah'], 'kota_sekolah' => $r['kota_sekolah'],
                  'panggilan' => $r['panggilan'], 'sapa' => trim(($r['panggilan'] ?? '') . ' ' . $r['name']),   // "Pak Fauzi"
                  'whatsapp' => $r['whatsapp'], 'wa_url' => wa_url($r['whatsapp']), 'aktif' => (bool)$r['aktif']] : null;
+}
+
+/* ---------- Logo sekolah (banner halaman guru) ---------- */
+
+const LOGO_SEKOLAH_MAX = 1048576;   // 1 MB
+const LOGO_SEKOLAH_MIME = ['image/png', 'image/jpeg', 'image/webp'];
+
+/**
+ * Data URL dari form ("data:image/png;base64,…") → [mime, base64]. Gagal → string pesan error.
+ * Jenis gambar diperiksa dari isi file (bukan dari label data URL).
+ */
+function logo_sekolah_parse(string $dataUrl): array|string
+{
+    if (!preg_match('#^data:image/[a-z+.-]+;base64,([A-Za-z0-9+/=\s]+)$#', $dataUrl, $m)) return 'File logo tidak valid.';
+    $bin = base64_decode(preg_replace('/\s+/', '', $m[1]), true);
+    if ($bin === false || $bin === '') return 'File logo tidak valid.';
+    if (strlen($bin) > LOGO_SEKOLAH_MAX) return 'Ukuran logo maksimal 1 MB.';
+    $info = @getimagesizefromstring($bin);
+    $mime = $info['mime'] ?? '';
+    if (!in_array($mime, LOGO_SEKOLAH_MIME, true)) return 'Logo harus berupa gambar PNG, JPG, atau WebP.';
+    return [$mime, base64_encode($bin)];
+}
+
+/** Simpan / hapus logo sekolah akun guru; $logo null = hapus. users.logo_sekolah = URL gambar (versi = waktu simpan). */
+function logo_sekolah_save(int $userId, ?array $logo): void
+{
+    $pdo = db();
+    if ($logo === null) {
+        $pdo->prepare('DELETE FROM sekolah_logo WHERE user_id = ?')->execute([$userId]);
+        $pdo->prepare('UPDATE users SET logo_sekolah = NULL WHERE id = ?')->execute([$userId]);
+        return;
+    }
+    [$mime, $b64] = $logo;
+    $pdo->prepare('INSERT INTO sekolah_logo (user_id, mime, data) VALUES (?, ?, ?)
+                   ON CONFLICT (user_id) DO UPDATE SET mime = EXCLUDED.mime, data = EXCLUDED.data, updated_at = LOCALTIMESTAMP(0)')
+        ->execute([$userId, $mime, $b64]);
+    $pdo->prepare('UPDATE users SET logo_sekolah = ? WHERE id = ?')
+        ->execute(['api/logosekolah.php?id=' . $userId . '&v=' . substr(md5($b64), 0, 10), $userId]);
+}
+
+/** Inisial sekolah untuk kotak pengganti logo: "SMK Negeri 2 Singosari" → "SN2S" (maks. 4 huruf) */
+function sekolah_inisial(?string $sekolah): string
+{
+    $out = '';
+    foreach (preg_split('/\s+/u', trim((string)$sekolah)) ?: [] as $w) {
+        if ($w !== '' && mb_strlen($out) < 4) $out .= mb_strtoupper(mb_substr($w, 0, 1));
+    }
+    return $out ?: '—';
+}
+
+/** "1 Juli – 31 Desember 2026" / "1 Juli 2026 – 31 Januari 2027" */
+function rentang_tanggal(string $from, string $to): string
+{
+    $f = strtotime($from); $t = strtotime($to);
+    $bulan = fn($ts) => ID_BULAN[(int)date('n', $ts) - 1];
+    $kiri = date('j', $f) . ' ' . $bulan($f) . (date('Y', $f) === date('Y', $t) ? '' : ' ' . date('Y', $f));
+    return $kiri . ' – ' . date('j', $t) . ' ' . $bulan($t) . ' ' . date('Y', $t);
+}
+
+/**
+ * Banner sekolah: periode = mulai paling awal – selesai paling akhir siswa bimbingan,
+ * tahun PKL dari periode itu ("2026" atau "2026/2027"; tanpa siswa → tahun ini).
+ */
+function guru_banner(array $guru, array $siswa, string $today): array
+{
+    $mulai = array_filter(array_column($siswa, 'mulai'));
+    $selesai = array_filter(array_column($siswa, 'selesai'));
+    $from = $mulai ? min($mulai) : null;
+    $to = $selesai ? max($selesai) : null;
+    $y1 = substr($from ?? $today, 0, 4); $y2 = substr($to ?? $today, 0, 4);
+    $sekolah = trim((string)$guru['sekolah']);
+    return [
+        'tahun'   => $y1 === $y2 ? $y1 : "$y1/$y2",
+        'sekolah' => $sekolah !== '' ? $sekolah : 'Sekolah',
+        'kota'    => trim((string)($guru['kota_sekolah'] ?? '')),
+        'logo'    => $guru['logo_sekolah'] ?? null,
+        'inisial' => sekolah_inisial($sekolah),
+        'periode' => $from && $to ? rentang_tanggal($from, $to) : '—',
+        'peserta' => count($siswa),
+        'guru'    => $guru['name'],
+    ];
 }
 
 /** Semua guru (untuk dropdown Admin) */

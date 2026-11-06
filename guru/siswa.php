@@ -28,9 +28,29 @@ $hadir = count(array_filter($ringkas, fn($r) => $r['absen'] && $r['absen']['jam_
 $jurnal = count(array_filter($ringkas, fn($r) => $r['jurnal']));
 $perhatian = count(array_filter($ringkas, fn($r) => $r['perhatian']));
 $sekolah = trim((string)$guru['sekolah']);
+$bn = guru_banner($guru, $siswa, $today);
 
 layout_start('Siswa Magang', 'g-siswa');
 ?>
+<section class="card sb-banner fbu" aria-label="Program Praktik Kerja Lapangan">
+  <div class="sb-banner__top">
+    <?php if ($bn['logo']): ?>
+      <img class="sb-banner__logo" src="<?= e($bn['logo']) ?>" alt="Logo <?= e($bn['sekolah']) ?>" width="88" height="88">
+    <?php else: ?>
+      <span class="sb-banner__logo sb-banner__logo--empty" aria-hidden="true"><?= e($bn['inisial']) ?></span>
+    <?php endif; ?>
+    <div class="sb-banner__txt">
+      <p class="sb-banner__label">Praktik Kerja Lapangan <?= e($bn['tahun']) ?></p>
+      <h2 class="sb-banner__title"><?= e($bn['sekolah']) ?> × Visual Production</h2>
+      <?php if ($bn['kota'] !== ''): ?><p class="sb-banner__kota"><?= e($bn['kota']) ?></p><?php endif; ?>
+    </div>
+  </div>
+  <dl class="sb-banner__stats">
+    <div><dt>Periode</dt><dd><?= e($bn['periode']) ?></dd></div>
+    <div><dt>Peserta</dt><dd><?= $bn['peserta'] ?> siswa</dd></div>
+    <div><dt>Guru Pendamping</dt><dd><?= e($bn['guru']) ?></dd></div>
+  </dl>
+</section>
 <header class="kb-hello g-hello fbu">
   <div>
     <p class="kb-hello__date"><?= e(tgl_id($today)) ?></p>

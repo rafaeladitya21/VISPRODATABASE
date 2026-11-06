@@ -166,6 +166,39 @@
     if (g && !f.guru_id.value) f.guru_id.value = String(g.id);
   });
 
+  /*
+   * Logo sekolah (guru): dibaca di browser sebagai data URL lalu dikirim bersama form (api/staff.php memeriksa
+   * ulang jenis & ukuran). logo.data = gambar baru, logo.del = hapus logo lama, logo.url = logo tersimpan.
+   */
+  var LOGO_MAX = 1048576, LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+  var logo = { url: null, data: null, del: false };
+  var logoInput = $('#st-logo'), logoPrev = $('#st-logo-preview'), logoDel = $('#st-logo-del'), logoHint = $('#st-logo-hint');
+  var LOGO_HINT = logoHint.textContent;
+  function sekolahInisial(s) {
+    return String(s || '').trim().split(/\s+/).filter(Boolean).slice(0, 4).map(function (w) { return w.charAt(0).toUpperCase(); }).join('') || '—';
+  }
+  function renderLogo() {
+    var src = logo.data || (logo.del ? null : logo.url);
+    logoPrev.innerHTML = src ? '<img src="' + esc(src) + '" alt="">' : '<span>' + esc(sekolahInisial(f.sekolah.value)) + '</span>';
+    logoPrev.classList.toggle('is-empty', !src);
+    logoDel.hidden = !src;
+  }
+  logoInput.addEventListener('change', function () {
+    var file = logoInput.files && logoInput.files[0];
+    logoHint.textContent = LOGO_HINT;
+    logoHint.classList.remove('is-error');
+    if (!file) return;
+    var err = LOGO_TYPES.indexOf(file.type) < 0 ? 'Logo harus berupa gambar PNG, JPG, atau WebP.'
+      : file.size > LOGO_MAX ? 'Ukuran logo maksimal 1 MB (file ini ' + (file.size / 1048576).toFixed(1).replace('.', ',') + ' MB).' : '';
+    logoInput.value = '';
+    if (err) { logoHint.textContent = err; logoHint.classList.add('is-error'); return; }
+    var rd = new FileReader();
+    rd.onload = function () { logo.data = String(rd.result); logo.del = false; renderLogo(); };
+    rd.readAsDataURL(file);
+  });
+  logoDel.addEventListener('click', function () { logo.data = null; logo.del = true; renderLogo(); });
+  f.sekolah.addEventListener('input', function () { if (logoPrev.classList.contains('is-empty')) renderLogo(); });
+
   /* Tarif khusus (freelance): satu baris per tarif freelance aktif; kosong = tarif umum */
   function renderKhusus(k) {
     var own = (k && k.tarif_khusus) || {};
@@ -238,6 +271,11 @@
     f.kelas.value = k && k.kelas ? k.kelas : '';
     f.whatsapp.value = k && k.whatsapp ? k.whatsapp : '';
     f.sekolah.value = k && k.tipe === 'guru' && k.sekolah ? k.sekolah : '';
+    f.kota_sekolah.value = k && k.tipe === 'guru' && k.kota_sekolah ? k.kota_sekolah : '';
+    logo = { url: k && k.tipe === 'guru' ? k.logo_sekolah || null : null, data: null, del: false };
+    logoHint.textContent = LOGO_HINT;
+    logoHint.classList.remove('is-error');
+    renderLogo();
     f.sekolah_intern.value = k && k.tipe === 'intern' && k.sekolah ? k.sekolah : '';
     bimb = k && k.tipe === 'guru' ? items.filter(function (x) { return x.tipe === 'intern' && x.guru_id === k.id; }).map(function (x) { return x.id; }) : [];
     bimbPick.hidden = true;
@@ -305,6 +343,9 @@
       data.sekolah = f.sekolah.value;
       data.panggilan = f.panggilan.value;
       data.siswa_ids = bimb;
+      data.kota_sekolah = f.kota_sekolah.value;
+      if (logo.data) data.logo_sekolah = logo.data;
+      else if (logo.del) data.hapus_logo = true;
     }
     save.disabled = true; save.classList.add('is-loading'); formErr.hidden = true;
     MH.api('api/staff.php', { method: id ? 'PUT' : 'POST', body: data })

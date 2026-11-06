@@ -103,6 +103,24 @@ layout_start('Akun Karyawan', 'akun-karyawan');
           <label class="field__label" for="st-sekolah">Asal sekolah</label>
           <input class="input" id="st-sekolah" name="sekolah" maxlength="150" placeholder="mis. SMK Negeri 4 Malang">
         </div>
+        <div class="field">
+          <label class="field__label" for="st-kota">Kota sekolah</label>
+          <input class="input" id="st-kota" name="kota_sekolah" maxlength="100" placeholder="mis. Malang, Jawa Timur">
+        </div>
+      </div>
+      <div class="field">
+        <span class="field__label">Logo sekolah</span>
+        <div class="logo-up">
+          <span class="logo-up__preview" id="st-logo-preview" aria-hidden="true"></span>
+          <div class="logo-up__body">
+            <div class="logo-up__actions">
+              <label class="btn btn--secondary" for="st-logo">Pilih gambar</label>
+              <input class="sr-only" id="st-logo" type="file" accept="image/png,image/jpeg,image/webp">
+              <button type="button" class="btn btn--secondary" id="st-logo-del" hidden>Hapus logo</button>
+            </div>
+            <p class="field__hint" id="st-logo-hint">PNG, JPG, atau WebP, maks. 1 MB. Tampil di banner halaman guru.</p>
+          </div>
+        </div>
       </div>
       <p class="field__hint">Guru hanya melihat absen &amp; jurnal siswa yang ditautkan ke akunnya, dan bisa memberi catatan jurnal.</p>
       <div class="field g-bimb">
