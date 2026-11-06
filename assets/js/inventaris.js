@@ -1,6 +1,6 @@
 /* =========================================================
    Halaman Inventaris — kartu ringkasan (filter), tabel alat,
-   tambah, hapus, panel detail (jumlah, check-out/in, servis, riwayat).
+   tambah, hapus, panel detail (jumlah, check-in, servis, riwayat).
    Data: api/inventory.php (semua perubahan membawa token CSRF via MH.api).
    ========================================================= */
 (function () {
@@ -22,7 +22,6 @@
   var I = {
     trash: icon('trash'), chev: icon('chev'), plus: icon('plus'),
     minus: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>',
-    out: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
     in: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5M15 16l4-4-4-4M19 12H9"/></svg>',
     wrench: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L4 17l3 3 5.2-5.2a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.3-.7-.7-2.3z"/></svg>',
     check: icon('check'), warn: icon('warn')
@@ -338,13 +337,7 @@
     renderHead(d.item);
     ddBody.innerHTML = detailHtml(d);
     $$('.stepper__input', ddBody).forEach(syncStepper);
-    syncCheckoutLabel();
     if (fk) { var el = ddBody.querySelector('[data-k="' + fk + '"]'); if (el && !el.disabled) el.focus(); else panel.focus(); }
-  }
-
-  function invoiceLabel(t) {
-    return t.invoice_no + ' · ' + (t.event_name || 'Event belum diberi nama') +
-      ' — ' + (t.customer_name || 'tanpa customer') + ' · ' + (t.event_date ? MH.date(t.event_date) : 'tanggal belum diisi');
   }
 
   var LOG_LABEL = { create: 'Ditambahkan', qty: 'Jumlah unit', update: 'Data diubah', checkout: 'Check-out', checkin: 'Check-in',
@@ -363,32 +356,10 @@
       '<p class="field__hint" id="dd-qty-hint">' + (min > 1 ? 'Minimal ' + min + ' (dipakai ' + it.used + ' + servis/rusak ' + it.broken + ').' : 'Minimal 1 unit.') + '</p>' +
     '</section>';
 
-    var out;
-    if (!it.available) {
-      out = '<p class="dd-note">Tidak ada unit tersedia untuk di-check-out.</p>';
-    } else if (!d.invoices.length) {
-      out = '<p class="dd-note">Belum ada invoice berstatus Draft / Confirmed. <a href="transaksi.php?new=1">Buat transaksi</a></p>';
-    } else {
-      out = '<div class="field"><label class="field__label" for="dd-inv">Invoice tujuan</label>' +
-        '<select class="input" id="dd-inv" data-k="inv"><option value="">Pilih invoice…</option>' +
-        d.invoices.map(function (t) { return '<option value="' + esc(t.invoice_no) + '">' + esc(invoiceLabel(t)) + '</option>'; }).join('') +
-        '</select></div>' +
-        '<div class="dd-row">' +
-          '<div class="field"><label class="field__label" for="dd-out-qty">Jumlah dibawa</label>' +
-            '<div class="stepper">' +
-              '<button class="stepper__btn" type="button" data-step="-1" aria-label="Kurangi jumlah dibawa">' + I.minus + '</button>' +
-              '<input class="input stepper__input num" id="dd-out-qty" data-k="out-qty" type="number" inputmode="numeric" min="1" max="' + it.available + '" value="1">' +
-              '<button class="stepper__btn" type="button" data-step="1" aria-label="Tambah jumlah dibawa">' + I.plus + '</button>' +
-            '</div><p class="field__hint">Maks. ' + it.available + ' unit tersedia</p></div>' +
-          '<button class="btn btn--primary dd-row__btn" type="button" data-act="checkout" data-k="checkout">' +
-            '<span class="spinner btn__spinner" aria-hidden="true"></span>' + I.out + '<span id="dd-out-label">Check-out 1 unit</span></button>' +
-        '</div>' +
-        '<div id="dd-out-err"></div>';
-    }
-    out = '<section class="dd-sec"><h3 class="dd-sec__title">Check-out ke event</h3>' + out + '</section>';
-
-    var using = '<section class="dd-sec"><h3 class="dd-sec__title">Sedang dipakai <span class="dd-sec__count num">' + it.used + ' unit</span></h3>' +
-      (d.checkouts.length ? '<ul class="dd-list">' + d.checkouts.map(function (c) {
+    // Check-out ke event dihapus. "Sedang dipakai" & "servis / rusak" hanya tampil bila ada unitnya
+    // (supaya unit yang terlanjur keluar / rusak tetap bisa di-check-in / ditandai selesai).
+    var using = !d.checkouts.length ? '' : '<section class="dd-sec"><h3 class="dd-sec__title">Sedang dipakai <span class="dd-sec__count num">' + it.used + ' unit</span></h3>' +
+      '<ul class="dd-list">' + d.checkouts.map(function (c) {
         return '<li class="dd-co">' +
           '<div class="dd-co__main"><strong>' + esc(c.event_name || 'Event belum diberi nama') + '</strong>' +
             '<span class="num">' + esc(c.invoice_no) + ' · ' + c.qty + ' unit · keluar ' + esc(dateTime(c.checked_out_at)) + '</span></div>' +
@@ -396,17 +367,15 @@
             '<button class="btn btn--secondary" type="button" data-act="checkin" data-cond="baik" data-id="' + c.id + '" data-k="in-ok-' + c.id + '">' + I.check + 'Check-in · kondisi baik</button>' +
             '<button class="btn btn--secondary" type="button" data-act="checkin" data-cond="servis" data-id="' + c.id + '" data-k="in-sv-' + c.id + '">' + I.wrench + 'Check-in · perlu servis (1)</button>' +
           '</div></li>';
-      }).join('') + '</ul>' : '<p class="dd-note">Tidak ada unit yang sedang dipakai.</p>') +
+      }).join('') + '</ul>' +
     '</section>';
 
-    var svc = '<section class="dd-sec"><div class="dd-svc">' +
+    var svc = !(it.broken || d.service.length) ? '' : '<section class="dd-sec"><div class="dd-svc">' +
       '<div class="dd-svc__head"><strong class="num">' + it.broken + ' unit</strong> di servis / rusak</div>' +
       (d.service.length ? '<ul class="dd-svc__list">' + d.service.map(function (s) {
         return '<li>' + (s.qty > 1 ? s.qty + ' unit · ' : '') + esc(s.reason || 'Tanpa keterangan') + ' <span class="muted">· sejak ' + esc(MH.date(s.sent_at)) + '</span></li>';
       }).join('') + '</ul>' : '') +
-      (it.broken
-        ? '<button class="btn btn--secondary" type="button" data-act="fixed" data-k="fixed">' + I.check + '1 unit selesai diperbaiki</button>'
-        : '<p class="dd-note">Semua unit dalam kondisi baik.</p>') +
+      (it.broken ? '<button class="btn btn--secondary" type="button" data-act="fixed" data-k="fixed">' + I.check + '1 unit selesai diperbaiki</button>' : '') +
     '</div></section>';
 
     var info = '<section class="dd-sec"><h3 class="dd-sec__title">Detail</h3>' +
@@ -436,12 +405,7 @@
 
     var del = '<div class="dd-foot"><button class="btn btn--danger-ghost" type="button" data-act="delete" data-k="delete">' + I.trash + 'Hapus alat ini</button></div>';
 
-    return qty + out + using + svc + info + logs + del;
-  }
-
-  function syncCheckoutLabel() {
-    var n = $('#dd-out-qty', ddBody), lbl = $('#dd-out-label', ddBody);
-    if (n && lbl) lbl.textContent = 'Check-out ' + (parseInt(n.value, 10) || 1) + ' unit';
+    return qty + using + svc + info + logs + del;
   }
 
   /** Jalankan aksi API lalu render ulang detail + daftar */
@@ -476,7 +440,6 @@
 
   ddBody.addEventListener('input', function (e) {
     if (e.target.id === 'dd-qty') { $('#dd-qty-status', ddBody).textContent = ''; qtySave(); }
-    if (e.target.id === 'dd-out-qty') syncCheckoutLabel();
   });
   ddBody.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter') return;
@@ -489,13 +452,6 @@
     if (!b || !state.detail) return;
     var it = state.detail.item, A = 'api/inventory.php?action=';
     switch (b.dataset.act) {
-      case 'checkout': {
-        var inv = $('#dd-inv', ddBody).value;
-        var qty = clampInput($('#dd-out-qty', ddBody));
-        if (!inv) { $('#dd-out-err', ddBody).innerHTML = MH.errorHtml('Pilih invoice tujuan.'); $('#dd-inv', ddBody).focus(); return; }
-        act(b, A + 'checkout', { method: 'POST', body: { item_id: it.id, invoice_no: inv, qty: qty } }, '#dd-out-err').catch(function () {});
-        break;
-      }
       case 'checkin':
         act(b, A + 'checkin', { method: 'POST', body: { checkout_id: Number(b.dataset.id), condition: b.dataset.cond } }).catch(function () {});
         break;
