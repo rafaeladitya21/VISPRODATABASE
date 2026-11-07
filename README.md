@@ -163,7 +163,7 @@ Total sewa        = Harga sewa × Qty × Day
   (termasuk Sabtu/Minggu) → `absensi.*_tx_id`, tampil "Di lokasi event {nama event} · {jarak}". Tanpa titik event →
   aturan kantor; salah absen dikoreksi Admin (alasan wajib + log).
 - **Absen** (`api/absen.php`): hanya `{aksi:'masuk'|'pulang', lat, lng, akurasi}`; jam = jam server database (Asia/Jakarta),
-  jam dari browser ditolak 403. Sekali masuk & sekali pulang per hari, hanya hari kerja (Sen–Jum) dalam periode
+  jam dari browser ditolak 403. Sekali masuk & sekali pulang per hari, hanya hari kerja (setiap hari kecuali Rabu) dalam periode
   magang. Terlambat = jam:menit lewat jam masuk; pulang awal = sebelum jam pulang. IP & user-agent disimpan.
   Hari kerja lewat tanpa catatan = Alpa, tapi hanya mulai `pengaturan.alpa_mulai` (sebelumnya "Tidak dihitung");
   tombol "Reset Alpa ke 0" di Absensi menggeser tanggal itu ke hari ini (alasan wajib, tercatat di log). Koreksi/tandai Izin–Sakit–Alpa/hapus hanya Admin (Absensi), alasan wajib,

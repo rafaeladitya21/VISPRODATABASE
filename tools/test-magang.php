@@ -32,12 +32,13 @@ check('Masuk 08.00.59 → Tepat waktu (per menit)', absen_status_masuk('08:00:59
 check('Koreksi 07.58 → Tepat waktu', absen_status_masuk('07:58', '08:00'), 'tepat');
 check('Pulang 15.59 (jam 16.00) → Pulang awal', absen_status_pulang('15:59:30', '16:00'), 'awal');
 check('Pulang 16.00 → Sesuai jam', absen_status_pulang('16:00:00', '16:00'), 'sesuai');
-check('Sabtu bukan hari kerja', is_workday('2026-11-07'), false);
+check('Sabtu hari kerja', is_workday('2026-11-07'), true);
+check('Rabu bukan hari kerja', is_workday('2026-11-11'), false);
 check('Kamis hari kerja', is_workday('2026-11-05'), true);
-check('Hari kerja 2–8 Nov 2026', workdays('2026-11-02', '2026-11-08'), ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06']);
+check('Hari kerja 9–15 Nov 2026 (tanpa Rabu)', workdays('2026-11-09', '2026-11-15'), ['2026-11-09', '2026-11-10', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15']);
 $sal = ['id' => 0, 'mulai' => '2026-07-01', 'selesai' => '2026-12-31', 'jam_masuk' => '08:00', 'jam_pulang' => '16:00'];
 check('Di luar periode → absen ditolak', absen_blocked($sal, '2027-01-04'), 'Periode magang sudah berakhir.');
-check('Akhir pekan → absen ditolak', absen_blocked($sal, '2026-11-07'), 'Hari ini bukan hari kerja.');
+check('Rabu → absen ditolak', absen_blocked($sal, '2026-11-11'), 'Hari ini bukan hari kerja.');
 check('Hari kerja dalam periode → boleh', absen_blocked($sal, '2026-11-05'), null);
 
 echo "\nPerjalanan magang (1 Jul–31 Des 2026)\n";

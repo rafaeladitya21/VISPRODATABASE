@@ -5,7 +5,7 @@
  * ABSEN (aturan di server — browser tidak pernah mengirim jam):
  *   - Jam diambil dari jam server database (Asia/Jakarta, LOCALTIME).
  *   - Intern hanya bisa: absen masuk (sekali per hari) dan absen pulang (sekali, sesudah masuk),
- *     pada hari kerja (Senin–Jumat) di dalam periode magang. Tidak bisa mengubah / menghapus.
+ *     pada hari kerja (setiap hari kecuali Rabu) di dalam periode magang. Tidak bisa mengubah / menghapus.
  *   - Masuk  : "Tepat waktu" bila jam:menit ≤ jam masuk, selain itu "Terlambat".
  *   - Pulang : "Pulang awal" bila jam:menit < jam pulang, selain itu "Sesuai jam".
  *   - status_hari: hadir / terlambat (dari jam masuk), atau izin / sakit / alpa (ditandai Admin).
@@ -47,14 +47,22 @@ function absen_status_pulang(string $time, string $jamPulang): string
     return substr($time, 0, 5) < substr($jamPulang, 0, 5) ? 'awal' : 'sesuai';
 }
 
-function is_workday(string $ymd): bool { return (int)date('N', strtotime($ymd)) <= 5; }
+/** Mulai tanggal ini hari kerja = setiap hari kecuali Rabu; sebelumnya Sen–Jum (agar Sabtu/Minggu lama tidak jadi Alpa). */
+const LIBUR_RABU_MULAI = '2026-11-07';
 
-/** Hari kerja (Sen–Jum) dari $from s.d. $to, urut naik */
+/** Hari kerja magang: libur hanya hari Rabu (sebelum LIBUR_RABU_MULAI: Sen–Jum). */
+function is_workday(string $ymd): bool
+{
+    $n = (int)date('N', strtotime($ymd));
+    return $ymd >= LIBUR_RABU_MULAI ? $n !== 3 : $n <= 5;
+}
+
+/** Hari kerja (setiap hari kecuali Rabu) dari $from s.d. $to, urut naik */
 function workdays(string $from, string $to): array
 {
     $out = [];
     for ($t = strtotime($from), $end = strtotime($to); $t <= $end; $t = strtotime('+1 day', $t)) {
-        if ((int)date('N', $t) <= 5) $out[] = date('Y-m-d', $t);
+        if (is_workday(date('Y-m-d', $t))) $out[] = date('Y-m-d', $t);
     }
     return $out;
 }
@@ -237,7 +245,7 @@ function absen_mulai_hitung(array $intern): string
 }
 
 /**
- * Baris absen per HARI KERJA (Sen–Jum) dari absen_mulai_hitung() ∩ [$from, $to], s.d. hari ini (tidak ada hari depan).
+ * Baris absen per HARI KERJA (kecuali Rabu) dari absen_mulai_hitung() ∩ [$from, $to], s.d. hari ini (tidak ada hari depan).
  * Hari lewat tanpa catatan → Alpa; hari ini tanpa catatan → 'belum' (Belum absen).
  * Hari lewat tanpa catatan sebelum alpa_mulai() ("Reset Alpa") tidak ditampilkan sama sekali.
  * Catatan di Sabtu/Minggu (job event) tetap tampil. Urut terbaru di atas. $alpaMulai = null → dari pengaturan.
@@ -487,11 +495,11 @@ function jurnal_dates(int $userId, string $from, string $to): array
     return array_fill_keys($st->fetchAll(PDO::FETCH_COLUMN), true);
 }
 
-/** Penanda minggu ini (Sen–Jum): today | done | missed | future | off (di luar periode) */
+/** Penanda minggu ini (hari kerja Sen–Min, tanpa Rabu): today | done | missed | future | off (di luar periode) */
 function jurnal_week(array $intern, string $today): array
 {
     $mon = date('Y-m-d', strtotime('monday this week', strtotime($today)));
-    $fri = date('Y-m-d', strtotime('+4 days', strtotime($mon)));
+    $fri = date('Y-m-d', strtotime('+6 days', strtotime($mon)));   // s.d. Minggu
     $have = jurnal_dates($intern['id'], $mon, $fri);
     $out = [];
     foreach (workdays($mon, $fri) as $d) {
