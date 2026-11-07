@@ -78,7 +78,7 @@ layout_start('Jurnal & Tugas', 'm-jurnal');
           <p class="card__sub">Minimal 1 kegiatan. Masih bisa diubah sampai pukul 23.59.</p>
           <div class="jr-form__btns">
             <button class="btn btn--secondary" type="button" id="jr-cancel" hidden>Batal</button>
-            <button class="btn btn--primary" type="submit" id="jr-save" disabled>
+            <button class="btn btn--primary" type="submit" id="jr-save">
               <span class="spinner btn__spinner" aria-hidden="true"></span><span>Kumpulkan jurnal</span>
             </button>
           </div>
