@@ -103,15 +103,14 @@
       b.setAttribute('aria-checked', on ? 'true' : 'false');
     });
   }
-  // Tombol hanya dimatikan saat menyimpan; syarat yang kurang dijelaskan lewat pesan saat diklik
-  function sync() { el.save.disabled = st.busy; }
+  function sync() { el.save.disabled = st.busy || !st.kegiatan.length || !st.ket; }
 
   function addKegiatan() {
     var v = el.kegIn.value.replace(/\s+/g, ' ').trim();
     if (!v) return;
     if (st.kegiatan.length >= 30) { showErr(el.formErr, 'Maksimal 30 kegiatan.'); return; }
     st.kegiatan.push(v);
-    el.kegIn.value = ''; el.formErr.hidden = true;
+    el.kegIn.value = '';
     drawKegiatan(); sync();
     el.kegIn.focus();
   }
@@ -139,7 +138,7 @@
 
   el.ket.addEventListener('click', function (e) {
     var b = e.target.closest('[data-ket]');
-    if (b) { st.ket = b.dataset.ket; el.formErr.hidden = true; drawKet(); sync(); }
+    if (b) { st.ket = b.dataset.ket; drawKet(); sync(); }
   });
 
   el.edit.addEventListener('click', function () { st.editing = true; render(st.data); el.kegIn.focus(); });
@@ -150,8 +149,7 @@
     // Kegiatan yang masih diketik ikut dimasukkan
     if (el.kegIn.value.trim()) addKegiatan();
     if (el.linkIn.value.trim()) { addLink(); if (!el.formErr.hidden) return; }
-    if (!st.kegiatan.length) { showErr(el.formErr, 'Isi minimal 1 kegiatan dulu (ketik lalu tekan Tambah).'); el.kegIn.focus(); return; }
-    if (!st.ket) { showErr(el.formErr, 'Pilih keterangan: Selesai, Masih proses, atau Ada kendala.'); $('[data-ket]', el.ket).focus(); return; }
+    if (!st.kegiatan.length || !st.ket) return;
     st.busy = true; sync(); el.save.classList.add('is-loading'); el.formErr.hidden = true;
     MH.api('api/jurnal.php', { method: 'POST', body: { kegiatan: st.kegiatan, keterangan: st.ket, cerita: el.cerita.value, links: st.links } })
       .then(function (d) { st.editing = false; render(d); window.scrollTo({ top: 0, behavior: 'smooth' }); })
