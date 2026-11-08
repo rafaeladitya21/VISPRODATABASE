@@ -2884,3 +2884,35 @@ html:has(.modal.mform[open]) { overflow: hidden; }   /* halaman belakang tidak i
 .lk-lock { display: inline-grid; place-items: center; width: 44px; height: 44px; color: var(--placeholder); }
 .lk-lock .icon { width: 16px; height: 16px; }
 .lk-hint { margin-top: 14px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); background: var(--soft); border: 1px solid var(--line-2); border-radius: 10px; }
+
+/* Laporan: Biaya Tetap Bulanan */
+.lk-bt { margin-bottom: 20px; }
+.lk-bt .card__head { flex-wrap: wrap; align-items: flex-start; }
+.lk-bt .card__sub { margin-top: 4px; }
+.lk-bt-form { margin-bottom: 16px; padding: 16px; background: var(--soft); border: 1px solid var(--line-2); border-radius: 12px; }
+.lk-bt-form .input { background-color: var(--white); }
+.lk-bt-form .input:disabled { color: var(--muted); background-color: var(--soft); cursor: not-allowed; }
+.lk-bt-form__grid { display: grid; grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)); gap: 14px; }
+#bt-error:not(:empty) { margin-top: 14px; }
+.lk-bt-form .lk-form__foot { margin-top: 14px; }
+.lk-bt-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.lk-bt-item { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 0; border-top: 1px solid var(--line-2); }
+.lk-bt-item:first-child { border-top: 0; }
+.lk-bt-item__main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.lk-bt-item__main strong { font-weight: 600; }
+.lk-bt-item__main small { font-size: 12px; color: var(--muted); }
+.lk-bt-item__main .lk-bt-item__ask { color: var(--ink); font-weight: 500; }
+.lk-bt-item__amt { white-space: nowrap; font-weight: 600; }
+.lk-bt-item__amt small { font-weight: 500; color: var(--muted); }
+.lk-bt-empty { padding: 8px 0 4px; font-size: 13px; color: var(--muted); }
+.lk-linkbtn { padding: 0; color: inherit; background: none; border: 0; cursor: pointer; }
+@media (max-width: 1100px) {
+  .lk-bt-form__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lk-bt-form__name { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .lk-bt-form__grid { grid-template-columns: minmax(0, 1fr); }
+  .lk-bt-item { flex-wrap: wrap; }
+  .lk-bt-item__main { flex-basis: 100%; }
+  .lk-bt-item__amt { flex: 1; }
+}

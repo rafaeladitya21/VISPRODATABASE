@@ -70,6 +70,9 @@ dibaca lewat view `kas_laporan` (catatan yang belum dihapus + nama pencatat/peng
   → bagian transaksi di Saldo Kas = Net Profit (sama dengan Ringkasan).
   Baris ini hanya-baca di Laporan (ubah lewat Transaksi) dan tidak dihitung di "Nota Terlampir".
   Catatan manual dipakai untuk uang yang tidak lewat Transaksi (kantor, konsumsi, dll).
+- **Biaya tetap bulanan** (tabel `biaya_tetap`, migrasi 18): diatur di kartu "Biaya Tetap Bulanan"; otomatis jadi
+  satu pengeluaran per bulan dari bulan mulai s/d bulan berjalan. Ubah nominal = berlaku mulai bulan ini
+  (bulan lalu tidak berubah); Hentikan = berhenti setelah bulan ini.
 - Hapus = soft delete (`dihapus_at`). `DELETE` permanen ditolak trigger `kas_no_delete`.
 - Tombol **Folder Nota**: isi `DRIVE_FOLDER_URL` di `.env` (lokal) / Environment Variables Vercel. Kosong = disembunyikan.
 - Halaman mengecek perubahan tiap 15 detik (dan saat tab dibuka lagi), jadi catatan admin lain ikut muncul.

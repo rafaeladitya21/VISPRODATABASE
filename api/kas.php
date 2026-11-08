@@ -42,7 +42,8 @@ try {
                      ->fetchAll(PDO::FETCH_COLUMN);
 
         json_response(['ok' => true, 'tahun' => $tahun, 'items' => $items, 'saldo_awal' => $saldoAwal,
-                       'tahun_list' => array_map('intval', $years), 'stamp' => $stamp]);
+                       'tahun_list' => array_map('intval', $years), 'stamp' => $stamp,
+                       'biaya_tetap' => bt_list()]);
     }
 
     if ($method === 'POST') {

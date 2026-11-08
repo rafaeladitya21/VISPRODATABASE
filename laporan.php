@@ -150,6 +150,62 @@ layout_start('Laporan Keuangan', 'laporan');
     </section>
   </div>
 
+  <!-- BiayaTetap: otomatis jadi pengeluaran tiap bulan -->
+  <section class="card lk-bt fbu" id="lk-bt" aria-labelledby="lk-bt-title">
+    <div class="card__head">
+      <div>
+        <h2 class="card__title" id="lk-bt-title">Biaya Tetap Bulanan</h2>
+        <p class="card__sub" id="lk-bt-sub">Otomatis tercatat sebagai pengeluaran setiap bulan</p>
+      </div>
+      <button class="btn btn--secondary" type="button" id="lk-bt-add">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        Tambah biaya tetap
+      </button>
+    </div>
+
+    <form class="lk-bt-form" id="lk-bt-form" novalidate autocomplete="off" data-form-type="other" hidden>
+      <div class="lk-bt-form__grid">
+        <div class="field lk-bt-form__name">
+          <label class="field__label" for="bt-nama">Nama biaya</label>
+          <input class="input" id="bt-nama" maxlength="120" placeholder="Mis. Sewa kantor, Internet, Listrik" data-lpignore="true">
+        </div>
+        <div class="field">
+          <label class="field__label" for="bt-kategori">Kategori</label>
+          <select class="input" id="bt-kategori"></select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="bt-nominal">Nominal per bulan</label>
+          <div class="lk-prefix">
+            <span aria-hidden="true">Rp</span>
+            <input class="input input--money" id="bt-nominal" placeholder="0" maxlength="19" data-lpignore="true">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field__label" for="bt-tanggal">Tanggal tiap bulan</label>
+          <input class="input" id="bt-tanggal" type="number" inputmode="numeric" min="1" max="28" value="1">
+        </div>
+        <div class="field">
+          <label class="field__label" for="bt-mulai">Mulai bulan</label>
+          <input class="input" id="bt-mulai" type="month" min="2000-01" max="2100-12">
+        </div>
+      </div>
+      <p class="lk-hint" id="bt-note" hidden>Perubahan berlaku mulai bulan ini — angka bulan-bulan sebelumnya tidak berubah.</p>
+      <div id="bt-error"></div>
+      <div class="lk-form__foot">
+        <span></span>
+        <div class="lk-form__actions">
+          <button class="btn btn--secondary" type="button" id="bt-batal">Batal</button>
+          <button class="btn btn--primary" type="submit" id="bt-simpan">
+            <span class="spinner btn__spinner" aria-hidden="true"></span>
+            <span>Simpan</span>
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <ul class="lk-bt-list" id="lk-bt-list"></ul>
+  </section>
+
   <!-- TabelBukuKas -->
   <section class="card card--flush fbu" aria-labelledby="lk-tbl-title">
     <div class="lk-tbl-head">

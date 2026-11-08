@@ -21,7 +21,9 @@ const KAS_COLS = 'id, tanggal, jenis, kategori, nominal, keterangan, no_invoice,
  * Jadi bagian transaksi di saldo kas = revenue − operasional = Net Profit (sama dengan Ringkasan, termasuk Draft).
  * Bertanggal tanggal event; tanpa tanggal event → tanggal dibuat (sama dengan pengelompokan bulan di Ringkasan).
  * Baris otomatis tidak disimpan di tabel kas — diubah lewat halaman Transaksi.
- * Kolom: id (teks), sumber ('manual'|'transaksi'), tanggal, jenis, kategori, nominal, keterangan,
+ * + Biaya tetap: satu pengeluaran per bulan dari biaya_tetap.mulai s/d selesai (maks. bulan berjalan),
+ *   pada tanggal biaya_tetap.tanggal. Bulan depan baru muncul saat bulannya tiba.
+ * Kolom: id (teks), sumber ('manual'|'transaksi'|'tetap'), tanggal, jenis, kategori, nominal, keterangan,
  *        no_invoice, link_nota, dicatat_nama, dicatat_at, diubah_nama, diubah_at
  */
 const KAS_SEMUA_SQL = "(
@@ -43,6 +45,15 @@ const KAS_SEMUA_SQL = "(
            ('ln', 'keluar', 'Lain-lain', t.total_operational - t.total_transport - t.total_crew - t.total_equipment)
          ) AS x(k, jenis, kategori, nominal)
      WHERE t.status <> 'Batal' AND x.nominal > 0
+    UNION ALL
+    SELECT 'bt-' || b.id || '-' || to_char(m, 'YYYYMM'), 'tetap', (m::date + (b.tanggal - 1)), 'keluar', b.kategori::text,
+           b.nominal, b.nama::text, NULL, NULL,
+           u.name::text, b.dibuat_at, NULL, NULL
+      FROM biaya_tetap b
+      LEFT JOIN users u ON u.id = b.dibuat_oleh
+     CROSS JOIN LATERAL generate_series(b.mulai::timestamp,
+           LEAST(COALESCE(b.selesai, date_trunc('month', CURRENT_DATE)::date), date_trunc('month', CURRENT_DATE)::date)::timestamp,
+           interval '1 month') AS m
 ) AS ks";
 
 /** Link folder Drive untuk tombol "Folder Nota" ('' = tombol disembunyikan) */
@@ -96,9 +107,9 @@ function kas_input(array $in): array
 /** Baris view → JSON (nominal int, waktu "YYYY-MM-DD HH:MM:SS") */
 function kas_row(array $r): array
 {
-    $auto = ($r['sumber'] ?? 'manual') === 'transaksi';
+    $sumber = in_array($r['sumber'] ?? '', ['transaksi', 'tetap'], true) ? $r['sumber'] : 'manual';
     return [
-        'id' => $auto ? (string)$r['id'] : (int)$r['id'], 'sumber' => $auto ? 'transaksi' : 'manual', 'tanggal' => (string)$r['tanggal'], 'jenis' => (string)$r['jenis'],
+        'id' => $sumber !== 'manual' ? (string)$r['id'] : (int)$r['id'], 'sumber' => $sumber, 'tanggal' => (string)$r['tanggal'], 'jenis' => (string)$r['jenis'],
         'kategori' => (string)$r['kategori'], 'nominal' => (int)$r['nominal'],
         'keterangan' => (string)$r['keterangan'], 'no_invoice' => $r['no_invoice'], 'link_nota' => $r['link_nota'],
         'dicatat_nama' => $r['dicatat_nama'], 'dicatat_at' => (string)$r['dicatat_at'],
@@ -137,7 +148,9 @@ function kas_stamp(): string
     // Transaksi ikut dihitung karena baris otomatis buku kas berasal dari sana.
     return (string)db()->query("SELECT md5(
             (SELECT COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '') FROM kas) || '|' ||
-            (SELECT COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '') FROM transactions))")->fetchColumn();
+            (SELECT COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '') FROM transactions) || '|' ||
+            (SELECT COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '') FROM biaya_tetap) || '|' ||
+            to_char(CURRENT_DATE, 'YYYYMM'))")->fetchColumn();   // ganti bulan → baris biaya tetap baru
 }
 
 /**
@@ -156,4 +169,44 @@ function kas_ringkasan(): array
                 AND EXTRACT(YEAR FROM tanggal) = EXTRACT(YEAR FROM CURRENT_DATE)) AS tanpa_nota
         FROM " . KAS_SEMUA_SQL)->fetch();
     return array_map('intval', $r);
+}
+
+/* ---------------- Biaya tetap bulanan ---------------- */
+
+/** Tanggal 1 bulan berjalan, 'YYYY-MM-01' */
+function bt_bulan_ini(): string { return date('Y-m-01'); }
+
+/** Biaya tetap yang masih berjalan atau baru akan mulai (selesai kosong / >= bulan ini) */
+function bt_list(): array
+{
+    $st = db()->prepare("SELECT b.id, b.nama, b.kategori, b.nominal, b.tanggal, b.mulai, b.selesai, u.name AS dibuat_nama
+                           FROM biaya_tetap b LEFT JOIN users u ON u.id = b.dibuat_oleh
+                          WHERE b.selesai IS NULL OR b.selesai >= ?
+                          ORDER BY b.nominal DESC, b.nama");
+    $st->execute([bt_bulan_ini()]);
+    return array_map(fn($r) => [
+        'id' => (int)$r['id'], 'nama' => (string)$r['nama'], 'kategori' => (string)$r['kategori'],
+        'nominal' => (int)$r['nominal'], 'tanggal' => (int)$r['tanggal'],
+        'mulai' => substr((string)$r['mulai'], 0, 7), 'selesai' => $r['selesai'] ? substr((string)$r['selesai'], 0, 7) : null,
+        'dibuat_nama' => $r['dibuat_nama'],
+    ], $st->fetchAll());
+}
+
+/** Validasi isi form biaya tetap (mulai = 'YYYY-MM') */
+function bt_input(array $in): array
+{
+    $nama = trim(preg_replace('/\s+/u', ' ', (string)($in['nama'] ?? '')));
+    if ($nama === '') json_error('Nama biaya wajib diisi.');
+    if (mb_strlen($nama) > 120) json_error('Nama biaya maksimal 120 karakter.');
+    $kategori = (string)($in['kategori'] ?? '');
+    if (!in_array($kategori, KAS_KATEGORI['keluar'], true)) json_error('Pilih kategori yang sesuai.');
+    $nominal = to_rupiah($in['nominal'] ?? 0);
+    if ($nominal <= 0) json_error('Nominal harus lebih dari Rp 0.');
+    $tgl = (int)($in['tanggal'] ?? 0);
+    if ($tgl < 1 || $tgl > 28) json_error('Tanggal tiap bulan harus 1–28.');
+    $mulai = (string)($in['mulai'] ?? '');
+    if (!preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $mulai, $m) || $m[1] < 2000 || $m[1] > 2100) {
+        json_error('Bulan mulai wajib diisi.');
+    }
+    return ['nama' => $nama, 'kategori' => $kategori, 'nominal' => $nominal, 'tanggal' => $tgl, 'mulai' => $mulai . '-01'];
 }
