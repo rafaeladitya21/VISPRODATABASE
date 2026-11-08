@@ -16,9 +16,10 @@ const KAS_COLS = 'id, tanggal, jenis, kategori, nominal, keterangan, no_invoice,
 
 /**
  * Buku kas lengkap = catatan manual (kas_laporan) + baris OTOMATIS dari Transaksi (selain Batal):
- *   masuk  = uang diterima (transactions.dp) → "Pelunasan Klien" bila Lunas, selain itu "DP Klien"
+ *   masuk  = revenue transaksi ("Revenue Transaksi")
  *   keluar = operasional per pos: transport, crew, sewa alat (+ sisa operasional lain bila ada)
- * Bertanggal tanggal event (transaksi tidak menyimpan tanggal bayar); tanpa tanggal event → tanggal dibuat.
+ * Jadi bagian transaksi di saldo kas = revenue − operasional = Net Profit (sama dengan Ringkasan, termasuk Draft).
+ * Bertanggal tanggal event; tanpa tanggal event → tanggal dibuat (sama dengan pengelompokan bulan di Ringkasan).
  * Baris otomatis tidak disimpan di tabel kas — diubah lewat halaman Transaksi.
  * Kolom: id (teks), sumber ('manual'|'transaksi'), tanggal, jenis, kategori, nominal, keterangan,
  *        no_invoice, link_nota, dicatat_nama, dicatat_at, diubah_nama, diubah_at
@@ -35,7 +36,7 @@ const KAS_SEMUA_SQL = "(
       FROM transactions t
       LEFT JOIN customers c ON c.id = t.customer_id
      CROSS JOIN LATERAL (VALUES
-           ('in', 'masuk',  CASE WHEN t.termin_status = 'Lunas' THEN 'Pelunasan Klien' ELSE 'DP Klien' END, t.dp),
+           ('in', 'masuk',  'Revenue Transaksi', t.revenue),
            ('tr', 'keluar', 'Transport & Akomodasi', t.total_transport),
            ('cr', 'keluar', 'Gaji & Honor Crew',     t.total_crew),
            ('eq', 'keluar', 'Sewa Alat',             t.total_equipment),

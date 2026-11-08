@@ -287,7 +287,7 @@
       '<td class="lk-ket"><strong>' + esc(r.keterangan) + '</strong>' +
         '<span class="lk-tags"><span class="badge">' + esc(r.kategori) + '</span>' +
         '<span class="badge badge--muted num">' + esc(r.no_invoice) + '</span></span>' +
-        '<small class="lk-meta">Otomatis dari Transaksi · ' + (r.jenis === 'masuk' ? 'uang diterima' : 'operasional') + '</small></td>' +
+        '<small class="lk-meta">Otomatis dari Transaksi · ' + (r.jenis === 'masuk' ? 'revenue' : 'operasional') + '</small></td>' +
       '<td class="r">' + (r.jenis === 'masuk' ? esc(plus(r.nominal)) : '') + '</td>' +
       '<td class="r">' + (r.jenis === 'keluar' ? esc(minus(r.nominal)) : '') + '</td>' +
       '<td class="r lk-saldo">' + esc(signed(r.saldo)) + '</td>' +
