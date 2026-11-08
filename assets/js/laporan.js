@@ -20,6 +20,15 @@
     seq: 0, busy: false
   };
 
+  // Tautan dari Ringkasan: laporan.php?tahun=2026&bulan=0&filter=tanpa
+  (function () {
+    var p = new URLSearchParams(location.search);
+    var t = +p.get('tahun'), b = p.get('bulan'), f = p.get('filter');
+    if (t >= 2000 && t <= 2100) S.tahun = t;
+    if (b !== null && +b >= 0 && +b <= 12) S.bulan = +b;
+    if (['semua', 'masuk', 'keluar', 'tanpa'].indexOf(f) !== -1) S.filter = f;
+  })();
+
   /* ---------------- Format ---------------- */
   var rp = function (n) { return 'Rp ' + MH.num(Math.abs(n)); };
   var plus = function (n) { return '+ ' + rp(n); };

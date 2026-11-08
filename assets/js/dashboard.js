@@ -99,6 +99,17 @@
           '<small>' + esc([l.services, val ? rp(val) : ''].filter(Boolean).join(' · ') || (l.stage === 'DEAL' ? 'Deal' : 'Hold')) + '</small></span></a></li>';
       }).join('') : '<li class="upc__empty">Belum ada lead HOT.</li>';
     }
+    if (d.kas) {   // kartu "Kas" — dari Laporan Keuangan (tabel kas)
+      var K = d.kas;
+      set('ks-saldo', signed(K.saldo));
+      set('ks-in', '+ ' + short(K.masuk_bulan).replace('—', '0'));
+      set('ks-out', '− ' + short(K.keluar_bulan).replace('—', '0'));
+      $('#ks-in').title = rp(K.masuk_bulan);
+      $('#ks-out').title = rp(K.keluar_bulan);
+      var w = $('#ks-warn');
+      w.hidden = !K.tanpa_nota;
+      w.innerHTML = MH.icon('warn') + '<span><strong class="num">' + K.tanpa_nota + ' pengeluaran</strong> tahun ini belum ada notanya</span>';
+    }
     if (d.inventory) {
       set('iv-used', MH.num(d.inventory.used) + ' unit');
       set('iv-broken', MH.num(d.inventory.broken) + ' unit');

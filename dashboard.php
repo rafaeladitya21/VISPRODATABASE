@@ -147,6 +147,19 @@ layout_start('Ringkasan', 'ringkasan');
   </section>
 
   <div class="dash-side">
+  <section class="card fbu" aria-labelledby="kas-mini-title">
+    <div class="card__head" style="margin-bottom:0">
+      <h2 class="card__title" id="kas-mini-title">Kas</h2>
+      <a class="card__link" href="laporan.php">Lihat laporan</a>
+    </div>
+    <a class="kas-mini__saldo" href="laporan.php"><span>Saldo kas</span><strong class="num" id="ks-saldo">—</strong></a>
+    <div class="inv-mini">
+      <a class="inv-mini__item" href="laporan.php?filter=masuk"><span>Masuk bulan ini</span><strong class="num" id="ks-in">—</strong></a>
+      <a class="inv-mini__item" href="laporan.php?filter=keluar"><span>Keluar bulan ini</span><strong class="num" id="ks-out">—</strong></a>
+    </div>
+    <a class="kas-mini__warn" id="ks-warn" href="laporan.php?bulan=0&amp;filter=tanpa" hidden></a>
+  </section>
+
   <section class="card fbu" aria-labelledby="up-title">
     <div class="card__head" style="margin-bottom:0">
       <h2 class="card__title" id="up-title">Jadwal Minggu Ini</h2>

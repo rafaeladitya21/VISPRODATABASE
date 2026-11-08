@@ -104,3 +104,18 @@ function kas_stamp(): string
     // xmin berubah di setiap INSERT/UPDATE baris → dua ubahan dalam detik yang sama tetap terdeteksi
     return (string)db()->query("SELECT COUNT(*) || '-' || md5(COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '')) FROM kas")->fetchColumn();
 }
+
+/** Kartu "Kas" di Ringkasan: saldo kas total, masuk/keluar bulan berjalan, pengeluaran tahun ini tanpa nota. */
+function kas_ringkasan(): array
+{
+    $r = db()->query("SELECT
+            COALESCE(SUM(CASE WHEN jenis = 'masuk' THEN nominal ELSE -nominal END), 0) AS saldo,
+            COALESCE(SUM(nominal) FILTER (WHERE jenis = 'masuk'
+                AND date_trunc('month', tanggal) = date_trunc('month', CURRENT_DATE)), 0) AS masuk_bulan,
+            COALESCE(SUM(nominal) FILTER (WHERE jenis = 'keluar'
+                AND date_trunc('month', tanggal) = date_trunc('month', CURRENT_DATE)), 0) AS keluar_bulan,
+            COUNT(*) FILTER (WHERE jenis = 'keluar' AND link_nota IS NULL
+                AND EXTRACT(YEAR FROM tanggal) = EXTRACT(YEAR FROM CURRENT_DATE)) AS tanpa_nota
+        FROM kas_laporan")->fetch();
+    return array_map('intval', $r);
+}

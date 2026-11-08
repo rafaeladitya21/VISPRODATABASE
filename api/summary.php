@@ -12,6 +12,7 @@ require_once __DIR__ . '/../includes/tx.php';
 require_once __DIR__ . '/../includes/schedule.php';
 require_once __DIR__ . '/../includes/inventory.php';
 require_once __DIR__ . '/../includes/leads.php';
+require_once __DIR__ . '/../includes/kas.php';
 
 $year = (int)($_GET['year'] ?? date('Y'));
 if ($year < 2000 || $year > 2100) $year = (int)date('Y');
@@ -77,6 +78,7 @@ try {
         'recent' => $recent,
         'upcoming' => sched_upcoming(3, 7), // kartu "Jadwal Minggu Ini"
         'inventory' => inv_totals(),        // kartu "Inventaris"
+        'kas'       => kas_ringkasan(),     // kartu "Kas" (Laporan Keuangan)
         'leads'     => lead_stats() + [     // kartu "Leads": 3 lead HOT terbaru yang belum ditolak
             'hot' => array_map('lead_row', $pdo->query(LEAD_SQL . " WHERE l.category = 'HOT' AND l.stage <> 'REFUSING'
                         ORDER BY (l.lead_date IS NULL), l.lead_date DESC, l.id DESC LIMIT 3")->fetchAll()),
