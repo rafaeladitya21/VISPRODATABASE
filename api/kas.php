@@ -27,17 +27,18 @@ try {
         $akhir = sprintf('%04d-01-01', $tahun + 1);
 
         $stamp = kas_stamp();
-        $st = db()->prepare('SELECT ' . KAS_COLS . ' FROM kas_laporan WHERE tanggal >= ? AND tanggal < ?
-                             ORDER BY tanggal, dicatat_at, id');
+        // Catatan manual + baris otomatis dari Transaksi (lihat KAS_SEMUA_SQL)
+        $st = db()->prepare('SELECT * FROM ' . KAS_SEMUA_SQL . ' WHERE tanggal >= ? AND tanggal < ?
+                             ORDER BY tanggal, dicatat_at, sumber, id');
         $st->execute([$awal, $akhir]);
         $items = array_map('kas_row', $st->fetchAll());
 
         $st = db()->prepare("SELECT COALESCE(SUM(CASE WHEN jenis = 'masuk' THEN nominal ELSE -nominal END), 0)
-                             FROM kas_laporan WHERE tanggal < ?");
+                             FROM " . KAS_SEMUA_SQL . " WHERE tanggal < ?");
         $st->execute([$awal]);
         $saldoAwal = (int)$st->fetchColumn();
 
-        $years = db()->query('SELECT DISTINCT EXTRACT(YEAR FROM tanggal)::int AS y FROM kas_laporan ORDER BY y')
+        $years = db()->query('SELECT DISTINCT EXTRACT(YEAR FROM tanggal)::int AS y FROM ' . KAS_SEMUA_SQL . ' ORDER BY y')
                      ->fetchAll(PDO::FETCH_COLUMN);
 
         json_response(['ok' => true, 'tahun' => $tahun, 'items' => $items, 'saldo_awal' => $saldoAwal,

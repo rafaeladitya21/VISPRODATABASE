@@ -65,6 +65,10 @@ dibaca lewat view `kas_laporan` (catatan yang belum dihapus + nama pencatat/peng
 
 - Kolom audit `dicatat_oleh/_at`, `diubah_oleh/_at`, `dihapus_oleh/_at` diisi **trigger database**
   (`kas_audit`, dari `set_config('mh.user_id')` yang dipasang `api/kas.php`) — tidak pernah dari browser.
+- **Transaksi masuk otomatis** ke buku kas (`KAS_SEMUA_SQL` di `includes/kas.php`, tidak disimpan di tabel `kas`):
+  uang diterima (`dp`) = masuk, transport/crew/sewa alat = keluar, bertanggal tanggal event, selain status Batal.
+  Baris ini hanya-baca di Laporan (ubah lewat Transaksi) dan tidak dihitung di "Nota Terlampir".
+  Catatan manual dipakai untuk uang yang tidak lewat Transaksi (kantor, konsumsi, dll).
 - Hapus = soft delete (`dihapus_at`). `DELETE` permanen ditolak trigger `kas_no_delete`.
 - Tombol **Folder Nota**: isi `DRIVE_FOLDER_URL` di `.env` (lokal) / Environment Variables Vercel. Kosong = disembunyikan.
 - Halaman mengecek perubahan tiap 15 detik (dan saat tab dibuka lagi), jadi catatan admin lain ikut muncul.

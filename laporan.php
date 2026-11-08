@@ -86,6 +86,8 @@ layout_start('Laporan Keuangan', 'laporan');
       </div>
     </div>
 
+    <p class="lk-hint" id="lk-hint" hidden>Uang dari Transaksi (DP/pelunasan) sudah masuk otomatis ke buku kas.
+      Catat di sini hanya pemasukan yang tidak lewat halaman Transaksi supaya tidak dobel.</p>
     <div id="lk-form-error"></div>
     <div class="lk-form__foot">
       <p class="lk-form__by" id="lk-by"></p>

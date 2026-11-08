@@ -14,6 +14,36 @@ const KAS_KATEGORI = [
 const KAS_COLS = 'id, tanggal, jenis, kategori, nominal, keterangan, no_invoice, link_nota,
                   dicatat_oleh, dicatat_at, diubah_oleh, diubah_at, dicatat_nama, diubah_nama';
 
+/**
+ * Buku kas lengkap = catatan manual (kas_laporan) + baris OTOMATIS dari Transaksi (selain Batal):
+ *   masuk  = uang diterima (transactions.dp) → "Pelunasan Klien" bila Lunas, selain itu "DP Klien"
+ *   keluar = operasional per pos: transport, crew, sewa alat (+ sisa operasional lain bila ada)
+ * Bertanggal tanggal event (transaksi tidak menyimpan tanggal bayar); tanpa tanggal event → tanggal dibuat.
+ * Baris otomatis tidak disimpan di tabel kas — diubah lewat halaman Transaksi.
+ * Kolom: id (teks), sumber ('manual'|'transaksi'), tanggal, jenis, kategori, nominal, keterangan,
+ *        no_invoice, link_nota, dicatat_nama, dicatat_at, diubah_nama, diubah_at
+ */
+const KAS_SEMUA_SQL = "(
+    SELECT k.id::text AS id, 'manual' AS sumber, k.tanggal, k.jenis::text AS jenis, k.kategori::text AS kategori,
+           k.nominal, k.keterangan::text AS keterangan, k.no_invoice::text AS no_invoice, k.link_nota,
+           k.dicatat_nama::text AS dicatat_nama, k.dicatat_at, k.diubah_nama::text AS diubah_nama, k.diubah_at
+      FROM kas_laporan k
+    UNION ALL
+    SELECT 'tx-' || t.id || '-' || x.k, 'transaksi', COALESCE(t.event_date, t.created_at::date), x.jenis, x.kategori,
+           x.nominal, COALESCE(NULLIF(t.event_name::text, ''), c.name::text, t.invoice_no::text), t.invoice_no::text, NULL,
+           NULL, t.created_at, NULL, NULL
+      FROM transactions t
+      LEFT JOIN customers c ON c.id = t.customer_id
+     CROSS JOIN LATERAL (VALUES
+           ('in', 'masuk',  CASE WHEN t.termin_status = 'Lunas' THEN 'Pelunasan Klien' ELSE 'DP Klien' END, t.dp),
+           ('tr', 'keluar', 'Transport & Akomodasi', t.total_transport),
+           ('cr', 'keluar', 'Gaji & Honor Crew',     t.total_crew),
+           ('eq', 'keluar', 'Sewa Alat',             t.total_equipment),
+           ('ln', 'keluar', 'Lain-lain', t.total_operational - t.total_transport - t.total_crew - t.total_equipment)
+         ) AS x(k, jenis, kategori, nominal)
+     WHERE t.status <> 'Batal' AND x.nominal > 0
+) AS ks";
+
 /** Link folder Drive untuk tombol "Folder Nota" ('' = tombol disembunyikan) */
 function kas_drive_folder(): string
 {
@@ -65,8 +95,9 @@ function kas_input(array $in): array
 /** Baris view → JSON (nominal int, waktu "YYYY-MM-DD HH:MM:SS") */
 function kas_row(array $r): array
 {
+    $auto = ($r['sumber'] ?? 'manual') === 'transaksi';
     return [
-        'id' => (int)$r['id'], 'tanggal' => (string)$r['tanggal'], 'jenis' => (string)$r['jenis'],
+        'id' => $auto ? (string)$r['id'] : (int)$r['id'], 'sumber' => $auto ? 'transaksi' : 'manual', 'tanggal' => (string)$r['tanggal'], 'jenis' => (string)$r['jenis'],
         'kategori' => (string)$r['kategori'], 'nominal' => (int)$r['nominal'],
         'keterangan' => (string)$r['keterangan'], 'no_invoice' => $r['no_invoice'], 'link_nota' => $r['link_nota'],
         'dicatat_nama' => $r['dicatat_nama'], 'dicatat_at' => (string)$r['dicatat_at'],
@@ -101,11 +132,17 @@ function kas_as_user(int $userId, callable $fn): mixed
 /** Penanda perubahan (termasuk yang dihapus) — dicek berkala oleh halaman supaya ikut ter-update. */
 function kas_stamp(): string
 {
-    // xmin berubah di setiap INSERT/UPDATE baris → dua ubahan dalam detik yang sama tetap terdeteksi
-    return (string)db()->query("SELECT COUNT(*) || '-' || md5(COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '')) FROM kas")->fetchColumn();
+    // xmin berubah di setiap INSERT/UPDATE baris → dua ubahan dalam detik yang sama tetap terdeteksi.
+    // Transaksi ikut dihitung karena baris otomatis buku kas berasal dari sana.
+    return (string)db()->query("SELECT md5(
+            (SELECT COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '') FROM kas) || '|' ||
+            (SELECT COALESCE(string_agg(id || ':' || xmin::text, ',' ORDER BY id), '') FROM transactions))")->fetchColumn();
 }
 
-/** Kartu "Kas" di Ringkasan: saldo kas total, masuk/keluar bulan berjalan, pengeluaran tahun ini tanpa nota. */
+/**
+ * Kartu "Kas" di Ringkasan: saldo kas total (manual + transaksi), masuk/keluar bulan berjalan,
+ * pengeluaran manual tahun ini tanpa nota (baris transaksi tidak butuh nota di sini).
+ */
 function kas_ringkasan(): array
 {
     $r = db()->query("SELECT
@@ -114,8 +151,8 @@ function kas_ringkasan(): array
                 AND date_trunc('month', tanggal) = date_trunc('month', CURRENT_DATE)), 0) AS masuk_bulan,
             COALESCE(SUM(nominal) FILTER (WHERE jenis = 'keluar'
                 AND date_trunc('month', tanggal) = date_trunc('month', CURRENT_DATE)), 0) AS keluar_bulan,
-            COUNT(*) FILTER (WHERE jenis = 'keluar' AND link_nota IS NULL
+            COUNT(*) FILTER (WHERE jenis = 'keluar' AND sumber = 'manual' AND link_nota IS NULL
                 AND EXTRACT(YEAR FROM tanggal) = EXTRACT(YEAR FROM CURRENT_DATE)) AS tanpa_nota
-        FROM kas_laporan")->fetch();
+        FROM " . KAS_SEMUA_SQL)->fetch();
     return array_map('intval', $r);
 }

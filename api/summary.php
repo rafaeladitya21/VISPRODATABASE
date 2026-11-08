@@ -78,7 +78,10 @@ try {
         'recent' => $recent,
         'upcoming' => sched_upcoming(3, 7), // kartu "Jadwal Minggu Ini"
         'inventory' => inv_totals(),        // kartu "Inventaris"
-        'kas'       => kas_ringkasan(),     // kartu "Kas" (Laporan Keuangan)
+        'kas'       => (function () {       // kartu "Kas" (Laporan Keuangan); gagal → kartu kosong, Ringkasan tetap tampil
+            try { return kas_ringkasan(); }
+            catch (PDOException $e) { error_log('[summary] kas: ' . $e->getMessage()); return null; }
+        })(),
         'leads'     => lead_stats() + [     // kartu "Leads": 3 lead HOT terbaru yang belum ditolak
             'hot' => array_map('lead_row', $pdo->query(LEAD_SQL . " WHERE l.category = 'HOT' AND l.stage <> 'REFUSING'
                         ORDER BY (l.lead_date IS NULL), l.lead_date DESC, l.id DESC LIMIT 3")->fetchAll()),

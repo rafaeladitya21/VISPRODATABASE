@@ -91,16 +91,19 @@
 
   /* ---------------- Ringkasan periode ---------------- */
   function hitung() {
-    var awal = S.data.saldo_awal, masuk = 0, keluar = 0, nMasuk = 0, nKeluar = 0, nota = 0, rows = [];
+    var awal = S.data.saldo_awal, masuk = 0, keluar = 0, nMasuk = 0, nKeluar = 0, nManual = 0, nota = 0, rows = [];
     S.rows.forEach(function (r) {
       var b = bulanOf(r.tanggal);
       if (S.bulan && b < S.bulan) { awal += r.jenis === 'masuk' ? r.nominal : -r.nominal; return; }
       if (S.bulan && b !== S.bulan) return;
       rows.push(r);
       if (r.jenis === 'masuk') { masuk += r.nominal; nMasuk++; }
-      else { keluar += r.nominal; nKeluar++; if (r.link_nota) nota++; }
+      else {
+        keluar += r.nominal; nKeluar++;
+        if (r.sumber !== 'transaksi') { nManual++; if (r.link_nota) nota++; }   // nota hanya untuk catatan manual
+      }
     });
-    return { rows: rows, awal: awal, masuk: masuk, keluar: keluar, nMasuk: nMasuk, nKeluar: nKeluar,
+    return { rows: rows, awal: awal, masuk: masuk, keluar: keluar, nMasuk: nMasuk, nKeluar: nKeluar, nManual: nManual,
              nota: nota, saldo: awal + masuk - keluar };
   }
 
@@ -153,20 +156,20 @@
       '<p class="kpi__value num">' + value + '</p>' + sub + '</article>';
   }
   function KartuAngka(R) {
-    var pct = R.nKeluar ? Math.round(R.nota / R.nKeluar * 100) : 0;
+    var pct = R.nManual ? Math.round(R.nota / R.nManual * 100) : 0;
     $('#lk-kpis').innerHTML =
       kartu('Saldo Kas', esc(signed(R.saldo)), '<p class="kpi__sub">Saldo awal periode <span class="num">' + esc(signed(R.awal)) + '</span></p>', 'kpi--dark') +
       kartu('Uang Masuk', esc(plus(R.masuk)), '<p class="kpi__sub num">' + R.nMasuk + ' catatan</p>') +
       kartu('Uang Keluar', esc(minus(R.keluar)), '<p class="kpi__sub num">' + R.nKeluar + ' catatan</p>') +
-      kartu('Nota Terlampir', R.nota + ' <small>/ ' + R.nKeluar + '</small>',
+      kartu('Nota Terlampir', R.nota + ' <small>/ ' + R.nManual + '</small>',
         '<div class="progress lk-progress" role="progressbar" aria-label="Pengeluaran yang sudah ada notanya" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '">' +
           '<i class="progress__fill" style="width:' + pct + '%"></i></div>' +
-        '<p class="kpi__sub">' + (R.nKeluar ? 'dari pengeluaran ' + esc(periodeLabel()) : 'Belum ada pengeluaran') + '</p>');
+        '<p class="kpi__sub">' + (R.nManual ? 'dari pengeluaran manual ' + esc(periodeLabel()) : 'Belum ada pengeluaran manual') + '</p>');
   }
 
   /* ---- Banner nota belum ada ---- */
   function BannerNota(R) {
-    var kurang = R.nKeluar - R.nota, box = $('#lk-warn');
+    var kurang = R.nManual - R.nota, box = $('#lk-warn');
     box.hidden = kurang <= 0;
     if (kurang <= 0) return;
     box.innerHTML = MH.icon('warn') +
@@ -273,10 +276,28 @@
     semua: function () { return true; },
     masuk: function (r) { return r.jenis === 'masuk'; },
     keluar: function (r) { return r.jenis === 'keluar'; },
-    tanpa: function (r) { return r.jenis === 'keluar' && !r.link_nota; }
+    tanpa: function (r) { return r.jenis === 'keluar' && r.sumber !== 'transaksi' && !r.link_nota; }
   };
 
+  /** Baris otomatis dari Transaksi: hanya-baca, diubah lewat halaman Transaksi */
+  function barisTx(r) {
+    var url = 'transaksi.php?inv=' + encodeURIComponent(r.no_invoice);
+    return '<tr class="lk-auto">' +
+      '<td class="nw num">' + esc(MH.date(r.tanggal)) + '</td>' +
+      '<td class="lk-ket"><strong>' + esc(r.keterangan) + '</strong>' +
+        '<span class="lk-tags"><span class="badge">' + esc(r.kategori) + '</span>' +
+        '<span class="badge badge--muted num">' + esc(r.no_invoice) + '</span></span>' +
+        '<small class="lk-meta">Otomatis dari Transaksi · ' + (r.jenis === 'masuk' ? 'uang diterima' : 'operasional') + '</small></td>' +
+      '<td class="r">' + (r.jenis === 'masuk' ? esc(plus(r.nominal)) : '') + '</td>' +
+      '<td class="r">' + (r.jenis === 'keluar' ? esc(minus(r.nominal)) : '') + '</td>' +
+      '<td class="r lk-saldo">' + esc(signed(r.saldo)) + '</td>' +
+      '<td class="nw"><a class="lk-nota-link" href="' + url + '">' + MH.icon('doc') + 'Buka transaksi</a></td>' +
+      '<td class="lk-aksi"><span class="lk-lock" title="Ubah lewat halaman Transaksi">' + MH.icon('lock') +
+        '<span class="sr-only">Ubah lewat halaman Transaksi</span></span></td></tr>';
+  }
+
   function baris(r) {
+    if (r.sumber === 'transaksi') return barisTx(r);
     var meta = 'Dicatat ' + esc(r.dicatat_nama || '—') + ' · ' + esc(stamp(r.dicatat_at));
     if (r.diubah_at) meta += ' <span class="lk-edited">· diubah ' + esc(r.diubah_nama || '—') + ' · ' + esc(stamp(r.diubah_at)) + '</span>';
     var nota = r.link_nota
@@ -349,6 +370,7 @@
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-pressed', on);
     });
+    $('#lk-hint').hidden = j !== 'masuk';
     var cur = el.kategori.value;
     el.kategori.innerHTML = KATEGORI[j].map(function (k) { return '<option>' + esc(k) + '</option>'; }).join('');
     if (KATEGORI[j].indexOf(cur) !== -1) el.kategori.value = cur;
@@ -473,7 +495,7 @@
   }
 
   /* ---------------- Event ---------------- */
-  function byId(id) { id = +id; return S.rows.filter(function (r) { return r.id === id; })[0]; }
+  function byId(id) { id = +id; return S.rows.filter(function (r) { return r.sumber !== 'transaksi' && r.id === id; })[0]; }
 
   document.addEventListener('click', function (e) {
     var t = e.target.closest('[data-catat],[data-edit],[data-attach],[data-del],[data-del-ok],[data-del-no],[data-filter]');
