@@ -398,7 +398,10 @@
          confirm: 'Hapus',                           // opsional: label tombol
          toast:   'Customer dihapus',                // notifikasi setelah berhasil
          action:  function (pin) { return MH.api(…, { method: 'DELETE', body: { pin: pin } }); },
-         done:    function (result) { … }            // setelah dialog tertutup
+         done:    function (result) { … },           // setelah dialog tertutup
+         // opsional (dialog kode sandi umum, mis. buka Laporan — alias MH.pinDialog):
+         //   label, cancelLabel, error (pesan saat dibuka), cancel: fn (ditutup tanpa berhasil),
+         //   action boleh resolve { next: {…opsi langkah berikutnya} } → dialog tetap terbuka
        });
      Kode salah (403) / terkunci (429) → kolom oranye, dikosongkan, fokus lagi.
      --------------------------------------------------------- */
@@ -458,7 +461,9 @@
       cd.ok.disabled = true; cd.ok.classList.add('is-loading');
       var o = cd.opts;
       Promise.resolve().then(function () { return o.action(pin); }).then(function (res) {
-        cdClose(true);
+        // action boleh mengembalikan { next: {…opsi} } → lanjut ke langkah berikutnya tanpa menutup dialog
+        if (res && res.next) { cd.busy = false; cdRender(res.next); return; }
+        cdClose(true, true);
         if (o.toast) MH.toast(o.toast);
         if (o.done) o.done(res);
       }, function (err) {
@@ -481,19 +486,19 @@
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) cdClose();
     });
   }
-  function cdClose(force) {
+  function cdClose(force, ok) {
     if (!cd || (cd.busy && !force)) return;
+    var o = cd.opts;
     if (cd.dlg.open) cd.dlg.close();
     cd.pin.value = '';
     var back = cd.returnFocus;
     cd.opts = null;
     if (back && back.isConnected && !document.querySelector('dialog[open]')) back.focus();
+    if (!ok && o && o.cancel) o.cancel();   // ditutup tanpa berhasil (Batal / Esc / klik luar)
   }
-  MH.confirmDelete = function (o) {
-    if (!cd) cdBuild();
+  /** Isi dialog dari opsi (dipakai saat buka dan saat pindah langkah tanpa menutup) */
+  function cdRender(o) {
     cd.opts = o;
-    cd.busy = false;
-    cd.returnFocus = document.activeElement;
     cd.dlg.querySelector('#cdlg-window').textContent = o.window || 'Hapus Data';
     cd.dlg.querySelector('#cdlg-title').textContent = o.title || ('Hapus ' + (o.name || 'data ini') + '?');
     var meta = (o.meta || []).filter(function (x) { return x !== null && x !== undefined && String(x).trim() !== ''; }).join(' · ');
@@ -502,6 +507,8 @@
     metaEl.hidden = !meta;
     cd.dlg.querySelector('#cdlg-desc').textContent = o.desc || 'Data ini akan dihapus permanen.';
     cd.dlg.querySelector('#cdlg-ok-label').textContent = o.confirm || 'Hapus';
+    cd.dlg.querySelector('.cdlg__label').textContent = o.label || 'Kode sandi';
+    cd.dlg.querySelector('[data-cdlg-cancel]').textContent = o.cancelLabel || 'Batal';
     cd.block.textContent = o.blocked || '';
     cd.block.hidden = !o.blocked;
     cd.field.hidden = !!o.blocked;
@@ -509,10 +516,18 @@
     cd.ok.classList.remove('is-loading');
     cd.dlg.classList.remove('is-busy');
     cd.pin.value = '';
-    cd.setErr('', false);
-    if (typeof cd.dlg.showModal === 'function') cd.dlg.showModal(); else cd.dlg.setAttribute('open', '');
+    cd.setErr(o.error || '', !!o.error);
     setTimeout(function () { (o.blocked ? cd.dlg.querySelector('[data-cdlg-cancel]') : cd.pin).focus(); }, 30);
+  }
+  MH.confirmDelete = function (o) {
+    if (!cd) cdBuild();
+    cd.busy = false;
+    cd.returnFocus = document.activeElement;
+    cdRender(o);
+    if (!cd.dlg.open) { if (typeof cd.dlg.showModal === 'function') cd.dlg.showModal(); else cd.dlg.setAttribute('open', ''); }
   };
+  /** Nama umum untuk dialog kode sandi yang bukan hapus (mis. buka Laporan) — komponen yang sama */
+  MH.pinDialog = MH.confirmDelete;
 
   // Klik backdrop menutup modal
   document.addEventListener('click', function (e) {

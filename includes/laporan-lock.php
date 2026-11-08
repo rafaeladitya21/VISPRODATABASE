@@ -1,6 +1,6 @@
 <?php
 /**
- * Kunci halaman Laporan Keuangan dengan kode sandi 6 angka.
+ * Kunci halaman Laporan Keuangan dengan kode sandi 6 angka (dialog: assets/js/passcode.js → MH.pinDialog).
  * - Hash kode disimpan di pengaturan.laporan_pin_hash (tidak pernah dikirim ke browser;
  *   api/settings.php hanya mengirim key yang terdaftar).
  * - Belum ada kode → admin pertama yang membuka Laporan diminta membuat kode.
