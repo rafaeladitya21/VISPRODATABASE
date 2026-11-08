@@ -2726,3 +2726,140 @@ html:has(.modal.mform[open]) { overflow: hidden; }   /* halaman belakang tidak i
 /* Bar atas tab Harga Alat: info update kiri · cari + Tambah Alat kanan */
 .eq-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .eq-bar__meta { margin: 0; }
+
+/* =========================================================
+   LAPORAN KEUANGAN (laporan.php)
+   Aksen oranye --lk-warn HANYA untuk "nota belum ada" dan tanda "diubah".
+   ========================================================= */
+:root { --lk-warn: #9A3412; --lk-warn-soft: #FFF7ED; --lk-warn-line: #FED7AA; }
+@media screen {
+  :root[data-theme="dark"] { --lk-warn: #FDBA74; --lk-warn-soft: rgba(253, 186, 116, .08); --lk-warn-line: rgba(253, 186, 116, .3); }
+}
+
+/* Form catat (di bawah header, bukan pop-up) */
+.lk-form { margin-bottom: 20px; animation: lk-in .25s var(--ease-out) both; }
+@keyframes lk-in { from { opacity: 0; transform: translateY(-6px); } }
+.lk-form__head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.lk-form__head .seg__btn { height: 36px; min-width: 84px; }
+.lk-form__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.lk-form__wide { grid-column: 1 / -1; }
+.lk-opt { font-weight: 500; color: var(--muted); }
+.lk-prefix { position: relative; }
+.lk-prefix > span {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 14px; font-weight: 600; color: var(--muted); pointer-events: none;
+}
+.lk-prefix .input { padding-left: 40px; }
+.lk-err:empty { display: none; }
+
+.lk-nota {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px; background: var(--soft); border: 1.5px dashed var(--dash); border-radius: 12px;
+}
+.lk-nota__row { display: flex; gap: 10px; }
+.lk-nota__row .input { flex: 1; background: var(--white); }
+.lk-nota__help { font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+
+#lk-form-error:not(:empty) { margin-top: 16px; }
+.lk-form__foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.lk-form__by { font-size: 12px; color: var(--muted); }
+.lk-form__actions { display: flex; gap: 10px; margin-left: auto; }
+
+/* Filter periode */
+.lk-period { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.lk-period .input { width: auto; min-width: 150px; background-color: var(--white); }
+
+/* Kartu angka */
+.kpi__value small { font-size: .62em; color: var(--muted); }
+.lk-progress { height: 8px; margin-top: 4px; }
+
+/* Banner nota belum ada */
+.lk-warn {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 10px 10px 10px 16px;
+  font-size: 13.5px; color: var(--lk-warn);
+  background: var(--lk-warn-soft); border: 1px solid var(--lk-warn-line); border-radius: 12px;
+}
+.lk-warn > .icon { flex: none; }
+.lk-warn p { flex: 1; }
+.lk-warn .btn { flex: none; }
+
+/* Grafik + rincian */
+.lk-chart { margin-bottom: 20px; }
+.lk-chart .card__head .legend--row { margin: 0; }
+.lk-cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-bottom: 20px; }
+.lk-hbars { display: flex; flex-direction: column; gap: 14px; margin: 16px 0 0; padding: 0; list-style: none; }
+.lk-hbars li { display: flex; flex-direction: column; gap: 6px; }
+.lk-hbar__top { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.lk-hbar__top span:first-child { color: var(--text-2); font-weight: 500; }
+.lk-hbar__top .num { font-weight: 600; white-space: nowrap; }
+.lk-hbar__top small { margin-left: 4px; font-weight: 500; color: var(--muted); }
+.lk-hbar { height: 8px; overflow: hidden; background: var(--line-2); border-radius: 999px; }
+.lk-hbar i { display: block; height: 100%; background: var(--ink); border-radius: 999px; transition: width .6s var(--ease-out); }
+.lk-hbar i.is-out { background: var(--bar); }
+.lk-hbars .lk-hbars__empty { padding: 12px 0; font-size: 13px; color: var(--muted); }
+
+/* Tabel buku kas */
+.lk-tbl-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 20px; }
+.lk-tbl-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.lk-tbl-tools .seg--count { margin: 0; }
+.lk-tbl-tools .seg__btn { height: 36px; }
+.lk-tbl-tools .search { min-width: 280px; }
+.lk-table { min-width: 960px; }
+.lk-table td { vertical-align: top; padding-top: 14px; padding-bottom: 14px; }
+.lk-ket { min-width: 280px; }
+.lk-ket strong { display: block; font-weight: 600; }
+.lk-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+.lk-meta { display: block; font-size: 12px; color: var(--muted); }
+.lk-edited { color: var(--lk-warn); }
+.lk-saldo { font-weight: 600; }
+.lk-btn-s { height: 44px; padding: 0 12px; font-size: 13px; }
+.lk-attach--warn { color: var(--lk-warn); border-color: var(--lk-warn-line); }
+.lk-attach--warn:hover { color: var(--lk-warn); border-color: var(--lk-warn); background: var(--lk-warn-soft); }
+.lk-nota-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+}
+.lk-nota-link .icon { width: 15px; height: 15px; }
+.lk-nota-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lk-aksi { width: 1%; white-space: nowrap; text-align: right; }
+.lk-acts, .lk-confirm { display: inline-flex; gap: 6px; }
+.lk-table tr.is-flash td { animation: lk-flash 2.4s ease-out; }
+@keyframes lk-flash { 0%, 40% { background: var(--line-2); } 100% { background: transparent; } }
+.lk-table tfoot td { height: 52px; }
+
+.lk-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 40px 16px; text-align: center; }
+.lk-empty .icon { width: 28px; height: 28px; margin-bottom: 6px; color: var(--placeholder); }
+.lk-empty p { font-weight: 600; }
+.lk-empty small { margin-bottom: 12px; font-size: 13px; color: var(--muted); }
+
+/* Error + skeleton */
+.lk-errcard { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.lk-errcard > .icon { width: 22px; height: 22px; }
+.lk-errcard > div { flex: 1; }
+.lk-errcard p { margin-top: 2px; font-size: 13px; color: var(--muted); }
+.lk-skel {
+  display: block; max-width: 100%; border-radius: 6px;
+  background: linear-gradient(90deg, var(--line-2) 25%, var(--soft) 50%, var(--line-2) 75%);
+  background-size: 200% 100%; animation: lk-shimmer 1.2s linear infinite;
+}
+.kpi--dark .lk-skel { background: linear-gradient(90deg, #262626 25%, #333 50%, #262626 75%); background-size: 200% 100%; }
+.lk-skel--chart { width: 100%; height: 240px; border-radius: 10px; }
+@keyframes lk-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .lk-skel, .lk-form, .lk-table tr.is-flash td { animation: none; } }
+
+@media (max-width: 1100px) {
+  .lk-form__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .lk-cats { grid-template-columns: minmax(0, 1fr); }
+  .lk-tbl-tools, .lk-tbl-tools .search { width: 100%; min-width: 0; }
+  .lk-tbl-tools .seg--count { overflow-x: auto; max-width: 100%; }
+  .lk-warn { flex-wrap: wrap; }
+}
+@media (max-width: 600px) {
+  .lk-form__grid { grid-template-columns: minmax(0, 1fr); }
+  .lk-nota__row { flex-direction: column; }
+  .lk-period label { flex: 1; }
+  .lk-period .input { width: 100%; min-width: 0; }
+  .page-head__actions .btn { flex: 1; }
+}

@@ -58,6 +58,18 @@ C:\xampp\php\php.exe tools\migrate-from-mysql.php            # cek jumlah baris,
 C:\xampp\php\php.exe tools\migrate-from-mysql.php --commit   # HAPUS isi Supabase lalu isi dari MySQL
 ```
 
+## Laporan Keuangan (laporan.php)
+
+Buku kas masuk/keluar dengan link nota Google Drive — hanya Admin. Data di tabel `kas` (migrasi versi 17),
+dibaca lewat view `kas_laporan` (catatan yang belum dihapus + nama pencatat/pengubah).
+
+- Kolom audit `dicatat_oleh/_at`, `diubah_oleh/_at`, `dihapus_oleh/_at` diisi **trigger database**
+  (`kas_audit`, dari `set_config('mh.user_id')` yang dipasang `api/kas.php`) — tidak pernah dari browser.
+- Hapus = soft delete (`dihapus_at`). `DELETE` permanen ditolak trigger `kas_no_delete`.
+- Tombol **Folder Nota**: isi `DRIVE_FOLDER_URL` di `.env` (lokal) / Environment Variables Vercel. Kosong = disembunyikan.
+- Halaman mengecek perubahan tiap 15 detik (dan saat tab dibuka lagi), jadi catatan admin lain ikut muncul.
+- Tes database (di dalam transaksi, otomatis di-rollback): `C:\xampp\php\php.exe tools\test-kas-db.php`
+
 ## Struktur
 
 ```

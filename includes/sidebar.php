@@ -50,7 +50,7 @@ function sidebar_menu(string $area): array
             'jadwal'     => ['Jadwal',     'jadwal.php',     'calendar'],
             'customer'   => ['Customer',   'customer.php',   'users'],
             'inventaris' => ['Inventaris', 'inventaris.php', 'box'],
-            'laporan'    => ['Laporan',    null /* halaman belum ada di spesifikasi */, 'chart'],
+            'laporan'    => ['Laporan',    'laporan.php',    'chart'],
         ],
         'KARYAWAN' => [
             'akun-karyawan' => ['Akun Karyawan', 'akun-karyawan.php', 'badge'],
