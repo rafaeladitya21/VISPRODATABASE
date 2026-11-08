@@ -220,23 +220,6 @@ layout_start('Leads', 'leads');
   </div>
 </dialog>
 
-<!-- Konfirmasi hapus -->
-<dialog class="modal" id="del-modal" aria-labelledby="del-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name">Hapus Lead</span>
-  </div>
-  <div class="window__body">
-    <h2 class="modal__title" id="del-title">Hapus lead <span id="del-name"></span>?</h2>
-    <p class="card__sub">Lead ini beserta riwayatnya akan dihapus permanen. Customer &amp; transaksi yang sudah dibuat tidak ikut terhapus.</p>
-    <div id="del-error" hidden></div>
-    <div class="modal__actions">
-      <button class="btn btn--secondary" type="button" data-close autofocus>Batal</button>
-      <button class="btn btn--primary" type="button" id="del-confirm"><span class="spinner btn__spinner" aria-hidden="true"></span><span>Hapus</span></button>
-    </div>
-  </div>
-</dialog>
-
 <!-- Panel detail -->
 <div class="drawer" id="ld-drawer" hidden>
   <div class="drawer__backdrop" data-drawer-close></div>

@@ -131,62 +131,27 @@
       .finally(function () { saveBtn.disabled = false; saveBtn.classList.remove('is-loading'); });
   });
 
-  /* ---------------- Hapus customer ---------------- */
-  var delModal = $('#cdel-modal'), delBtn = $('#cdel-confirm'), delErr = $('#cdel-error');
-  var delTarget = null;
-
+  /* ---------------- Hapus customer (dialog bersama MH.confirmDelete) ---------------- */
   function askDelete(c) {
     if (!c) return;
-    delTarget = c;
-    $('#cdel-name').textContent = c.name;
-    $('#cdel-desc').textContent = c.code + ' · ' + (c.vendor || '—') + (c.whatsapp ? ' · ' + c.whatsapp : '');
-    delErr.hidden = true;
-    delBtn.disabled = false;
-    delPin.value = '';
-    delPin.classList.remove('is-invalid');
-    var blocked = c.tx_count > 0;
-    // Masih punya transaksi → tidak bisa dihapus (transaksi akan kehilangan customer)
-    if (blocked) {
-      delErr.innerHTML = MH.errorHtml('Customer ini masih punya ' + c.tx_count + ' transaksi. Hapus transaksinya dulu di halaman Transaksi.');
-      delErr.hidden = false;
-      delBtn.disabled = true;
-    }
-    $('#cdel-pin-field').hidden = blocked;
-    MH.openModal(delModal);
-    if (!blocked) setTimeout(function () { delPin.focus(); }, 40);
-  }
-
-  var delPin = $('#cdel-pin');
-  delPin.addEventListener('input', function () { delPin.classList.remove('is-invalid'); delErr.hidden = true; });
-  delPin.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); delBtn.click(); } });
-
-  delBtn.addEventListener('click', function () {
-    var c = delTarget;
-    if (!c || delBtn.disabled) return;
-    var pin = delPin.value.trim();
-    if (!pin) {
-      delErr.innerHTML = MH.errorHtml('Masukkan kode sandi.');
-      delErr.hidden = false;
-      delPin.classList.add('is-invalid');
-      delPin.focus();
-      return;
-    }
-    delBtn.disabled = true; delBtn.classList.add('is-loading');
-    MH.api('api/customers.php?code=' + encodeURIComponent(c.code), { method: 'DELETE', body: { pin: pin } })
-      .then(function () {
+    MH.confirmDelete({
+      window: 'Hapus Customer',
+      name: c.name,
+      meta: [c.code, c.vendor, c.whatsapp],
+      desc: 'Data customer ini akan dihapus permanen.',
+      // Masih punya transaksi → tidak bisa dihapus (transaksi akan kehilangan customer)
+      blocked: c.tx_count > 0 ? 'Customer ini masih punya ' + c.tx_count + ' transaksi. Hapus transaksinya dulu di halaman Transaksi.' : '',
+      toast: 'Customer dihapus',
+      action: function (pin) {
+        return MH.api('api/customers.php?code=' + encodeURIComponent(c.code), { method: 'DELETE', body: { pin: pin } });
+      },
+      done: function () {
         state.items = state.items.filter(function (x) { return x.code !== c.code; });
         render();
-        MH.closeModal(delModal);
         if (state.detail && state.detail.customer.code === c.code) closeDrawer();
-      })
-      .catch(function (err) {
-        delErr.innerHTML = MH.errorHtml(err.message);
-        delErr.hidden = false;
-        delPin.classList.add('is-invalid');
-        delPin.select();
-      })
-      .finally(function () { delBtn.classList.remove('is-loading'); delBtn.disabled = c.tx_count > 0; });
-  });
+      }
+    });
+  }
 
   /* ---------------- Drawer ---------------- */
   var drawer = $('#drawer'), panel = $('.drawer__panel', drawer);

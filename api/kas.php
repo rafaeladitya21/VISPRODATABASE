@@ -5,11 +5,12 @@
  *   GET ?stamp=1     → { stamp } penanda perubahan (dicek berkala oleh halaman)
  *   POST {jenis, tanggal, kategori, nominal, keterangan, no_invoice?, link_nota?} → { item }
  *   PUT  {id, …sama dengan POST}                                                → { item }
- *   DELETE ?id=      → soft delete (dihapus_at); tidak pernah DELETE permanen
+ *   DELETE ?id= {pin} → soft delete, wajib kode sandi (dihapus_at); tidak pernah DELETE permanen
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/pin.php';
 require_once __DIR__ . '/../includes/kas.php';
 require_once __DIR__ . '/../includes/laporan-lock.php';
 laporan_require_unlock();
@@ -76,6 +77,7 @@ try {
     }
 
     if ($method === 'DELETE') {
+        require_pin('delete_kas', DELETE_CUSTOMER_PIN_HASH, read_json()['pin'] ?? null);   // wajib kode sandi hapus
         $id = (int)($_GET['id'] ?? 0);
         $n = kas_as_user($uid, function (PDO $pdo) use ($id) {
             $st = $pdo->prepare('UPDATE kas SET dihapus_at = LOCALTIMESTAMP(0) WHERE id = ? AND dihapus_at IS NULL');

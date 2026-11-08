@@ -346,24 +346,4 @@ layout_start('Transaksi', 'transaksi');
     </div>
   </div>
 </dialog>
-<!-- Konfirmasi hapus -->
-<dialog class="modal" id="del-modal" aria-labelledby="del-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name">Hapus Transaksi</span>
-  </div>
-  <div class="window__body">
-    <h2 class="modal__title" id="del-title">Hapus <span class="num" id="del-inv"></span>?</h2>
-    <p class="card__sub" id="del-desc"></p>
-    <p class="card__sub">Semua rincian (transport, crew, sewa alat) ikut terhapus dan tidak bisa dikembalikan.</p>
-    <div id="del-error" hidden></div>
-    <div class="modal__actions">
-      <button class="btn btn--secondary" type="button" data-close autofocus>Batal</button>
-      <button class="btn btn--primary" type="button" id="del-confirm">
-        <span class="spinner btn__spinner" aria-hidden="true"></span>
-        <span>Hapus</span>
-      </button>
-    </div>
-  </div>
-</dialog>
 <?php layout_end(['transaksi.js'], ['crew_accounts' => crew_accounts(), 'radius_event' => radius_intern()]); ?>

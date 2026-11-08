@@ -338,22 +338,4 @@ layout_start('Pengaturan', 'pengaturan');
   </div>
 </dialog>
 
-<dialog class="modal" id="pg-del-modal" aria-labelledby="pg-del-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name">Hapus Pengumuman</span>
-  </div>
-  <div class="window__body">
-    <h2 class="modal__title" id="pg-del-title">Hapus pengumuman ini?</h2>
-    <p class="card__sub" id="pg-del-desc"></p>
-    <p class="card__sub">Pengumuman langsung hilang dari Beranda karyawan &amp; anak magang.</p>
-    <div id="pg-del-error" hidden></div>
-    <div class="modal__actions">
-      <button class="btn btn--secondary" type="button" data-close autofocus>Batal</button>
-      <button class="btn btn--primary" type="button" id="pg-del-confirm">
-        <span class="spinner btn__spinner" aria-hidden="true"></span><span>Hapus</span>
-      </button>
-    </div>
-  </div>
-</dialog>
 <?php layout_end(['pengaturan.js', 'lokasi-absen.js', 'pengumuman.js', 'harga-alat.js'], ['target' => PENGUMUMAN_TARGET]); ?>

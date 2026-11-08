@@ -370,6 +370,150 @@
   MH.closeModal = function (dlg) {
     if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open');
   };
+  /* --- Notifikasi hitam di atas halaman, hilang sendiri setelah 3,5 detik --- */
+  var toastEl = null, toastTimer = null;
+  MH.toast = function (msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'mh-toast';
+      toastEl.setAttribute('role', 'status');
+      toastEl.setAttribute('aria-live', 'polite');
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    void toastEl.offsetWidth;
+    toastEl.classList.add('is-in');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('is-in'); }, 3500);
+  };
+
+  /* ---------------------------------------------------------
+     Dialog konfirmasi hapus + kode sandi — dipakai SEMUA halaman admin.
+       MH.confirmDelete({
+         window:  'Hapus Customer',                  // teks bilah judul
+         name:    'Titi',                            // → judul "Hapus Titi?"
+         meta:    ['CUST-022', 'Haraka', '0812…'],   // dipisah " · " (yang kosong dilewati)
+         desc:    'Data customer ini akan dihapus permanen.',
+         blocked: 'Masih punya transaksi…',          // opsional: tidak bisa dihapus (kolom sandi disembunyikan)
+         confirm: 'Hapus',                           // opsional: label tombol
+         toast:   'Customer dihapus',                // notifikasi setelah berhasil
+         action:  function (pin) { return MH.api(…, { method: 'DELETE', body: { pin: pin } }); },
+         done:    function (result) { … }            // setelah dialog tertutup
+       });
+     Kode salah (403) / terkunci (429) → kolom oranye, dikosongkan, fokus lagi.
+     --------------------------------------------------------- */
+  var cd = null;
+  function cdBuild() {
+    var d = document.createElement('dialog');
+    d.className = 'cdlg';
+    d.setAttribute('aria-labelledby', 'cdlg-title');
+    d.setAttribute('aria-describedby', 'cdlg-desc');
+    d.innerHTML =
+      '<div class="cdlg__bar"><span class="cdlg__dots" aria-hidden="true"><i></i><i></i><i></i></span>' +
+        '<span class="cdlg__window" id="cdlg-window"></span></div>' +
+      '<form class="cdlg__body" method="dialog" novalidate autocomplete="off">' +
+        '<h2 class="cdlg__title" id="cdlg-title"></h2>' +
+        '<p class="cdlg__meta num" id="cdlg-meta"></p>' +
+        '<p class="cdlg__desc" id="cdlg-desc"></p>' +
+        '<div class="cdlg__block" id="cdlg-block" hidden></div>' +
+        '<div class="cdlg__field" id="cdlg-field">' +
+          '<label class="cdlg__label" for="cdlg-pin">Kode sandi</label>' +
+          '<input class="cdlg__pin num" id="cdlg-pin" name="cdlg_k" type="password" inputmode="numeric" pattern="[0-9]*"' +
+            ' maxlength="6" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"' +
+            ' data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="••••••" aria-describedby="cdlg-err">' +
+          '<p class="cdlg__err" id="cdlg-err" role="alert"></p>' +
+        '</div>' +
+        '<div class="cdlg__actions">' +
+          '<button class="cdlg__btn cdlg__btn--ghost" type="button" data-cdlg-cancel>Batal</button>' +
+          '<button class="cdlg__btn cdlg__btn--danger" type="submit" id="cdlg-ok">' +
+            '<span class="spinner btn__spinner" aria-hidden="true"></span><span id="cdlg-ok-label">Hapus</span></button>' +
+        '</div>' +
+      '</form>';
+    document.body.appendChild(d);
+    cd = {
+      dlg: d, form: d.querySelector('form'), pin: d.querySelector('#cdlg-pin'), err: d.querySelector('#cdlg-err'),
+      ok: d.querySelector('#cdlg-ok'), field: d.querySelector('#cdlg-field'), block: d.querySelector('#cdlg-block'),
+      opts: null, busy: false
+    };
+
+    function setErr(msg, invalid) {
+      cd.err.textContent = msg || '';
+      cd.pin.classList.toggle('is-invalid', !!invalid);
+      cd.pin.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+    }
+    cd.setErr = setErr;
+
+    cd.pin.addEventListener('input', function () {
+      var v = cd.pin.value.replace(/\D/g, '').slice(0, 6);
+      if (v !== cd.pin.value) cd.pin.value = v;
+      if (cd.err.textContent) setErr('', false);
+    });
+    cd.form.addEventListener('submit', function (e) {   // Enter = Hapus
+      e.preventDefault();
+      if (cd.busy || cd.ok.disabled || !cd.opts) return;
+      var pin = cd.pin.value;
+      if (!pin) { setErr('Masukkan kode sandi.', true); cd.pin.focus(); return; }
+      cd.busy = true;
+      cd.dlg.classList.add('is-busy');
+      cd.ok.disabled = true; cd.ok.classList.add('is-loading');
+      var o = cd.opts;
+      Promise.resolve().then(function () { return o.action(pin); }).then(function (res) {
+        cdClose(true);
+        if (o.toast) MH.toast(o.toast);
+        if (o.done) o.done(res);
+      }, function (err) {
+        var wrongPin = err && (err.status === 403 || err.status === 429);
+        cd.pin.value = '';
+        setErr(wrongPin ? (err.message || 'Kode sandi salah.') : ((err && err.message) || 'Gagal menghapus.'), true);
+        cd.pin.focus();
+      }).then(function () {
+        cd.busy = false;
+        cd.dlg.classList.remove('is-busy');
+        cd.ok.classList.remove('is-loading');
+        cd.ok.disabled = !!(cd.opts && cd.opts.blocked);
+      });
+    });
+    d.querySelector('[data-cdlg-cancel]').addEventListener('click', function () { cdClose(); });
+    d.addEventListener('cancel', function (e) { e.preventDefault(); cdClose(); });   // Esc = Batal
+    d.addEventListener('click', function (e) {                                        // klik area gelap = Batal
+      if (e.target !== d) return;
+      var r = d.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) cdClose();
+    });
+  }
+  function cdClose(force) {
+    if (!cd || (cd.busy && !force)) return;
+    if (cd.dlg.open) cd.dlg.close();
+    cd.pin.value = '';
+    var back = cd.returnFocus;
+    cd.opts = null;
+    if (back && back.isConnected && !document.querySelector('dialog[open]')) back.focus();
+  }
+  MH.confirmDelete = function (o) {
+    if (!cd) cdBuild();
+    cd.opts = o;
+    cd.busy = false;
+    cd.returnFocus = document.activeElement;
+    cd.dlg.querySelector('#cdlg-window').textContent = o.window || 'Hapus Data';
+    cd.dlg.querySelector('#cdlg-title').textContent = o.title || ('Hapus ' + (o.name || 'data ini') + '?');
+    var meta = (o.meta || []).filter(function (x) { return x !== null && x !== undefined && String(x).trim() !== ''; }).join(' · ');
+    var metaEl = cd.dlg.querySelector('#cdlg-meta');
+    metaEl.textContent = meta;
+    metaEl.hidden = !meta;
+    cd.dlg.querySelector('#cdlg-desc').textContent = o.desc || 'Data ini akan dihapus permanen.';
+    cd.dlg.querySelector('#cdlg-ok-label').textContent = o.confirm || 'Hapus';
+    cd.block.textContent = o.blocked || '';
+    cd.block.hidden = !o.blocked;
+    cd.field.hidden = !!o.blocked;
+    cd.ok.disabled = !!o.blocked;
+    cd.ok.classList.remove('is-loading');
+    cd.dlg.classList.remove('is-busy');
+    cd.pin.value = '';
+    cd.setErr('', false);
+    if (typeof cd.dlg.showModal === 'function') cd.dlg.showModal(); else cd.dlg.setAttribute('open', '');
+    setTimeout(function () { (o.blocked ? cd.dlg.querySelector('[data-cdlg-cancel]') : cd.pin).focus(); }, 30);
+  };
+
   // Klik backdrop menutup modal
   document.addEventListener('click', function (e) {
     var d = e.target;

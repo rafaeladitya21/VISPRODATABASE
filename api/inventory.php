@@ -5,7 +5,7 @@
  *   GET    ?id=              → detail: alat, checkout aktif, servis terbuka, riwayat, daftar invoice
  *   POST   {name, category, qty, rent_price}               → tambah
  *   PUT    {id, qty?, name?, category?, rent_price?, note?} → ubah jumlah / data
- *   DELETE ?id=              → hapus (ditolak bila masih ada unit dipakai di event)
+ *   DELETE ?id= {pin}        → hapus, wajib kode sandi (ditolak bila masih ada unit dipakai di event)
  *   POST   ?action=checkout {item_id, invoice_no, qty}
  *          ?action=checkin  {checkout_id, condition: 'baik' | 'servis'}
  *          ?action=service  {item_id, reason?}        → lapor 1 unit rusak
@@ -15,6 +15,7 @@
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/pin.php';
 require_once __DIR__ . '/../includes/inventory.php';
 
 csrf_require();
@@ -190,6 +191,7 @@ try {
 
     /* ---------------- Hapus ---------------- */
     if ($method === 'DELETE') {
+        require_pin('delete_inventaris', DELETE_CUSTOMER_PIN_HASH, read_json()['pin'] ?? null);   // wajib kode sandi hapus
         $id = (int)($_GET['id'] ?? 0);
         $pdo->beginTransaction();
         $item = inv_get($id, true);

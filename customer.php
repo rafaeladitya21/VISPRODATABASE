@@ -108,33 +108,6 @@ layout_start('Customer', 'customer');
   </aside>
 </div>
 
-<!-- Konfirmasi hapus customer -->
-<dialog class="modal" id="cdel-modal" aria-labelledby="cdel-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name">Hapus Customer</span>
-  </div>
-  <div class="window__body">
-    <h2 class="modal__title" id="cdel-title">Hapus <span id="cdel-name"></span>?</h2>
-    <p class="card__sub num" id="cdel-desc"></p>
-    <p class="card__sub">Data customer ini akan dihapus permanen.</p>
-    <div class="field" id="cdel-pin-field">
-      <label class="field__label" for="cdel-pin">Kode sandi</label>
-      <input class="input input--pin num" id="cdel-pin" name="k_del_7c1" type="text" inputmode="numeric"
-             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-             data-lpignore="true" data-form-type="other" maxlength="20" placeholder="••••••">
-    </div>
-    <div id="cdel-error" hidden></div>
-    <div class="modal__actions">
-      <button class="btn btn--secondary" type="button" data-close autofocus>Batal</button>
-      <button class="btn btn--primary" type="button" id="cdel-confirm">
-        <span class="spinner btn__spinner" aria-hidden="true"></span>
-        <span>Hapus</span>
-      </button>
-    </div>
-  </div>
-</dialog>
-
 <!-- Area cetak invoice (hanya tampil saat print) -->
 <div id="print-area" aria-hidden="true"></div>
 <?php layout_end(['invoice.js', 'customer.js']); ?>

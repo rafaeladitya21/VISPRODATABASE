@@ -76,31 +76,4 @@ layout_start('Slip Gaji', 'slip-gaji');
   </div>
   <div class="window__body" id="pr-detail"></div>
 </dialog>
-
-<!-- Konfirmasi hapus slip (wajib kode sandi, sama dengan hapus customer) -->
-<dialog class="modal" id="sdel-modal" aria-labelledby="sdel-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name">Hapus Slip</span>
-  </div>
-  <div class="window__body">
-    <h2 class="modal__title" id="sdel-title">Hapus slip?</h2>
-    <p class="card__sub num" id="sdel-desc"></p>
-    <p class="card__sub" id="sdel-warn">Slip beserta seluruh rinciannya dihapus permanen dan tidak bisa dikembalikan.</p>
-    <div class="field">
-      <label class="field__label" for="sdel-pin">Kode sandi</label>
-      <input class="input input--pin num" id="sdel-pin" name="k_sdel_3f9" type="text" inputmode="numeric"
-             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-             data-lpignore="true" data-form-type="other" maxlength="20" placeholder="••••••">
-    </div>
-    <div id="sdel-error" hidden></div>
-    <div class="modal__actions">
-      <button class="btn btn--secondary" type="button" data-close autofocus>Batal</button>
-      <button class="btn btn--primary" type="button" id="sdel-confirm">
-        <span class="spinner btn__spinner" aria-hidden="true"></span>
-        <span>Hapus</span>
-      </button>
-    </div>
-  </div>
-</dialog>
 <?php layout_end(['slip-gaji.js'], ['today' => date('Y-m-d')]); ?>

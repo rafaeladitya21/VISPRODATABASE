@@ -18,40 +18,26 @@
   function satuanText(per) {
     return ['hari', 'jam', 'project'].filter(function (k) { return per && per[k]; }).map(function (k) { return ' · ' + per[k] + ' ' + k; }).join('');
   }
-  /* ---------- Hapus slip (wajib kode sandi; dicek di server) ---------- */
-  var sdel = { modal: $('#sdel-modal'), pin: $('#sdel-pin'), err: $('#sdel-error'), ok: $('#sdel-confirm'), slip: null };
+  /* ---------- Hapus slip (dialog bersama MH.confirmDelete; kode sandi dicek di server) ---------- */
   function askDelete(s) {
     if (!s) return;
-    sdel.slip = s;
     var name = s.name || (s.karyawan && s.karyawan.name) || '';
-    $('#sdel-title').textContent = 'Hapus ' + s.kode + '?';
-    $('#sdel-desc').textContent = name + ' · ' + s.periode_label + ' · Slip #' + s.nomor + ' · ' + s.status_label + ' · ' + rp(s.sub_total);
-    $('#sdel-warn').textContent = (s.status === 'dibayar'
-      ? 'Slip ini sudah DIBAYAR. Menghapusnya tidak membatalkan transfer — hanya menghapus catatannya. '
-      : '') + 'Slip beserta seluruh rinciannya dihapus permanen dan tidak bisa dikembalikan.';
-    sdel.pin.value = '';
-    sdel.err.hidden = true;
-    sdel.ok.disabled = false; sdel.ok.classList.remove('is-loading');
-    MH.openModal(sdel.modal);
-    setTimeout(function () { sdel.pin.focus(); }, 40);
-  }
-  function doDelete() {
-    var s = sdel.slip;
-    if (!s) return;
-    if (!sdel.pin.value.trim()) { showErr(sdel.err, new Error('Masukkan kode sandi.')); sdel.pin.focus(); return; }
-    sdel.ok.disabled = true; sdel.ok.classList.add('is-loading'); sdel.err.hidden = true;
-    MH.api('api/payroll.php?id=' + s.id, { method: 'DELETE', body: { pin: sdel.pin.value } })
-      .then(function () {
-        MH.closeModal(sdel.modal);
+    MH.confirmDelete({
+      window: 'Hapus Slip',
+      title: 'Hapus ' + s.kode + '?',
+      meta: [name, s.periode_label, 'Slip #' + s.nomor, s.status_label, rp(s.sub_total)],
+      desc: (s.status === 'dibayar'
+        ? 'Slip ini sudah DIBAYAR. Menghapusnya tidak membatalkan transfer — hanya menghapus catatannya. '
+        : '') + 'Slip beserta seluruh rinciannya dihapus permanen dan tidak bisa dikembalikan.',
+      toast: 'Slip ' + s.kode + ' dihapus',
+      action: function (pin) { return MH.api('api/payroll.php?id=' + s.id, { method: 'DELETE', body: { pin: pin } }); },
+      done: function () {
         if (state.slip && state.slip.id === s.id) MH.closeModal(modal);
         state.slip = null;
         load();
-      })
-      .catch(function (e) { showErr(sdel.err, e); sdel.pin.select(); })
-      .finally(function () { sdel.ok.disabled = false; sdel.ok.classList.remove('is-loading'); sdel.pin.value = ''; });
+      }
+    });
   }
-  sdel.ok.addEventListener('click', doDelete);
-  sdel.pin.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doDelete(); } });
 
   /** Laporan bulan: total SEMUA slip per karyawan (dibayar + berjalan) */
   var rkBody = $('#rk-body'), rkFoot = $('#rk-foot');

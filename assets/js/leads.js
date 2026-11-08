@@ -518,30 +518,25 @@
   /* =========================================================
      Hapus
      ========================================================= */
-  var delModal = $('#del-modal'), delBtn = $('#del-confirm'), delErr = $('#del-error'), delTarget = null;
-  function askDelete(l, trigger) {
-    delTarget = l;
-    $('#del-name').textContent = l.client_name;
-    delErr.hidden = true;
-    delBtn.disabled = false;
-    MH.openModal(delModal);
-  }
-  delBtn.addEventListener('click', function () {
-    var l = delTarget;
+  function askDelete(l) {
     if (!l) return;
-    delBtn.disabled = true; delBtn.classList.add('is-loading');
-    MH.api('api/leads.php?id=' + l.id, { method: 'DELETE' }).then(function () {
-      MH.closeModal(delModal);
-      state.items = state.items.filter(function (x) { return x.id !== l.id; });
-      closeDetail(true);
-      render();
-      refreshStats();
-      say('Lead ' + l.client_name + ' dihapus.');
-      $('#ld-search').focus();
-    }).catch(function (err) {
-      delErr.innerHTML = MH.errorHtml(err.message); delErr.hidden = false; delBtn.disabled = false;
-    }).finally(function () { delBtn.classList.remove('is-loading'); });
-  });
+    MH.confirmDelete({
+      window: 'Hapus Lead',
+      name: l.client_name,
+      meta: [STAGE_LABEL[l.stage], l.source, l.pic],
+      desc: 'Lead ini beserta riwayatnya akan dihapus permanen. Customer & transaksi yang sudah dibuat tidak ikut terhapus.',
+      toast: 'Lead ' + l.client_name + ' dihapus',
+      action: function (pin) { return MH.api('api/leads.php?id=' + l.id, { method: 'DELETE', body: { pin: pin } }); },
+      done: function () {
+        state.items = state.items.filter(function (x) { return x.id !== l.id; });
+        closeDetail(true);
+        render();
+        refreshStats();
+        say('Lead ' + l.client_name + ' dihapus.');
+        $('#ld-search').focus();
+      }
+    });
+  }
 
   /* =========================================================
      Tambah lead

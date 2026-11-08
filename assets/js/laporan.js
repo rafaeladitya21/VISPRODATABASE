@@ -16,7 +16,7 @@
   var S = {
     tahun: now.getFullYear(), bulan: now.getMonth() + 1,   // bulan 0 = semua bulan
     data: null, rows: [],                                  // rows = item + saldo berjalan, urut terlama dulu
-    filter: 'semua', q: '', confirmId: null, flashId: null,
+    filter: 'semua', q: '', flashId: null,
     seq: 0, busy: false
   };
 
@@ -227,7 +227,6 @@
   }
   function pilihBulan(m) {
     S.bulan = S.bulan === m ? 0 : m;
-    S.confirmId = null;
     render();
   }
   function tip(g) {
@@ -308,10 +307,7 @@
     var nota = r.link_nota
       ? '<a class="lk-nota-link" href="' + esc(r.link_nota) + '" target="_blank" rel="noopener noreferrer">' + MH.icon('ext') + 'Lihat nota</a>'
       : '<button class="btn btn--dashed lk-btn-s' + (r.jenis === 'keluar' ? ' lk-attach--warn' : '') + '" type="button" data-attach="' + r.id + '">+ Lampirkan</button>';
-    var aksi = S.confirmId === r.id
-      ? '<span class="lk-confirm"><button class="btn btn--primary lk-btn-s" type="button" data-del-ok="' + r.id + '">Hapus</button>' +
-        '<button class="btn btn--secondary lk-btn-s" type="button" data-del-no>Batal</button></span>'
-      : '<span class="lk-acts"><button class="btn-icon" type="button" data-edit="' + r.id + '" aria-label="Ubah catatan" title="Ubah">' + I_EDIT + '</button>' +
+    var aksi = '<span class="lk-acts"><button class="btn-icon" type="button" data-edit="' + r.id + '" aria-label="Ubah catatan" title="Ubah">' + I_EDIT + '</button>' +
         '<button class="btn-icon" type="button" data-del="' + r.id + '" aria-label="Hapus catatan" title="Hapus">' + MH.icon('trash') + '</button></span>';
     return '<tr data-id="' + r.id + '"' + (S.flashId === r.id ? ' class="is-flash"' : '') + '>' +
       '<td class="nw num">' + esc(MH.date(r.tanggal)) + '</td>' +
@@ -355,7 +351,6 @@
 
   function setFilter(f) {
     S.filter = f;
-    S.confirmId = null;
     if (S.data) TabelBukuKas(hitung().rows);
   }
 
@@ -490,7 +485,7 @@
   form.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeForm(); });
 
   /* ---------------- BiayaTetap (otomatis jadi pengeluaran tiap bulan) ---------------- */
-  var BT = { id: null, confirmId: null };
+  var BT = { id: null };
   var bt = {
     form: $('#lk-bt-form'), nama: $('#bt-nama'), kategori: $('#bt-kategori'), nominal: $('#bt-nominal'),
     tanggal: $('#bt-tanggal'), mulai: $('#bt-mulai')
@@ -511,17 +506,11 @@
       var info = [b.kategori, 'tiap tgl ' + b.tanggal,
         b.mulai > ini ? 'mulai ' + ymLabel(b.mulai) : 'sejak ' + ymLabel(b.mulai)];
       if (b.selesai) info.push('berhenti setelah ' + ymLabel(b.selesai));
-      var acts = BT.confirmId === b.id
-        ? '<span class="lk-confirm"><button class="btn btn--primary lk-btn-s" type="button" data-bt-stop-ok="' + b.id + '">' +
-            (b.mulai > ini ? 'Hapus' : 'Hentikan') + '</button>' +
-          '<button class="btn btn--secondary lk-btn-s" type="button" data-bt-stop-no>Batal</button></span>'
-        : '<span class="lk-acts"><button class="btn-icon" type="button" data-bt-edit="' + b.id + '" aria-label="Ubah ' + esc(b.nama) + '" title="Ubah">' + I_EDIT + '</button>' +
+      var acts = '<span class="lk-acts"><button class="btn-icon" type="button" data-bt-edit="' + b.id + '" aria-label="Ubah ' + esc(b.nama) + '" title="Ubah">' + I_EDIT + '</button>' +
           (b.selesai ? '' : '<button class="btn-icon" type="button" data-bt-stop="' + b.id + '" aria-label="Hentikan ' + esc(b.nama) + '" title="Hentikan">' + MH.icon('x') + '</button>') +
           '</span>';
       return '<li class="lk-bt-item">' +
-        '<div class="lk-bt-item__main"><strong>' + esc(b.nama) + '</strong><small>' + esc(info.join(' · ')) + '</small>' +
-          (BT.confirmId === b.id ? '<small class="lk-bt-item__ask">' + (b.mulai > ini ? 'Hapus biaya yang belum berjalan ini?'
-            : 'Berhenti setelah ' + esc(ymLabel(ini)) + '? Bulan ini dan sebelumnya tetap tercatat.') + '</small>' : '') + '</div>' +
+        '<div class="lk-bt-item__main"><strong>' + esc(b.nama) + '</strong><small>' + esc(info.join(' · ')) + '</small></div>' +
         '<strong class="lk-bt-item__amt num">' + esc(rp(b.nominal)) + '<small> / bulan</small></strong>' + acts + '</li>';
     }).join('') +
       // Baris total: biaya yang sudah berjalan bulan ini (yang baru mulai nanti disebut terpisah)
@@ -535,7 +524,6 @@
 
   function btOpen(b) {
     BT.id = b ? b.id : null;
-    BT.confirmId = null;
     $('#bt-error').innerHTML = '';
     bt.nama.value = b ? b.nama : '';
     bt.kategori.value = b ? b.kategori : 'Operasional Kantor';
@@ -578,20 +566,30 @@
   bt.form.addEventListener('keydown', function (e) { if (e.key === 'Escape') btClose(); });
 
   $('#lk-bt').addEventListener('click', function (e) {
-    var t = e.target.closest('[data-bt-edit],[data-bt-stop],[data-bt-stop-ok],[data-bt-stop-no]');
+    var t = e.target.closest('[data-bt-edit],[data-bt-stop]');
     if (!t) return;
     var find = function (id) { return btItems().filter(function (b) { return b.id === +id; })[0]; };
     if (t.hasAttribute('data-bt-edit')) { var b = find(t.getAttribute('data-bt-edit')); if (b) btOpen(b); return; }
-    if (t.hasAttribute('data-bt-stop')) { BT.confirmId = +t.getAttribute('data-bt-stop'); BiayaTetap(); return; }
-    if (t.hasAttribute('data-bt-stop-no')) { BT.confirmId = null; BiayaTetap(); return; }
-    var id = +t.getAttribute('data-bt-stop-ok'), item = find(id);
-    t.classList.add('is-loading'); t.disabled = true; S.busy = true;
-    MH.api('api/biayatetap.php?id=' + id, { method: 'DELETE', timeout: 20000 }).then(function () {
-      toast(item && item.mulai > ymNow() ? 'Biaya tetap dihapus' : 'Biaya tetap berhenti setelah ' + ymLabel(ymNow()));
-    }, function (er) { toast(er.message); }).then(function () {
-      BT.confirmId = null; S.busy = false;
-      if (BT.id === id) btClose();
-      return load({ silent: true });
+    var id = +t.getAttribute('data-bt-stop'), item = find(id);
+    if (!item) return;
+    var belum = item.mulai > ymNow();   // belum pernah berjalan → dihapus; sudah berjalan → berhenti setelah bulan ini
+    MH.confirmDelete({
+      window: belum ? 'Hapus Biaya Tetap' : 'Hentikan Biaya Tetap',
+      title: (belum ? 'Hapus ' : 'Hentikan ') + item.nama + '?',
+      meta: [item.kategori, rp(item.nominal) + ' / bulan', 'tiap tgl ' + item.tanggal],
+      desc: belum ? 'Biaya yang belum berjalan ini akan dihapus.'
+        : 'Berhenti setelah ' + ymLabel(ymNow()) + '. Bulan ini dan sebelumnya tetap tercatat.',
+      confirm: belum ? 'Hapus' : 'Hentikan',
+      toast: belum ? 'Biaya tetap dihapus' : 'Biaya tetap berhenti setelah ' + ymLabel(ymNow()),
+      action: function (pin) {
+        S.busy = true;
+        return MH.api('api/biayatetap.php?id=' + id, { method: 'DELETE', body: { pin: pin }, timeout: 20000 })
+          .then(function (d) { S.busy = false; return d; }, function (er) { S.busy = false; throw er; });
+      },
+      done: function () {
+        if (BT.id === id) btClose();
+        load({ silent: true });
+      }
     });
   });
   document.addEventListener('click', function (e) {
@@ -612,7 +610,7 @@
   function byId(id) { id = +id; return S.rows.filter(function (r) { return r.sumber === 'manual' && r.id === id; })[0]; }
 
   document.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-catat],[data-edit],[data-attach],[data-del],[data-del-ok],[data-del-no],[data-filter]');
+    var t = e.target.closest('[data-catat],[data-edit],[data-attach],[data-del],[data-filter]');
     if (!t) return;
     if (t.hasAttribute('data-catat')) { openForm(t.getAttribute('data-catat')); return; }
     if (t.hasAttribute('data-filter')) { setFilter(t.getAttribute('data-filter')); return; }
@@ -621,21 +619,25 @@
       if (it) openForm(it.jenis, it, t.hasAttribute('data-attach'));
       return;
     }
-    if (t.hasAttribute('data-del')) { S.confirmId = +t.getAttribute('data-del'); TabelBukuKas(hitung().rows); return; }
-    if (t.hasAttribute('data-del-no')) { S.confirmId = null; TabelBukuKas(hitung().rows); return; }
-    if (t.hasAttribute('data-del-ok')) {
-      var id = +t.getAttribute('data-del-ok');
-      t.classList.add('is-loading'); t.disabled = true; S.busy = true;
-      MH.api('api/kas.php?id=' + id, { method: 'DELETE', timeout: 20000 }).then(function () {
-        S.confirmId = null;
-        if (F.id === id) closeForm();
-        toast('Catatan dihapus');
-        return load({ silent: true });
-      }, function (err) {
-        S.confirmId = null;
-        toast(err.message);
-        return load({ silent: true });
-      }).then(function () { S.busy = false; });
+    if (t.hasAttribute('data-del')) {
+      var r = byId(t.getAttribute('data-del'));
+      if (!r) return;
+      MH.confirmDelete({
+        window: 'Hapus Catatan',
+        name: r.keterangan,
+        meta: [MH.date(r.tanggal), r.kategori, (r.jenis === 'masuk' ? 'Masuk ' : 'Keluar ') + rp(r.nominal)],
+        desc: 'Catatan ini akan dihapus dari buku kas dan saldo dihitung ulang.',
+        toast: 'Catatan dihapus',
+        action: function (pin) {
+          S.busy = true;
+          return MH.api('api/kas.php?id=' + r.id, { method: 'DELETE', body: { pin: pin }, timeout: 20000 })
+            .then(function (d) { S.busy = false; return d; }, function (er) { S.busy = false; throw er; });
+        },
+        done: function () {
+          if (F.id === r.id) closeForm();
+          load({ silent: true });
+        }
+      });
     }
   });
 
@@ -654,11 +656,11 @@
   plot.addEventListener('focusout', function () { tip(null); });
 
   $('#lk-bulan').addEventListener('change', function () {
-    S.bulan = +this.value; S.confirmId = null;
+    S.bulan = +this.value;
     render();
   });
   $('#lk-tahun').addEventListener('change', function () {
-    S.tahun = +this.value; S.confirmId = null;
+    S.tahun = +this.value;
     load();
   });
   $('#lk-cari').addEventListener('input', MH.debounce(function () {

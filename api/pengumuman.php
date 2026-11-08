@@ -5,13 +5,14 @@
  *                                 (aktif / terjadwal / berakhir), terbaru di atas
  *   POST {judul, isi, target, penting, tampil_mulai?, tampil_sampai?}  → tambah
  *   PUT  {id, …sama}            → ubah
- *   DELETE ?id=123              → hapus (soft delete: deleted_at)
+ *   DELETE ?id=123 {pin}        → hapus, wajib kode sandi (soft delete: deleted_at)
  * tampil_mulai / tampil_sampai: "YYYY-MM-DDTHH:MM" (input datetime-local). Mulai kosong = sekarang,
  * sampai kosong = tanpa batas. Semua perubahan dicatat di log_aktivitas.
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/pin.php';
 require_once __DIR__ . '/../includes/pengumuman.php';
 
 /** "2026-11-05T14:30" / "2026-11-05 14:30:00" → "2026-11-05 14:30:00", kosong → null, salah → false */
@@ -97,6 +98,7 @@ try {
     }
 
     if ($method === 'DELETE') {
+        require_pin('delete_pengumuman', DELETE_CUSTOMER_PIN_HASH, read_json()['pin'] ?? null);   // wajib kode sandi hapus
         $id = (int)($_GET['id'] ?? 0);
         $before = pg_row($id);
         if (!$before) json_error('Pengumuman tidak ditemukan.', 404);

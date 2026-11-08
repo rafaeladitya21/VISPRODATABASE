@@ -6,11 +6,12 @@
  *   GET ?inv=INV-…      → detail lengkap
  *   POST {customer_code?, event_date?} → transaksi baru (nomor invoice dibuat server)
  *   PUT  {invoice_no, …seluruh isi form}  → autosave / simpan (total dihitung ulang)
- *   DELETE ?inv=INV-…   → hapus
+ *   DELETE ?inv=INV-… {pin} → hapus, wajib kode sandi
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/pin.php';
 require_once __DIR__ . '/../includes/tx.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -62,6 +63,7 @@ try {
     }
 
     if ($method === 'DELETE') {
+        require_pin('delete_transaksi', DELETE_CUSTOMER_PIN_HASH, read_json()['pin'] ?? null);   // wajib kode sandi hapus
         $id = tx_id_by_invoice((string)($_GET['inv'] ?? ''));
         if (!$id) json_error('Invoice tidak ditemukan.', 404);
         db()->prepare('DELETE FROM transactions WHERE id = ?')->execute([$id]); // rincian ikut terhapus (CASCADE)

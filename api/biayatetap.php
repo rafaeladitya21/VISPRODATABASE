@@ -5,11 +5,12 @@
  *   POST {nama, kategori, nominal, tanggal, mulai:'YYYY-MM'} → baru
  *   PUT  {id, …sama}    → ubah. Bila sudah berjalan sebelum bulan ini: baris lama ditutup (selesai = bulan lalu)
  *                         dan baris baru berlaku mulai bulan ini — angka bulan-bulan lalu tidak berubah.
- *   DELETE ?id=         → berhenti setelah bulan ini (selesai = bulan ini). Belum pernah berjalan → dihapus.
+ *   DELETE ?id= {pin}   → wajib kode sandi; berhenti setelah bulan ini (selesai = bulan ini). Belum pernah berjalan → dihapus.
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/pin.php';
 require_once __DIR__ . '/../includes/kas.php';
 require_once __DIR__ . '/../includes/laporan-lock.php';
 laporan_require_unlock();
@@ -67,6 +68,7 @@ try {
     }
 
     if ($method === 'DELETE') {
+        require_pin('delete_biaya_tetap', DELETE_CUSTOMER_PIN_HASH, read_json()['pin'] ?? null);   // wajib kode sandi hapus
         $pdo->beginTransaction();
         try {
             $old = bt_find((int)($_GET['id'] ?? 0), $ini);

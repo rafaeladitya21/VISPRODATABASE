@@ -1204,7 +1204,6 @@ select.input option { color: var(--ink); }
 .btn--ghost-dark { color: #E5E5E5; background: transparent; border: 1px solid var(--ink-2); }
 .btn--ghost-dark:hover { color: var(--white); background: rgba(255, 255, 255, .08); border-color: var(--muted-dark); }
 
-.input--pin { letter-spacing: .3em; font-size: 16px; -webkit-text-security: disc; text-security: disc; }  /* type="text" bertopeng: bukan field sandi bagi Password Manager */
 
 /* =========================================================
    Pemilih bulan (Ringkasan)
@@ -2822,7 +2821,7 @@ html:has(.modal.mform[open]) { overflow: hidden; }   /* halaman belakang tidak i
 .lk-nota-link .icon { width: 15px; height: 15px; }
 .lk-nota-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .lk-aksi { width: 1%; white-space: nowrap; text-align: right; }
-.lk-acts, .lk-confirm { display: inline-flex; gap: 6px; }
+.lk-acts { display: inline-flex; gap: 6px; }
 .lk-table tr.is-flash td { animation: lk-flash 2.4s ease-out; }
 @keyframes lk-flash { 0%, 40% { background: var(--line-2); } 100% { background: transparent; } }
 .lk-table tfoot td { height: 52px; }
@@ -2901,7 +2900,6 @@ html:has(.modal.mform[open]) { overflow: hidden; }   /* halaman belakang tidak i
 .lk-bt-item__main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .lk-bt-item__main strong { font-weight: 600; }
 .lk-bt-item__main small { font-size: 12px; color: var(--muted); }
-.lk-bt-item__main .lk-bt-item__ask { color: var(--ink); font-weight: 500; }
 .lk-bt-item__amt { white-space: nowrap; font-weight: 600; }
 .lk-bt-item__amt small { font-weight: 500; color: var(--muted); }
 .lk-bt-empty { padding: 8px 0 4px; font-size: 13px; color: var(--muted); }
@@ -3057,3 +3055,91 @@ html.pc-open, html.pc-locked { overflow: hidden; }
   .pc, .pc__inner, .pc-key { transition: none; }
   .pc__dots.is-shake, .pc__head.is-out, .pc__head.is-in, .pc.is-busy .pc__dots i { animation: none; }
 }
+
+/* =========================================================
+   Dialog konfirmasi hapus + kode sandi (MH.confirmDelete, app.js) — semua halaman admin
+   ========================================================= */
+.cdlg {
+  --cdlg-warn: #9A3412;
+  width: min(440px, calc(100vw - 32px)); max-width: none; margin: auto; padding: 0;
+  border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+  background: var(--white); color: var(--ink);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  box-shadow: var(--shadow-window);
+}
+:root[data-theme="dark"] .cdlg { --cdlg-warn: #FB923C; }
+.cdlg::backdrop { background: rgba(0, 0, 0, .45); }
+.cdlg[open] { animation: fade-blur-up .3s var(--ease-out) both; }
+.cdlg__bar {
+  position: relative; display: flex; align-items: center; height: 40px; padding: 0 14px;
+  background: var(--soft); border-bottom: 1px solid var(--line-2);
+}
+.cdlg__dots { display: flex; gap: 7px; }
+.cdlg__dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--ink); }
+.cdlg__dots i:nth-child(2) { background: var(--bar); }
+.cdlg__dots i:nth-child(3) { background: var(--dash); }
+.cdlg__window {
+  position: absolute; left: 50%; transform: translateX(-50%); max-width: 60%;
+  font-size: 12.5px; font-weight: 500; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cdlg__body { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.cdlg__title { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.cdlg__meta, .cdlg__desc { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.cdlg__meta { margin-top: -8px; }
+.cdlg__meta[hidden], .cdlg__block[hidden], .cdlg__field[hidden] { display: none; }
+.cdlg__block {
+  padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5;
+  color: var(--cdlg-warn); background: color-mix(in srgb, var(--cdlg-warn) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cdlg-warn) 30%, transparent);
+}
+.cdlg__field { display: flex; flex-direction: column; gap: 8px; }
+.cdlg__label { font-size: 13px; font-weight: 700; }
+.cdlg__pin {
+  width: 100%; height: 52px; padding: 0 12px 0 calc(12px + .5em);
+  border: 1px solid var(--ink); border-radius: 10px; background: var(--white); color: var(--ink);
+  font-family: inherit; font-size: 22px; letter-spacing: .5em; text-align: center;
+  outline: none; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.cdlg__pin::placeholder { color: var(--placeholder); letter-spacing: .5em; text-align: center; opacity: 1; }
+.cdlg__pin:focus { box-shadow: var(--ring); }
+.cdlg__pin.is-invalid { border-color: var(--cdlg-warn); }
+.cdlg__pin.is-invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cdlg-warn) 18%, transparent); }
+.cdlg__err { margin: 0; min-height: 0; font-size: 12.5px; font-weight: 500; text-align: center; color: var(--cdlg-warn); }
+.cdlg__err:empty { display: none; }
+.cdlg__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.cdlg__btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 48px; min-width: 104px; padding: 0 20px; border-radius: 12px;
+  font: 600 14px/1 'Plus Jakarta Sans', sans-serif; cursor: pointer;
+  transition: background-color .15s ease, opacity .15s ease, transform .1s ease;
+}
+.cdlg__btn:active:not(:disabled) { transform: scale(.98); }
+.cdlg__btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.cdlg__btn--ghost { background: var(--white); color: var(--ink); border: 1px solid #E5E5E5; }
+:root[data-theme="dark"] .cdlg__btn--ghost { border-color: var(--line); }
+.cdlg__btn--ghost:hover { background: var(--soft); }
+.cdlg__btn--danger { background: var(--ink); color: var(--white); border: 1px solid var(--ink); }
+.cdlg__btn--danger:hover:not(:disabled) { background: var(--ink-2); }
+.cdlg__btn:disabled { opacity: .45; cursor: not-allowed; }
+.cdlg__btn.is-loading { opacity: 1; cursor: progress; }
+.cdlg__btn .btn__spinner { display: none; }
+.cdlg__btn.is-loading .btn__spinner { display: inline-block; }
+.cdlg.is-busy [data-cdlg-cancel] { opacity: .45; pointer-events: none; }
+@media (max-width: 480px) {
+  .cdlg__body { padding: 20px; }
+  .cdlg__actions .cdlg__btn { flex: 1; }
+}
+
+/* Notifikasi hitam di atas halaman (MH.toast) */
+.mh-toast {
+  position: fixed; left: 50%; top: 20px; z-index: 1100; max-width: calc(100vw - 32px);
+  padding: 12px 18px; border-radius: 12px;
+  font: 600 13.5px/1.35 'Plus Jakarta Sans', sans-serif; color: #FFFFFF;
+  background: #0A0A0A; border: 1px solid #262626; box-shadow: 0 12px 32px -8px rgba(0, 0, 0, .35);
+  opacity: 0; transform: translate(-50%, -12px);
+  transition: opacity .2s ease, transform .3s var(--ease-out);
+  pointer-events: none;
+}
+.mh-toast.is-in { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) { .cdlg[open] { animation: none; } .mh-toast { transition: opacity .2s ease; } }

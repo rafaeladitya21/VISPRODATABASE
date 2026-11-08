@@ -100,15 +100,39 @@
   /* =========================================================
      Hapus transaksi (dengan konfirmasi)
      ========================================================= */
-  var delModal = $('#del-modal'), delBtn = $('#del-confirm'), delErr = $('#del-error');
-  var delTarget = null;
-
   function askDelete(inv, desc) {
-    delTarget = inv;
-    $('#del-inv').textContent = inv;
-    $('#del-desc').textContent = desc || '';
-    delErr.hidden = true;
-    MH.openModal(delModal);
+    var isCurrent = function () { return state.tx && state.tx.invoice_no === inv; };
+    MH.confirmDelete({
+      window: 'Hapus Transaksi',
+      name: inv,
+      meta: [desc],
+      desc: 'Semua rincian (transport, crew, sewa alat) ikut terhapus dan tidak bisa dikembalikan.',
+      toast: 'Transaksi ' + inv + ' dihapus',
+      action: function (pin) {
+        // Transaksi yang sedang diedit: hentikan autosave dulu
+        var before = Promise.resolve(), wasPending = false;
+        if (isCurrent()) {
+          wasPending = state.pending;
+          state.pending = false; autosave.cancel(); before = inflight || Promise.resolve();
+        }
+        return before.then(function () {
+          return MH.api('api/transactions.php?inv=' + encodeURIComponent(inv), { method: 'DELETE', body: { pin: pin } });
+        }).catch(function (err) {
+          // Gagal (mis. kode salah) → perubahan yang belum tersimpan tetap dikirim
+          if (wasPending && isCurrent()) { state.pending = true; autosave(); }
+          throw err;
+        });
+      },
+      done: function () {
+        if (isCurrent()) {
+          state.tx = null;
+          state.pending = false;
+          editor.hidden = true;
+          history.replaceState(null, '', 'transaksi.php');
+        }
+        loadList();
+      }
+    });
   }
 
   $('#eb-delete').addEventListener('click', function () {
@@ -116,32 +140,6 @@
     var t = state.tx;
     askDelete(t.invoice_no, (state.customer ? state.customer.name : 'Tanpa customer') + ' · ' +
       ($('#f-event').value || 'Event belum diberi nama') + ' · ' + rp(MH.parseRupiah($('#f-revenue').value)));
-  });
-
-  delBtn.addEventListener('click', function () {
-    if (!delTarget) return;
-    var inv = delTarget;
-    var isCurrent = state.tx && state.tx.invoice_no === inv;
-    delBtn.disabled = true; delBtn.classList.add('is-loading');
-
-    // Transaksi yang sedang diedit: hentikan autosave dulu
-    if (isCurrent) state.pending = false;  // jangan kirim autosave lagi
-    var before = isCurrent ? (autosave.cancel(), inflight || Promise.resolve()) : Promise.resolve();
-    before.then(function () {
-      return MH.api('api/transactions.php?inv=' + encodeURIComponent(inv), { method: 'DELETE' });
-    }).then(function () {
-      if (isCurrent) {
-        state.tx = null;
-        state.pending = false;
-        editor.hidden = true;
-        history.replaceState(null, '', 'transaksi.php');
-      }
-      MH.closeModal(delModal);
-      loadList();
-    }).catch(function (err) {
-      delErr.innerHTML = MH.errorHtml(err.message);
-      delErr.hidden = false;
-    }).finally(function () { delBtn.disabled = false; delBtn.classList.remove('is-loading'); });
   });
 
   /* =========================================================

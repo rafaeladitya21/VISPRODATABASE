@@ -299,39 +299,23 @@
   /* =========================================================
      Hapus alat (selalu dengan konfirmasi)
      ========================================================= */
-  var delModal = $('#del-modal'), delBtn = $('#del-confirm'), delErr = $('#del-error'), delBlock = $('#del-block');
-  var delTarget = null, delReturn = null;
-
   function askDelete(it, trigger) {
     if (!it) return;
-    delTarget = it;
-    delReturn = trigger || null;
-    $('#del-name').textContent = it.name;
-    delErr.hidden = true;
-    var blocked = it.used > 0;
-    delBlock.innerHTML = blocked ? MH.errorHtml('Alat ini masih dipakai di event (' + it.used + ' unit). Check-in dulu sebelum dihapus.') : '';
-    delBlock.hidden = !blocked;
-    delBtn.disabled = blocked;
-    MH.openModal(delModal);
+    if (trigger) trigger.focus();   // fokus kembali ke tombol pemicu setelah dialog ditutup
+    MH.confirmDelete({
+      window: 'Hapus Alat',
+      name: it.name,
+      meta: [it.category, it.qty + ' unit'],
+      desc: 'Alat ini beserta jumlah unit dan riwayatnya akan dihapus permanen dari inventaris.',
+      blocked: it.used > 0 ? 'Alat ini masih dipakai di event (' + it.used + ' unit). Check-in dulu sebelum dihapus.' : '',
+      toast: it.name + ' dihapus',
+      action: function (pin) { return MH.api('api/inventory.php?id=' + it.id, { method: 'DELETE', body: { pin: pin } }); },
+      done: function () {
+        if (state.currentId === it.id) closeDetail(true);
+        load().then(function () { search.focus(); });
+      }
+    });
   }
-
-  delBtn.addEventListener('click', function () {
-    var it = delTarget;
-    if (!it || delBtn.disabled) return;
-    delBtn.disabled = true; delBtn.classList.add('is-loading');
-    MH.api('api/inventory.php?id=' + it.id, { method: 'DELETE' }).then(function () {
-      MH.closeModal(delModal);
-      if (state.currentId === it.id) closeDetail(true);
-      return load().then(function () { search.focus(); });
-    }).catch(function (err) {
-      delErr.innerHTML = MH.errorHtml(err.message);
-      delErr.hidden = false;
-      delBtn.disabled = /dipakai/i.test(err.message);   // masih dipakai → tetap nonaktif
-    }).finally(function () { delBtn.classList.remove('is-loading'); });
-  });
-  delModal.addEventListener('close', function () {
-    if (delReturn && delReturn.isConnected && !document.querySelector('dialog[open]')) delReturn.focus();
-  });
 
   /* =========================================================
      Panel detail

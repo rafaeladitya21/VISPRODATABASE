@@ -9,10 +9,9 @@
   var TARGET = (window.MH_DATA && MH_DATA.target) || {};
   var STATUS = { aktif: 'Aktif', terjadwal: 'Terjadwal', berakhir: 'Berakhir' };
 
-  var items = [], filter = 'semua', delId = null;
+  var items = [], filter = 'semua';
   var body = $('#pg-body'), listErr = $('#pg-error');
   var modal = $('#pg-modal'), form = $('#pg-form'), f = form.elements, save = $('#pg-save'), formErr = $('#pg-form-error');
-  var delModal = $('#pg-del-modal'), delBtn = $('#pg-del-confirm'), delErr = $('#pg-del-error');
 
   function showErr(box, err) { box.innerHTML = MH.errorHtml(err.message); box.hidden = false; }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -136,20 +135,16 @@
     } else if ((b = e.target.closest('[data-del]'))) {
       var p = items.find(function (x) { return x.id === Number(b.dataset.del); });
       if (!p) return;
-      delId = p.id;
-      delErr.hidden = true;
-      $('#pg-del-desc').textContent = '"' + p.judul + '" (' + (TARGET[p.target] || p.target) + ', ' + STATUS[p.status] + ')';
-      MH.openModal(delModal);
+      MH.confirmDelete({
+        window: 'Hapus Pengumuman',
+        title: 'Hapus "' + p.judul + '"?',
+        meta: [TARGET[p.target] || p.target, STATUS[p.status]],
+        desc: 'Pengumuman langsung hilang dari Beranda karyawan & anak magang.',
+        toast: 'Pengumuman dihapus',
+        action: function (pin) { return MH.api('api/pengumuman.php?id=' + p.id, { method: 'DELETE', body: { pin: pin } }); },
+        done: load
+      });
     }
-  });
-
-  delBtn.addEventListener('click', function () {
-    if (!delId) return;
-    delBtn.disabled = true; delBtn.classList.add('is-loading'); delErr.hidden = true;
-    MH.api('api/pengumuman.php?id=' + delId, { method: 'DELETE' })
-      .then(function (d) { load(d); delId = null; MH.closeModal(delModal); })
-      .catch(function (err) { showErr(delErr, err); })
-      .finally(function () { delBtn.disabled = false; delBtn.classList.remove('is-loading'); });
   });
 
   $('#pg-tabs').addEventListener('click', function (e) {

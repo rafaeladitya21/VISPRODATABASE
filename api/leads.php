@@ -6,7 +6,7 @@
  *   POST   {client_name, company, whatsapp, lead_date, event, services, category, source,
  *           contract_value, pic}                → tambah (tahapan HOLD)
  *   PUT    {id, …field yang diubah, termasuk stage / deal_value} → ubah (dicatat di lead_logs)
- *   DELETE ?id=                                 → hapus
+ *   DELETE ?id= {pin}                           → hapus, wajib kode sandi
  *   POST   ?action=import  {csv, commit:false}  → pratinjau import CSV (Google Sheet)
  *                          {csv, commit:true}   → simpan (duplikat dilewati)
  *   POST   ?action=convert {id}                 → buat/cari customer + transaksi dari lead Deal
@@ -15,6 +15,7 @@
 declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
+require_once __DIR__ . '/../includes/pin.php';
 require_once __DIR__ . '/../includes/leads.php';
 require_once __DIR__ . '/../includes/tx.php';
 
@@ -365,6 +366,7 @@ try {
 
     /* ---------------- Hapus ---------------- */
     if ($method === 'DELETE') {
+        require_pin('delete_lead', DELETE_CUSTOMER_PIN_HASH, read_json()['pin'] ?? null);   // wajib kode sandi hapus
         $id = (int)($_GET['id'] ?? 0);
         $st = $pdo->prepare('DELETE FROM leads WHERE id = ?');   // riwayat ikut terhapus (CASCADE)
         $st->execute([$id]);
