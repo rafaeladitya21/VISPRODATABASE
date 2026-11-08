@@ -34,7 +34,7 @@ function inv_categories(): array
 
 /** SELECT item + hitungan dipakai & servis (tambahkan WHERE/ORDER sendiri) */
 const INV_ITEM_SQL = "SELECT i.id, i.name, i.category, i.qty, i.rent_price, i.note, i.last_checked_at,
-        i.created_at, i.updated_at,
+        i.created_at, i.updated_at, i.harga_beli, i.tanggal_beli, i.umur_bulan, i.nilai_sisa,
         COALESCE(co.used, 0)   AS used,
         COALESCE(sv.broken, 0) AS broken
     FROM inventory_items i
@@ -58,7 +58,59 @@ function inv_row(array $r): array
         'note'            => $r['note'],
         'last_checked_at' => $r['last_checked_at'],
         'updated_at'      => $r['updated_at'],
+        'harga_beli'      => $r['harga_beli'] === null ? null : (int)$r['harga_beli'],
+        'tanggal_beli'    => $r['tanggal_beli'] === null ? null : (string)$r['tanggal_beli'],
+        'umur_bulan'      => (int)$r['umur_bulan'],
+        'nilai_sisa'      => (int)$r['nilai_sisa'],
+        'susut'           => inv_susut($r['harga_beli'] === null ? null : (int)$r['harga_beli'], $r['tanggal_beli'],
+                                       (int)$r['umur_bulan'], (int)$r['nilai_sisa'], $qty),
     ];
+}
+
+/**
+ * Penyusutan garis lurus: (harga beli − nilai sisa) ÷ umur, per bulan penuh sejak tanggal beli.
+ * Semua angka hasil = total untuk seluruh unit (per unit × qty). null bila harga/tanggal beli belum diisi.
+ * $today hanya untuk tes.
+ */
+function inv_susut(?int $harga, ?string $tanggal, int $umur, int $sisa, int $qty, ?string $today = null): ?array
+{
+    if (!$harga || !$tanggal || $umur < 1) return null;
+    $beli = new DateTimeImmutable(substr($tanggal, 0, 10));
+    $now = new DateTimeImmutable($today ?? date('Y-m-d'));
+    $bulan = 0;
+    if ($now > $beli) {
+        $d = $beli->diff($now);
+        $bulan = $d->y * 12 + $d->m;          // bulan penuh yang sudah lewat
+    }
+    $sisa = min($sisa, $harga);
+    $jalan = min($bulan, $umur);
+    $perBulan = ($harga - $sisa) / $umur;    // per unit
+    $akum = (int)round($perBulan * $jalan);
+    if ($jalan >= $umur) $akum = $harga - $sisa;   // bulan terakhir: tepat sampai nilai sisa (tanpa sisa pembulatan)
+    return [
+        'nilai_awal' => $harga * $qty,
+        'per_bulan'  => $jalan >= $umur ? 0 : (int)round($perBulan * $qty),
+        'akumulasi'  => $akum * $qty,
+        'nilai_buku' => ($harga - $akum) * $qty,
+        'nilai_sisa' => $sisa * $qty,
+        'bulan'      => $jalan,
+        'umur'       => $umur,
+        'sisa_bulan' => $umur - $jalan,
+        'habis'      => $jalan >= $umur,
+        'persen'     => $harga - $sisa > 0 ? round($akum / ($harga - $sisa) * 100, 1) : 100,
+    ];
+}
+
+/** Total nilai aset dari baris inv_row(): nilai beli, nilai buku, penyusutan bulan ini, jumlah alat terisi/kosong */
+function inv_aset(array $rows): array
+{
+    $t = ['nilai_awal' => 0, 'akumulasi' => 0, 'nilai_buku' => 0, 'per_bulan' => 0, 'terisi' => 0, 'kosong' => 0];
+    foreach ($rows as $r) {
+        if (!$r['susut']) { $t['kosong']++; continue; }
+        $t['terisi']++;
+        foreach (['nilai_awal', 'akumulasi', 'nilai_buku', 'per_bulan'] as $k) $t[$k] += $r['susut'][$k];
+    }
+    return $t;
 }
 
 /** Satu item (dengan hitungan) atau null. $lock = kunci baris untuk transaksi DB. */

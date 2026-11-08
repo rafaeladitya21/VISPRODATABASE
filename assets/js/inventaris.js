@@ -43,6 +43,7 @@
     return MH.api('api/inventory.php').then(function (d) {
       state.items = d.items;
       state.totals = d.totals;
+      state.aset = d.aset || null;
       state.categories = d.categories;
       state.loaded = true;
       errBox.hidden = true;
@@ -53,8 +54,54 @@
     });
   }
 
+  /* ---------------- Nilai aset & penyusutan ---------------- */
+  function umurLabel(bln) {
+    return bln % 12 === 0 ? (bln / 12) + ' th' : bln >= 12 ? Math.floor(bln / 12) + ' th ' + (bln % 12) + ' bln' : bln + ' bln';
+  }
+  function susutBar(s) {
+    return '<div class="inv-susut-bar" aria-hidden="true"><i style="width:' + Math.min(100, s.persen) + '%"></i></div>';
+  }
+  function renderAset() {
+    var card = $('#inv-aset'), A = state.aset;
+    card.hidden = !state.items.length || !A;
+    if (card.hidden) return;
+    var box = function (label, v, cls) {
+      return '<div class="inv-aset__stat' + (cls ? ' ' + cls : '') + '"><span>' + label + '</span><strong class="num">' + v + '</strong></div>';
+    };
+    $('#inv-aset-stats').innerHTML =
+      box('Nilai beli', rp(A.nilai_awal)) + box('Akumulasi penyusutan', rp(A.akumulasi)) +
+      box('Nilai buku sekarang', rp(A.nilai_buku), 'is-dark') + box('Penyusutan per bulan', rp(A.per_bulan));
+    var note = $('#inv-aset-note');
+    note.hidden = !A.kosong;
+    note.innerHTML = MH.icon('alert') + '<span><strong class="num">' + A.kosong + ' dari ' + state.items.length + ' alat</strong> belum diisi harga &amp; tanggal beli — buka detail alat (klik nama alat) lalu isi bagian <em>Nilai &amp; Penyusutan</em>.</span>';
+    var rows = state.items.filter(function (it) { return it.susut; })
+      .sort(function (a, b) { return b.susut.nilai_buku - a.susut.nilai_buku; });
+    $('#inv-aset-wrap').hidden = !rows.length;
+    $('#inv-aset-body').innerHTML = rows.map(function (it) {
+      var s = it.susut;
+      return '<tr>' +
+        '<td><button type="button" class="inv-name" data-open="' + it.id + '"><strong>' + esc(it.name) + '</strong>' +
+          '<small class="num">' + it.qty + ' unit · umur ' + umurLabel(it.umur_bulan) + '</small></button></td>' +
+        '<td class="nw num">' + esc(MH.date(it.tanggal_beli)) + '</td>' +
+        '<td class="r">' + rp(s.nilai_awal) + '</td>' +
+        '<td class="r">' + (s.habis ? '<span class="muted">—</span>' : rp(s.per_bulan)) + '</td>' +
+        '<td class="r">' + rp(s.akumulasi) + '</td>' +
+        '<td class="r"><strong>' + rp(s.nilai_buku) + '</strong></td>' +
+        '<td>' + susutBar(s) + '<small class="inv-susut-txt num">' + (s.habis ? 'Habis disusutkan' : s.bulan + ' / ' + s.umur + ' bulan') + '</small></td>' +
+      '</tr>';
+    }).join('');
+    $('#inv-aset-foot').innerHTML = rows.length ? '<tr><td colspan="2">Total · <span class="num">' + rows.length + '</span> alat</td>' +
+      '<td class="r">' + rp(A.nilai_awal) + '</td><td class="r">' + rp(A.per_bulan) + '</td>' +
+      '<td class="r">' + rp(A.akumulasi) + '</td><td class="r">' + rp(A.nilai_buku) + '</td><td></td></tr>' : '';
+  }
+  $('#inv-aset').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-open]');
+    if (b) openDetail(Number(b.getAttribute('data-open')), b);
+  });
+
   function render() {
     renderKpis();
+    renderAset();
     var none = state.loaded && !state.items.length;
     emptyCard.hidden = !none;
     tableCard.hidden = none;
@@ -340,6 +387,7 @@
     renderHead(d.item);
     ddBody.innerHTML = detailHtml(d);
     $$('.stepper__input', ddBody).forEach(syncStepper);
+    $$('.input--money', ddBody).forEach(MH.moneyInput);
     if (fk) { var el = ddBody.querySelector('[data-k="' + fk + '"]'); if (el && !el.disabled) el.focus(); else panel.focus(); }
   }
 
@@ -498,6 +546,31 @@
       '<div id="dd-act-err"></div>' +
     '</section>';
 
+    // Nilai & penyusutan (garis lurus). Harga & nilai sisa per unit; hasil = semua unit.
+    var s = it.susut, today = new Date();
+    var maxTgl = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    var nilai = !s ? '<p class="dd-note">Isi harga &amp; tanggal beli untuk menghitung nilai buku dan penyusutan alat ini.</p>' :
+      '<div class="dd-susut">' +
+        '<div><span>Nilai beli</span><strong class="num">' + rp(s.nilai_awal) + '</strong></div>' +
+        '<div class="is-dark"><span>Nilai buku sekarang</span><strong class="num">' + rp(s.nilai_buku) + '</strong></div>' +
+        '<div><span>Penyusutan / bulan</span><strong class="num">' + (s.habis ? '—' : rp(s.per_bulan)) + '</strong></div>' +
+        '<div><span>Akumulasi</span><strong class="num">' + rp(s.akumulasi) + '</strong></div>' +
+      '</div>' + susutBar(s) +
+      '<p class="field__hint num">' + (s.habis ? 'Sudah habis disusutkan — nilai buku tetap di nilai sisa ' + rp(s.nilai_sisa) + '.'
+        : 'Tersusut ' + s.bulan + ' dari ' + s.umur + ' bulan (' + String(s.persen).replace('.', ',') + '%) · sisa ' + s.sisa_bulan + ' bulan.') +
+        (it.qty > 1 ? ' Dihitung untuk ' + it.qty + ' unit.' : '') + '</p>';
+    var nilaiSec = '<section class="dd-sec"><h3 class="dd-sec__title">Nilai &amp; Penyusutan</h3>' + nilai +
+      (MH_DATA.is_admin ? '<div class="dd-susut-form">' +
+        '<label><span>Harga beli / unit</span><input class="input input--money" id="dd-hb" data-k="hb" placeholder="Rp 0" value="' + (it.harga_beli ? MH.num(it.harga_beli) : '') + '" data-lpignore="true" autocomplete="off"></label>' +
+        '<label><span>Tanggal beli</span><input class="input" id="dd-tb" data-k="tb" type="date" min="1990-01-01" max="' + maxTgl + '" value="' + esc(it.tanggal_beli || '') + '"></label>' +
+        '<label><span>Umur pakai (tahun)</span><input class="input num" id="dd-umur" data-k="umur" type="number" inputmode="decimal" min="0.5" max="50" step="0.5" value="' + (it.umur_bulan / 12) + '"></label>' +
+        '<label><span>Nilai sisa / unit <small>(opsional)</small></span><input class="input input--money" id="dd-sisa" data-k="sisa" placeholder="Rp 0" value="' + (it.nilai_sisa ? MH.num(it.nilai_sisa) : '') + '" data-lpignore="true" autocomplete="off"></label>' +
+        '</div>' +
+        '<p class="field__hint">Umur pakai peralatan umumnya 4 tahun (aturan pajak kelompok 1). Nilai sisa = perkiraan harga jual saat sudah tidak dipakai.</p>' +
+        '<div id="dd-susut-err"></div>' +
+        '<button class="btn btn--secondary dd-check" type="button" data-act="susut" data-k="susut">' + I.check + 'Simpan nilai aset</button>' : '') +
+    '</section>';
+
     var logs = '<section class="dd-sec"><h3 class="dd-sec__title">Riwayat</h3>' +
       (d.logs.length ? '<ol class="dd-log">' + d.logs.map(function (l) {
         return '<li class="dd-log__item"><span class="dd-log__dot" aria-hidden="true"></span>' +
@@ -508,7 +581,7 @@
 
     var del = '<div class="dd-foot"><button class="btn btn--danger-ghost" type="button" data-act="delete" data-k="delete">' + I.trash + 'Hapus alat ini</button></div>';
 
-    return qty + using + svc + info + logs + del;
+    return qty + using + svc + info + nilaiSec + logs + del;
   }
 
   /** Jalankan aksi API lalu render ulang detail + daftar */
@@ -571,6 +644,19 @@
       case 'delete':
         askDelete(byId(it.id) || it, b);
         break;
+      case 'susut': {
+        var hb = MH.parseRupiah($('#dd-hb', ddBody).value), tb = $('#dd-tb', ddBody).value;
+        var th = parseFloat(String($('#dd-umur', ddBody).value).replace(',', '.')), sisa = MH.parseRupiah($('#dd-sisa', ddBody).value);
+        var err = (hb || tb) && !hb ? 'Harga beli wajib diisi.'
+          : (hb || tb) && !tb ? 'Tanggal beli wajib diisi.'
+          : !(th >= 0.5 && th <= 50) ? 'Umur pakai harus 0,5–50 tahun.'
+          : hb && sisa >= hb ? 'Nilai sisa harus lebih kecil dari harga beli.' : '';
+        if (err) { $('#dd-susut-err', ddBody).innerHTML = MH.errorHtml(err); break; }
+        act(b, 'api/inventory.php', { method: 'PUT', body: {
+          id: it.id, harga_beli: hb, tanggal_beli: tb, umur_bulan: Math.round(th * 12), nilai_sisa: sisa
+        } }, '#dd-susut-err').then(function () { toast('Nilai aset ' + it.name + ' disimpan'); }).catch(function () {});
+        break;
+      }
     }
   });
 

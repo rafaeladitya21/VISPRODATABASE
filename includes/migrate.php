@@ -691,6 +691,16 @@ const MH_MIGRATIONS = [
         );
         ALTER TABLE biaya_tetap ENABLE ROW LEVEL SECURITY;
         SQL,
+
+    // 19 — Penyusutan alat inventaris (garis lurus, hanya informasi nilai aset — tidak masuk Laporan Keuangan).
+    //      harga_beli & nilai_sisa per unit; umur_bulan default 48 (4 tahun, kelompok 1 pajak).
+    19 => <<<'SQL'
+        ALTER TABLE inventory_items
+          ADD COLUMN harga_beli   BIGINT   NULL CHECK (harga_beli IS NULL OR harga_beli > 0),
+          ADD COLUMN tanggal_beli DATE     NULL,
+          ADD COLUMN umur_bulan   SMALLINT NOT NULL DEFAULT 48 CHECK (umur_bulan BETWEEN 1 AND 600),
+          ADD COLUMN nilai_sisa   BIGINT   NOT NULL DEFAULT 0 CHECK (nilai_sisa >= 0);
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */

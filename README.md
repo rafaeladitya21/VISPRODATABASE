@@ -78,6 +78,14 @@ dibaca lewat view `kas_laporan` (catatan yang belum dihapus + nama pencatat/peng
 - Halaman mengecek perubahan tiap 15 detik (dan saat tab dibuka lagi), jadi catatan admin lain ikut muncul.
 - Tes database (di dalam transaksi, otomatis di-rollback): `C:\xampp\php\php.exe tools\test-kas-db.php`
 
+## Penyusutan alat (Inventaris)
+
+Migrasi 19 menambah `harga_beli`, `tanggal_beli`, `umur_bulan` (default 48 = 4 tahun), `nilai_sisa` di `inventory_items`
+(harga & nilai sisa per unit). Metode garis lurus per bulan penuh sejak tanggal beli, dihitung di `inv_susut()`
+(`includes/inventory.php`); berhenti di nilai sisa setelah umur habis. Hanya informasi nilai aset — **tidak** masuk
+Laporan Keuangan. Diisi di panel detail alat → "Nilai & Penyusutan"; ringkasan di kartu "Nilai Aset & Penyusutan".
+Tes: `C:\xampp\php\php.exe tools\test-susut.php` (tanpa database).
+
 ## Struktur
 
 ```

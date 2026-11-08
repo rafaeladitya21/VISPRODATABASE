@@ -95,6 +95,35 @@ layout_start('Inventaris', 'inventaris');
   </div>
 </section>
 
+<!-- Nilai aset & penyusutan (garis lurus; hanya informasi, tidak masuk Laporan Keuangan) -->
+<section class="card inv-aset fbu" id="inv-aset" aria-labelledby="inv-aset-title" hidden>
+  <div class="card__head">
+    <div>
+      <h2 class="card__title" id="inv-aset-title">Nilai Aset &amp; Penyusutan</h2>
+      <p class="card__sub">Metode garis lurus · dihitung per bulan sejak tanggal beli</p>
+    </div>
+  </div>
+  <div class="inv-aset__stats" id="inv-aset-stats"></div>
+  <p class="inv-aset__note" id="inv-aset-note" hidden></p>
+  <div class="table-wrap inv-aset__wrap" id="inv-aset-wrap">
+    <table class="table inv-aset__table">
+      <thead>
+        <tr>
+          <th>Alat</th>
+          <th>Tanggal beli</th>
+          <th class="r">Nilai beli</th>
+          <th class="r">Penyusutan / bulan</th>
+          <th class="r">Akumulasi</th>
+          <th class="r">Nilai buku</th>
+          <th style="width:150px">Tersusut</th>
+        </tr>
+      </thead>
+      <tbody id="inv-aset-body"></tbody>
+      <tfoot id="inv-aset-foot"></tfoot>
+    </table>
+  </div>
+</section>
+
 <!-- Empty state: belum ada alat sama sekali -->
 <section class="card inv-empty fbu" id="inv-empty" hidden>
   <span class="inv-empty__icon"><?= inv_icon(I_BOX) ?></span>

@@ -89,6 +89,27 @@ function inv_input(array $in, bool $partial): array
         $note = trim((string)$in['note']);
         $out['note'] = $note === '' ? null : mb_substr($note, 0, 255);
     }
+    // Penyusutan: dikirim bersamaan dari form "Nilai & Penyusutan"
+    if (array_key_exists('harga_beli', $in)) {
+        $harga = to_rupiah($in['harga_beli'] ?? 0);
+        $tgl = trim((string)($in['tanggal_beli'] ?? ''));
+        if ($harga === 0 && $tgl === '') {
+            $out['harga_beli'] = null; $out['tanggal_beli'] = null;   // dikosongkan
+        } else {
+            if ($harga <= 0) json_error('Harga beli harus lebih dari Rp 0.', 422);
+            $dt = DateTime::createFromFormat('!Y-m-d', $tgl);
+            if (!$dt || $dt->format('Y-m-d') !== $tgl) json_error('Tanggal beli wajib diisi.', 422);
+            if ($tgl > date('Y-m-d')) json_error('Tanggal beli tidak boleh di masa depan.', 422);
+            if ($tgl < '1990-01-01') json_error('Tanggal beli tidak valid.', 422);
+            $out['harga_beli'] = $harga; $out['tanggal_beli'] = $tgl;
+        }
+        $umur = filter_var($in['umur_bulan'] ?? 48, FILTER_VALIDATE_INT);
+        if ($umur === false || $umur < 1 || $umur > 600) json_error('Umur pakai harus 1 bulan – 50 tahun.', 422);
+        $out['umur_bulan'] = $umur;
+        $sisa = to_rupiah($in['nilai_sisa'] ?? 0);
+        if ($out['harga_beli'] !== null && $sisa >= $out['harga_beli']) json_error('Nilai sisa harus lebih kecil dari harga beli.', 422);
+        $out['nilai_sisa'] = $out['harga_beli'] === null ? 0 : $sisa;
+    }
     return $out;
 }
 
@@ -113,7 +134,7 @@ try {
         $pos = inv_positions();
         foreach ($rows as &$r) $r['positions'] = $pos[$r['id']] ?? [];
         unset($r);
-        json_response(['ok' => true, 'items' => $rows, 'totals' => inv_totals(), 'categories' => inv_categories()]);
+        json_response(['ok' => true, 'items' => $rows, 'totals' => inv_totals(), 'aset' => inv_aset($rows), 'categories' => inv_categories()]);
     }
 
     /* ---------------- Tambah ---------------- */
@@ -159,7 +180,8 @@ try {
             if (isset($changes['name']))     $edit[] = "Nama: {$item['name']} → {$changes['name']}";
             if (isset($changes['category'])) $edit[] = "Kategori: {$item['category']} → {$changes['category']}";
             if ($edit) inv_log($id, $logName, 'edit', implode(' · ', $edit), $uid);
-            $other = array_values(array_intersect_key(['rent_price' => 'harga sewa', 'note' => 'lokasi simpan'], $changes));
+            $other = array_values(array_intersect_key(['rent_price' => 'harga sewa', 'note' => 'lokasi simpan', 'harga_beli' => 'harga beli',
+                'tanggal_beli' => 'tanggal beli', 'umur_bulan' => 'umur pakai', 'nilai_sisa' => 'nilai sisa'], $changes));
             if ($other) inv_log($id, $logName, 'update', 'Data diubah: ' . implode(', ', $other), $uid);
         }
         $pdo->commit();
