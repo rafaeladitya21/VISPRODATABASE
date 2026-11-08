@@ -4,6 +4,16 @@ declare(strict_types=1);
 require __DIR__ . '/includes/auth-check.php';
 require __DIR__ . '/includes/layout.php';
 require_once __DIR__ . '/includes/kas.php';
+require_once __DIR__ . '/includes/laporan-lock.php';
+
+// Terkunci → hanya layar kode sandi (data laporan tidak dirender sama sekali)
+if (!laporan_unlocked()) {
+    layout_start('Laporan Keuangan', 'laporan');
+    echo '<h1 class="sr-only">Laporan Keuangan terkunci</h1>';
+    layout_end(['passcode.js'], ['passcode' => laporan_pin_hash() === '' ? 'create' : 'unlock']);
+    exit;
+}
+laporan_touch();
 
 $folder = kas_drive_folder();
 layout_start('Laporan Keuangan', 'laporan');
@@ -20,6 +30,14 @@ layout_start('Laporan Keuangan', 'laporan');
       Folder Nota
     </a>
     <?php endif; ?>
+    <button class="btn btn--secondary" type="button" id="pc-change" title="Ganti kode sandi Laporan">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M17 6l2.5 2.5M14.5 8.5 16 10"/></svg>
+      Kode Sandi
+    </button>
+    <button class="btn btn--secondary" type="button" id="pc-lock" title="Kunci Laporan sekarang">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+      Kunci
+    </button>
     <button class="btn btn--secondary" type="button" data-catat="masuk">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
       Uang Masuk
@@ -246,7 +264,8 @@ layout_start('Laporan Keuangan', 'laporan');
 </div>
 
 <div class="inv-toast" id="lk-toast" role="status" aria-live="polite"></div>
-<?php layout_end(['laporan.js'], [
+<?php layout_end(['laporan.js', 'passcode.js'], [
     'kas_kategori' => KAS_KATEGORI,
     'me' => $user['name'],
+    'passcode' => 'open',
 ]); ?>

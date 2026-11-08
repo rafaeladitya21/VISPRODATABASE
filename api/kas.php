@@ -11,6 +11,8 @@ declare(strict_types=1);
 define('API_REQUEST', true);
 require_once __DIR__ . '/../includes/auth-check.php';
 require_once __DIR__ . '/../includes/kas.php';
+require_once __DIR__ . '/../includes/laporan-lock.php';
+laporan_require_unlock();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uid = (int)$user['id'];

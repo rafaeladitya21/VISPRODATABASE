@@ -34,6 +34,7 @@
 
     return fetch(url, init).then(function (r) {
       if (r.status === 401) { window.location.href = 'login.php'; throw new Error('Sesi berakhir.'); }
+      if (r.status === 423 && !opts.allowLocked) { window.location.reload(); throw new Error('Laporan terkunci.'); }
       return r.json().catch(function () { return { ok: false, message: 'Respons server tidak valid.' }; })
         .then(function (data) {
           if (!r.ok || data.ok === false) {
