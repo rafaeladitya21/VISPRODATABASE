@@ -2945,3 +2945,8 @@ html:has(.modal.mform[open]) { overflow: hidden; }   /* halaman belakang tidak i
 #dd-susut-err:not(:empty) { margin-top: 10px; }
 @media (max-width: 900px) { .inv-aset__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .dd-susut-form { grid-template-columns: minmax(0, 1fr); } }
+/* Biaya tetap: baris total di bawah daftar */
+.lk-bt-item.lk-bt-total { margin-top: 4px; padding: 10px 14px; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; }
+.lk-bt-total .lk-bt-item__amt { font-family: var(--font-display); font-size: 17px; letter-spacing: -0.02em; }
+.lk-bt-total__pad { width: 80px; flex: none; }
+@media (max-width: 600px) { .lk-bt-total__pad { display: none; } }

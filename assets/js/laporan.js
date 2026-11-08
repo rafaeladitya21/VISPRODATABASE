@@ -502,8 +502,8 @@
   function btItems() { return (S.data && S.data.biaya_tetap) || []; }
 
   function BiayaTetap() {
-    var items = btItems(), ini = ymNow(), total = 0;
-    items.forEach(function (b) { if (b.mulai <= ini) total += b.nominal; });
+    var items = btItems(), ini = ymNow(), total = 0, nJalan = 0, nanti = 0;
+    items.forEach(function (b) { if (b.mulai <= ini) { total += b.nominal; nJalan++; } else nanti += b.nominal; });
     $('#lk-bt-sub').textContent = items.length
       ? 'Total ' + rp(total) + ' per bulan · otomatis tercatat sebagai pengeluaran'
       : 'Otomatis tercatat sebagai pengeluaran setiap bulan';
@@ -523,7 +523,14 @@
           (BT.confirmId === b.id ? '<small class="lk-bt-item__ask">' + (b.mulai > ini ? 'Hapus biaya yang belum berjalan ini?'
             : 'Berhenti setelah ' + esc(ymLabel(ini)) + '? Bulan ini dan sebelumnya tetap tercatat.') + '</small>' : '') + '</div>' +
         '<strong class="lk-bt-item__amt num">' + esc(rp(b.nominal)) + '<small> / bulan</small></strong>' + acts + '</li>';
-    }).join('') : '<li class="lk-bt-empty">Belum ada biaya tetap. Tambahkan sewa kantor, internet, listrik, dll — otomatis tercatat tiap bulan.</li>';
+    }).join('') +
+      // Baris total: biaya yang sudah berjalan bulan ini (yang baru mulai nanti disebut terpisah)
+      '<li class="lk-bt-item lk-bt-total">' +
+        '<div class="lk-bt-item__main"><strong>Total per bulan</strong><small class="num">' + nJalan + ' biaya berjalan' +
+          (nanti ? ' · + ' + esc(rp(nanti)) + ' belum berjalan (mulai nanti)' : '') + '</small></div>' +
+        '<strong class="lk-bt-item__amt num">' + esc(rp(total)) + '<small> / bulan</small></strong>' +
+        '<span class="lk-bt-total__pad" aria-hidden="true"></span></li>'
+      : '<li class="lk-bt-empty">Belum ada biaya tetap. Tambahkan sewa kantor, internet, listrik, dll — otomatis tercatat tiap bulan.</li>';
   }
 
   function btOpen(b) {
