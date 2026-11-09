@@ -245,7 +245,8 @@ function absen_mulai_hitung(array $intern): string
 }
 
 /**
- * Baris absen per HARI KERJA (kecuali Rabu) dari absen_mulai_hitung() ∩ [$from, $to], s.d. hari ini (tidak ada hari depan).
+ * Baris absen per HARI KERJA (kecuali Rabu) dari absen_mulai_hitung() ∩ [$from, $to], s.d. hari ini (tidak ada hari depan),
+ * ditambah catatan yang sudah ada sejak mulai magang (walau sebelum akun dibuat).
  * Hari lewat tanpa catatan → Alpa; hari ini tanpa catatan → 'belum' (Belum absen).
  * Hari lewat tanpa catatan sebelum alpa_mulai() tidak ditampilkan sama sekali.
  * Catatan di Sabtu/Minggu (job event) tetap tampil. Urut terbaru di atas. $alpaMulai = null → dari pengaturan.
@@ -255,12 +256,15 @@ function absen_rows(array $intern, string $from, string $to, ?string $today = nu
     $today ??= date('Y-m-d');
     $alpaMulai ??= alpa_mulai();
     if (!$intern['mulai'] || !$intern['selesai']) return [];
+    // Catatan yang ADA ditampilkan sejak mulai magang (mis. data impor sebelum akun dibuat);
+    // hari kerja kosong baru dihitung sejak absen_mulai_hitung().
+    $mapFrom = max($from, (string)$intern['mulai']);
     $from = max($from, absen_mulai_hitung($intern));
     $to = min($to, $intern['selesai'], $today);
-    if ($from > $to) return [];
-    $map = absen_map($intern['id'], $from, $to);
+    if ($mapFrom > $to) return [];
+    $map = absen_map($intern['id'], $mapFrom, $to);
     $rows = [];
-    $days = array_unique(array_merge(workdays($from, $to), array_keys($map)));   // + Sabtu/Minggu yang ada absennya (job event)
+    $days = array_unique(array_merge($from <= $to ? workdays($from, $to) : [], array_keys($map)));   // + Sabtu/Minggu yang ada absennya (job event)
     sort($days);
     foreach (array_reverse($days) as $day) {
         if (!isset($map[$day]) && $day !== $today && $day < $alpaMulai) continue;

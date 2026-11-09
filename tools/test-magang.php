@@ -192,7 +192,7 @@ if (in_array('--db', $argv, true)) {
         check('Hari kerja lewat tanpa absen = Alpa', $past ? $past[0]['status_hari'] : 'alpa', 'alpa');
         $rows0 = absen_rows($sal, $mulai, $today, $today, $today);   // reset Alpa = hari ini
         check('Reset Alpa: hari lewat tanpa absen tidak ditampilkan', count(array_filter($rows0, fn($r) => $r['tanggal'] < $today && $r['id'] === null)), 0);
-        check('Hari sebelum akun dibuat tidak ditampilkan', count(array_filter($rows, fn($r) => $r['tanggal'] < $sal['dibuat'])), 0);
+        check('Hari kosong sebelum akun dibuat tidak ditampilkan (bukan Alpa)', count(array_filter($rows, fn($r) => $r['tanggal'] < $sal['dibuat'] && $r['id'] === null)), 0);
         $rk = array_fill_keys(array_keys(ABSEN_HARI), 0);
         foreach ($rows0 as $r) if (isset($rk[$r['status_hari']])) $rk[$r['status_hari']]++;
         check('Reset Alpa: jumlah Alpa = 0', $rk['alpa'], 0);
