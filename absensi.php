@@ -41,11 +41,14 @@ layout_start('Absensi', 'absensi');
 <div id="ab-error" hidden></div>
 
 <section class="card card--flush fbu" aria-labelledby="ab-rekap-title">
-  <div class="card__head card__head--pad">
+  <div class="card__head card__head--pad ab-rekap-head">
     <div>
       <h2 class="card__title" id="ab-rekap-title">Rekap total</h2>
       <p class="card__sub" id="ab-rekap-sub">Hari kerja yang lewat tanpa absen dihitung Alpa.</p>
     </div>
+    <label><span class="sr-only">Periode rekap</span>
+      <select class="input ab-select" id="ab-rekap-pilih"><option value="">Sejak awal masuk</option></select>
+    </label>
   </div>
   <div class="table-wrap">
     <table class="table">

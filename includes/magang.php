@@ -551,6 +551,18 @@ function absensi_range(array $q): array
     return [$bulan . '-01', date('Y-m-t', strtotime($bulan . '-01')), $bulan];
 }
 
+/** Pilihan bulan untuk kartu rekap: dari bulan mulai magang paling awal s.d. bulan ini, terbaru di atas */
+function rekap_bulan_opsi(?string $mulai): array
+{
+    if (!$mulai) return [];
+    $out = [];
+    $now = date('Y-m');
+    for ($b = substr($mulai, 0, 7); $b <= $now; $b = date('Y-m', strtotime($b . '-01 +1 month'))) {
+        $out[] = ['value' => $b, 'label' => periode_label($b)];
+    }
+    return array_reverse($out);
+}
+
 function absensi_data(array $q): array
 {
     [$from, $to, $bulan] = absensi_range($q);
@@ -597,16 +609,30 @@ function absensi_data(array $q): array
         if (array_sum($rk) || in_periode($in, $bulan . '-01') || in_periode($in, date('Y-m-t', strtotime($bulan . '-01')))) {
             $rekap[] = ['user_id' => $in['id'], 'name' => $in['name'], 'divisi' => $in['divisi']] + $rk;
         }
-        // Total sejak mulai magang s.d. hari ini (kartu rekap di halaman Absensi)
+        // Kartu rekap di halaman Absensi: total sejak mulai magang s.d. hari ini + rincian per bulan
         if ($in['mulai']) {
-            $tk = absen_rekap($in, (string)$in['mulai'], date('Y-m-d'));
-            if (array_sum($tk) || $in['aktif']) $rekapTotal[] = ['user_id' => $in['id'], 'name' => $in['name'], 'divisi' => $in['divisi'], 'mulai' => $in['mulai']] + $tk;
+            $nol = array_fill_keys(array_keys(ABSEN_HARI), 0);
+            $tk = $nol;
+            $perBulan = [];
+            foreach (absen_rows($in, (string)$in['mulai'], date('Y-m-d')) as $r) {
+                if (!isset($tk[$r['status_hari']])) continue;
+                $tk[$r['status_hari']]++;
+                $b = substr($r['tanggal'], 0, 7);
+                $perBulan[$b] ??= $nol;
+                $perBulan[$b][$r['status_hari']]++;
+            }
+            if (array_sum($tk) || $in['aktif']) {
+                $rekapTotal[] = ['user_id' => $in['id'], 'name' => $in['name'], 'divisi' => $in['divisi'], 'mulai' => $in['mulai'],
+                                 'selesai' => $in['selesai'], 'bulanan' => $perBulan ?: new stdClass()] + $tk;
+                $mulaiMin = min($mulaiMin ?? $in['mulai'], $in['mulai']);
+            }
         }
     }
     usort($rows, fn($a, $b) => [$b['tanggal'], $a['name']] <=> [$a['tanggal'], $b['name']]);
     return [
         'from' => $from, 'to' => $to, 'bulan' => $bulan, 'bulan_label' => periode_label($bulan), 'alpa_mulai' => alpa_mulai(),
         'rows' => $rows, 'rekap' => $rekap, 'rekap_total' => $rekapTotal,
+        'rekap_bulan_opsi' => rekap_bulan_opsi($mulaiMin ?? null),
         'ditolak' => array_values(array_filter($ditolak, fn($d) => !$lokasiId || $d['lokasi_id'] === $lokasiId)),
         'lokasi' => lokasi_all(), 'radius' => radius_intern(),
         'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif']], $interns),

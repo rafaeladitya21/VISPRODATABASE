@@ -17,6 +17,32 @@
   };
   el.bulan.value = D.today.slice(0, 7);
   el.tgl.value = D.today;
+  el.rekapPilih = $('#ab-rekap-pilih');
+
+  /* Kartu rekap: "Sejak awal masuk" (total) atau satu bulan tertentu — dihitung server (rekap_total[].bulanan) */
+  function renderRekap() {
+    var d = st.data; if (!d) return;
+    var b = el.rekapPilih.value, nol = { hadir: 0, terlambat: 0, izin: 0, sakit: 0, alpa: 0 };
+    var label = b ? (el.rekapPilih.options[el.rekapPilih.selectedIndex] || {}).text : '';
+    var awal = b + '-01', akhir = b + '-31';
+    var list = (d.rekap_total || []).map(function (r) {
+      return b ? Object.assign({}, r, nol, (r.bulanan || {})[b] || {}) : r;
+    }).filter(function (r) {   // per bulan: hanya yang magang di bulan itu atau punya catatan
+      if (!b) return true;
+      return r.hadir + r.terlambat + r.izin + r.sakit + r.alpa > 0 || (r.mulai <= akhir && (!r.selesai || r.selesai >= awal));
+    });
+    $('#ab-rekap-title').textContent = b ? 'Rekap ' + label : 'Rekap total';
+    $('#ab-rekap-sub').textContent = (b ? 'Rekap bulan ' + label + '. ' : 'Total sejak awal masuk magang s.d. hari ini. ') +
+      (d.alpa_mulai && d.alpa_mulai > '0000-01-01'
+        ? 'Hari kerja tanpa absen dihitung Alpa mulai ' + MH.date(d.alpa_mulai) + '.'
+        : 'Hari kerja yang lewat tanpa absen dihitung Alpa.');
+    el.rekap.innerHTML = list.length ? list.map(function (r) {
+      return '<tr><td><strong>' + esc(r.name) + '</strong><br><small class="muted">' + (r.divisi ? esc(r.divisi) + ' · ' : '') + 'masuk ' + MH.date(r.mulai) + '</small></td>' +
+        '<td class="r">' + r.hadir + '</td><td class="r">' + r.terlambat + '</td><td class="r">' + r.izin + '</td><td class="r">' + r.sakit + '</td>' +
+        '<td class="r' + (r.alpa ? ' strong' : '') + '">' + r.alpa + '</td></tr>';
+    }).join('') : '<tr><td colspan="6" class="empty">' + (b ? 'Tidak ada anak magang di bulan ini.' : 'Belum ada anak magang.') + '</td></tr>';
+  }
+  el.rekapPilih.addEventListener('change', renderRekap);
 
   function query() {
     var q = st.mode === 'tanggal' ? 'tanggal=' + el.tgl.value : 'bulan=' + el.bulan.value;
@@ -58,16 +84,13 @@
       }).join(''));
     }
     $('#ab-radius').textContent = 'Radius absen ' + d.radius + ' m';
-    $('#ab-rekap-title').textContent = 'Rekap total';
-    $('#ab-rekap-sub').textContent = 'Total sejak mulai magang s.d. hari ini. ' + (d.alpa_mulai && d.alpa_mulai > '0000-01-01'
-      ? 'Hari kerja tanpa absen dihitung Alpa mulai ' + MH.date(d.alpa_mulai) + '.'
-      : 'Hari kerja yang lewat tanpa absen dihitung Alpa.');
-    var tot = d.rekap_total || [];
-    el.rekap.innerHTML = tot.length ? tot.map(function (r) {
-      return '<tr><td><strong>' + esc(r.name) + '</strong><br><small class="muted">' + (r.divisi ? esc(r.divisi) + ' · ' : '') + 'sejak ' + MH.date(r.mulai) + '</small></td>' +
-        '<td class="r">' + r.hadir + '</td><td class="r">' + r.terlambat + '</td><td class="r">' + r.izin + '</td><td class="r">' + r.sakit + '</td>' +
-        '<td class="r' + (r.alpa ? ' strong' : '') + '">' + r.alpa + '</td></tr>';
-    }).join('') : '<tr><td colspan="6" class="empty">Belum ada anak magang.</td></tr>';
+    var pilih = el.rekapPilih, keep = pilih.value;
+    pilih.innerHTML = '<option value="">Sejak awal masuk</option>' + (d.rekap_bulan_opsi || []).map(function (o) {
+      return '<option value="' + o.value + '">' + esc(o.label) + '</option>';
+    }).join('');
+    pilih.value = keep;
+    if (pilih.value !== keep) pilih.value = '';
+    renderRekap();
 
     $('[data-count="absen"]').textContent = d.rows.length;
     $('[data-count="ditolak"]').textContent = d.ditolak.length;

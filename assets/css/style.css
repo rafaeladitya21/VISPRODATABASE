@@ -2192,6 +2192,7 @@ td .tf-in.input--money { width: 140px; margin-left: auto; }
 .adm-intern legend { padding: 0 4px; }
 .adm-intern .input { background: var(--white); }
 .ab-select { height: 40px; min-width: 190px; background-color: var(--white); }
+.ab-rekap-head { flex-wrap: wrap; }
 .adm-filter .year-select input[type="date"] { width: 160px; }
 
 @media screen {
