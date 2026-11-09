@@ -82,7 +82,7 @@ if (!in_array(user_area($user), $allowed, true)) {
     header('Cache-Control: no-store');
     $home = e(app_url(home_path($user)));
     echo '<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-       . '<title>Akses ditolak — Management Hub</title></head>'
+       . '<title>Akses ditolak — Management Hub</title>' . favicon_tags() . '</head>'
        . '<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#F5F5F5;color:#0A0A0A;font:15px/1.5 \'Plus Jakarta Sans\',system-ui,sans-serif">'
        . '<main style="max-width:420px;margin:16px;padding:28px;background:#fff;border:1px solid #E5E5E5;border-radius:14px;text-align:center">'
        . '<p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#6B6B6B">403</p>'

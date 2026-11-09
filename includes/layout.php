@@ -24,6 +24,7 @@ function layout_start(string $title, string $active): void
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
   <title><?= e($title) ?> — Management Hub</title>
+  <?= favicon_tags() ?>
   <script>
     // Tema dipasang sebelum CSS dirender (tanpa kedip). Belum pernah memilih → ikuti sistem.
     (function () {

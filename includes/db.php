@@ -379,6 +379,17 @@ function asset(string $path): string
     return e($path . (is_file($file) ? '?v=' . filemtime($file) : ''));
 }
 
+/** Tag favicon + ikon aplikasi (dipasang di setiap <head>). File di assets/img/icon/favicon_io. */
+function favicon_tags(): string
+{
+    $d = 'assets/img/icon/favicon_io/';
+    return '<link rel="icon" href="' . asset($d . 'favicon.ico') . '" sizes="any">'
+         . '<link rel="icon" type="image/png" sizes="32x32" href="' . asset($d . 'favicon-32x32.png') . '">'
+         . '<link rel="icon" type="image/png" sizes="16x16" href="' . asset($d . 'favicon-16x16.png') . '">'
+         . '<link rel="apple-touch-icon" sizes="180x180" href="' . asset($d . 'apple-touch-icon.png') . '">'
+         . '<link rel="manifest" href="' . asset($d . 'site.webmanifest') . '">';
+}
+
 /** Escape untuk output HTML. */
 function e(?string $s): string
 {

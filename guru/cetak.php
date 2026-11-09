@@ -35,6 +35,7 @@ $tglPendek = fn(?string $s) => $s ? tgl_id($s, false) : '—';
   <?php if (app_base() !== ''): ?><base href="<?= e(app_base()) ?>"><?php endif; ?>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Laporan magang — <?= e($d['label']) ?></title>
+  <?= favicon_tags() ?>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">

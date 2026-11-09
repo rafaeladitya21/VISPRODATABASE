@@ -12,6 +12,7 @@ if (!dev_no_login() && ($u = current_user())) { header('Location: ' . home_path(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Masuk — Management Hub</title>
+  <?= favicon_tags() ?>
   <script>document.documentElement.classList.replace('no-js', 'js');</script>
   <link rel="preload" href="assets/fonts/Satoshi-Bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">

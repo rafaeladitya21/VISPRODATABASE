@@ -10,6 +10,7 @@
   },
   "routes": [
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/favicon\\.ico", "dest": "/assets/img/icon/favicon_io/favicon.ico" },
     { "src": "/(.*)", "dest": "/api/index.php?__route=$1" }
   ]
 }

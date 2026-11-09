@@ -23,6 +23,7 @@ $dot = fn(?string $hm) => $hm ? str_replace(':', '.', $hm) : '—';
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Absensi magang — <?= e($judul) ?></title>
+  <?= favicon_tags() ?>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
