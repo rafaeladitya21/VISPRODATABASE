@@ -43,7 +43,7 @@ layout_start('Absensi', 'absensi');
 <section class="card card--flush fbu" aria-labelledby="ab-rekap-title">
   <div class="card__head card__head--pad">
     <div>
-      <h2 class="card__title" id="ab-rekap-title">Rekap bulanan</h2>
+      <h2 class="card__title" id="ab-rekap-title">Rekap total</h2>
       <p class="card__sub" id="ab-rekap-sub">Hari kerja yang lewat tanpa absen dihitung Alpa.</p>
     </div>
   </div>

@@ -561,6 +561,7 @@ function absensi_data(array $q): array
     $ditolak = absen_ditolak_list($from, $to, $uid);
     $rows = [];
     $rekap = [];
+    $rekapTotal = [];
     foreach ($interns as $in) {
         if ($uid && $in['id'] !== $uid) continue;
         $all = absen_rows($in, $from, $to);
@@ -596,11 +597,16 @@ function absensi_data(array $q): array
         if (array_sum($rk) || in_periode($in, $bulan . '-01') || in_periode($in, date('Y-m-t', strtotime($bulan . '-01')))) {
             $rekap[] = ['user_id' => $in['id'], 'name' => $in['name'], 'divisi' => $in['divisi']] + $rk;
         }
+        // Total sejak mulai magang s.d. hari ini (kartu rekap di halaman Absensi)
+        if ($in['mulai']) {
+            $tk = absen_rekap($in, (string)$in['mulai'], date('Y-m-d'));
+            if (array_sum($tk) || $in['aktif']) $rekapTotal[] = ['user_id' => $in['id'], 'name' => $in['name'], 'divisi' => $in['divisi'], 'mulai' => $in['mulai']] + $tk;
+        }
     }
     usort($rows, fn($a, $b) => [$b['tanggal'], $a['name']] <=> [$a['tanggal'], $b['name']]);
     return [
         'from' => $from, 'to' => $to, 'bulan' => $bulan, 'bulan_label' => periode_label($bulan), 'alpa_mulai' => alpa_mulai(),
-        'rows' => $rows, 'rekap' => $rekap,
+        'rows' => $rows, 'rekap' => $rekap, 'rekap_total' => $rekapTotal,
         'ditolak' => array_values(array_filter($ditolak, fn($d) => !$lokasiId || $d['lokasi_id'] === $lokasiId)),
         'lokasi' => lokasi_all(), 'radius' => radius_intern(),
         'interns' => array_map(fn($i) => ['id' => $i['id'], 'name' => $i['name'], 'divisi' => $i['divisi'], 'aktif' => $i['aktif']], $interns),
