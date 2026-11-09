@@ -9,8 +9,6 @@
  *        → ubah / buat catatan absen. auto = status dari jam masuk (Tepat waktu / Terlambat).
  *          Alasan WAJIB; disimpan di dikoreksi_oleh + alasan_koreksi dan dicatat di log_aktivitas.
  *   POST {aksi:'hapus', user_id, tanggal, alasan} → hapus catatan (hari itu kembali "tanpa absen"), dicatat di log
- *   POST {aksi:'reset_alpa', alasan}               → hitungan Alpa mulai dari hari ini (hari sebelumnya tanpa absen
- *                                                    tidak dihitung). Tidak menghapus data. Dicatat di log
  */
 declare(strict_types=1);
 define('API_REQUEST', true);
@@ -59,19 +57,6 @@ try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_error('Metode tidak diizinkan.', 405);
 
     $in = read_json();
-    // Reset hitungan Alpa ke 0: hari kerja tanpa absen sebelum hari ini tidak dihitung Alpa lagi.
-    // Tidak menghapus data; Alpa yang ditandai Admin secara manual tetap ada.
-    if (($in['aksi'] ?? '') === 'reset_alpa') {
-        $alasan = trim((string)($in['alasan'] ?? ''));
-        if ($alasan === '' || mb_strlen($alasan) > 500) json_error('Alasan reset wajib diisi (maks. 500 karakter).', 422);
-        $lama = alpa_mulai();
-        $baru = server_now()['tanggal'];
-        db()->prepare("INSERT INTO pengaturan (key, value, updated_at, updated_by) VALUES ('alpa_mulai', ?, LOCALTIMESTAMP(0), ?)
-                       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by")
-            ->execute([$baru, (int)$user['id']]);
-        log_activity((int)$user['id'], 'reset_alpa', 'absensi', null, ['sebelum' => $lama, 'sesudah' => $baru, 'alasan' => $alasan]);
-        json_response(['ok' => true, 'alpa_mulai' => $baru]);
-    }
     $intern = intern_row((int)($in['user_id'] ?? 0));
     if (!$intern) json_error('Anak magang tidak ditemukan.', 404);
     $tgl = (string)($in['tanggal'] ?? '');

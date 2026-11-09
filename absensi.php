@@ -12,9 +12,6 @@ layout_start('Absensi', 'absensi');
     <p class="page-head__sub">Absen anak magang tercatat dengan jam server. Hanya Admin yang bisa mengoreksi — alasan wajib &amp; tercatat di log.</p>
   </div>
   <div class="page-head__actions">
-    <button class="btn btn--danger-ghost" type="button" id="ab-reset">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5"/></svg>Reset Alpa ke 0
-    </button>
     <a class="btn btn--secondary" id="ab-csv" href="api/absensi.php?export=csv">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"/></svg>Ekspor Excel
     </a>
@@ -124,26 +121,6 @@ layout_start('Absensi', 'absensi');
   </form>
 </dialog>
 
-<dialog class="modal" id="ab-reset-modal" aria-labelledby="ab-reset-title">
-  <div class="window__bar">
-    <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-    <span class="window__name">Reset Alpa</span>
-  </div>
-  <form class="window__body adm-form" id="ab-reset-form" novalidate>
-    <h2 class="modal__title" id="ab-reset-title">Reset hitungan Alpa ke 0?</h2>
-    <p class="card__sub">Hari kerja tanpa absen <strong>sebelum hari ini</strong> tidak dihitung Alpa lagi dan tidak ditampilkan.
-      Mulai hari ini, hari tanpa absen kembali dihitung Alpa. Tidak ada data absen yang dihapus; Alpa yang ditandai manual tetap ada.</p>
-    <div class="field">
-      <label class="field__label" for="ab-reset-alasan">Alasan (wajib)</label>
-      <input class="input" id="ab-reset-alasan" maxlength="500" placeholder="mis. Sistem absen baru mulai dipakai">
-    </div>
-    <div id="ab-reset-error" hidden></div>
-    <div class="modal__actions">
-      <button class="btn btn--secondary" type="button" data-close>Batal</button>
-      <button class="btn btn--primary" type="submit" id="ab-reset-ok"><span class="spinner btn__spinner" aria-hidden="true"></span><span>Reset</span></button>
-    </div>
-  </form>
-</dialog>
 <dialog class="modal modal--wide" id="ab-map-modal" aria-labelledby="ab-map-title">
   <div class="window__bar">
     <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>

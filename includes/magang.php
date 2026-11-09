@@ -222,8 +222,8 @@ function absen_map(int $userId, string $from, string $to): array
 }
 
 /**
- * Mulai tanggal berapa hari kerja tanpa absen dihitung Alpa (pengaturan 'alpa_mulai', diatur lewat
- * tombol "Reset Alpa" di halaman Absensi). Hari sebelum tanggal ini yang tanpa catatan tidak ditampilkan.
+ * Mulai tanggal berapa hari kerja tanpa absen dihitung Alpa (pengaturan 'alpa_mulai').
+ * Hari sebelum tanggal ini yang tanpa catatan tidak ditampilkan.
  */
 function alpa_mulai(): string
 {
@@ -247,7 +247,7 @@ function absen_mulai_hitung(array $intern): string
 /**
  * Baris absen per HARI KERJA (kecuali Rabu) dari absen_mulai_hitung() ∩ [$from, $to], s.d. hari ini (tidak ada hari depan).
  * Hari lewat tanpa catatan → Alpa; hari ini tanpa catatan → 'belum' (Belum absen).
- * Hari lewat tanpa catatan sebelum alpa_mulai() ("Reset Alpa") tidak ditampilkan sama sekali.
+ * Hari lewat tanpa catatan sebelum alpa_mulai() tidak ditampilkan sama sekali.
  * Catatan di Sabtu/Minggu (job event) tetap tampil. Urut terbaru di atas. $alpaMulai = null → dari pengaturan.
  */
 function absen_rows(array $intern, string $from, string $to, ?string $today = null, ?string $alpaMulai = null): array

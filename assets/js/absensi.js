@@ -219,22 +219,6 @@
       .catch(function (e) { el.formErr.innerHTML = MH.errorHtml(e.message); el.formErr.hidden = false; })
       .finally(function () { btn.disabled = false; btn.classList.remove('is-loading'); });
   }
-  /* ---------- Reset hitungan Alpa ke 0 ---------- */
-  var rs = { modal: $('#ab-reset-modal'), form: $('#ab-reset-form'), alasan: $('#ab-reset-alasan'), err: $('#ab-reset-error'), ok: $('#ab-reset-ok') };
-  $('#ab-reset').addEventListener('click', function () {
-    rs.form.reset(); rs.err.hidden = true;
-    MH.openModal(rs.modal);
-    setTimeout(function () { rs.alasan.focus(); }, 40);
-  });
-  rs.form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!rs.alasan.value.trim()) { rs.err.innerHTML = MH.errorHtml('Alasan wajib diisi.'); rs.err.hidden = false; rs.alasan.focus(); return; }
-    rs.ok.disabled = true; rs.ok.classList.add('is-loading'); rs.err.hidden = true;
-    MH.api('api/absensi.php', { method: 'POST', body: { aksi: 'reset_alpa', alasan: rs.alasan.value } })
-      .then(function () { MH.closeModal(rs.modal); load(); })
-      .catch(function (err) { rs.err.innerHTML = MH.errorHtml(err.message); rs.err.hidden = false; })
-      .finally(function () { rs.ok.disabled = false; rs.ok.classList.remove('is-loading'); });
-  });
 
   el.form.addEventListener('submit', function (e) { e.preventDefault(); send('koreksi', el.save); });
   el.del.addEventListener('click', function () { send('hapus', el.del); });
