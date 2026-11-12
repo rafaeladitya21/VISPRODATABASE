@@ -189,6 +189,12 @@ $sec = 0; // penomoran bagian otomatis
     .c { text-align: center; } .r { text-align: right; } .no { width: 10mm; }
     .empty { color: var(--muted); font-style: italic; }
 
+    /* Kotak kosong di bawah nama alat: catatan kelengkapan ditulis manual pakai bulpen */
+    .note {
+      display: flex; align-items: flex-start; height: 7mm; margin: 2px 0 1px; padding: 2px 5px;
+      border: 1px solid var(--line); border-radius: 3px;
+      font-size: 7pt; color: var(--muted);
+    }
     .box { display: inline-block; width: 12px; height: 12px; border: 1px solid var(--ink); border-radius: 2px; vertical-align: middle; }
     .total { margin-top: 6px; text-align: right; font-size: 8pt; color: var(--muted); }
     .total strong { color: var(--ink); font-weight: 700; }
@@ -303,7 +309,10 @@ $sec = 0; // penomoran bagian otomatis
           <?php foreach ($equip as $i => $q): ?>
             <tr>
               <td class="c num"><?= $i + 1 ?></td>
-              <td><?= e($q['equipment_name']) ?></td>
+              <td>
+                <?= e($q['equipment_name']) ?>
+                <div class="note" aria-hidden="true"><span>Kelengkapan:</span></div>
+              </td>
               <td class="c num"><?= (int)$q['qty'] ?></td>
               <td class="c"><span class="box" aria-hidden="true"></span></td>
               <td class="c"><span class="box" aria-hidden="true"></span></td>
