@@ -66,18 +66,6 @@ if (filled($c['vendor'] ?? null)) $detail[] = ['Vendor', e($c['vendor'])];
 if (filled($tx['event_date']))   $detail[] = ['Tanggal Event', '<strong>' . e(tgl_id($tx['event_date'])) . '</strong>'];
 if (filled($tx['standby_time'])) $detail[] = ['Standby Lokasi', '<strong class="num">' . e(jam($tx['standby_time'])) . '</strong>'];
 if (filled($tx['load_in_time'])) $detail[] = ['Jam Loading In', '<strong class="num">' . e(jam($tx['load_in_time'])) . '</strong>'];
-if (filled($tx['location']))     $detail[] = ['Lokasi Acara', e($tx['location'])];
-if ($loc) {
-    $detail[] = ['Shareloc',
-        '<div class="sl">'
-      .   '<div class="sl__qr" data-qr="' . e($loc['url']) . '" role="img" aria-label="QR code lokasi di Google Maps"></div>'
-      .   '<div class="sl__text">'
-      .     ($loc['place'] ? '<strong>' . e($loc['place']) . '</strong>' : '')
-      .     '<span class="sl__hint">Scan untuk buka di Google Maps</span>'
-      .     '<a class="sl__link" href="' . e($loc['url']) . '" target="_blank" rel="noopener">Buka di Google Maps</a>'
-      .   '</div>'
-      . '</div>'];
-}
 if (filled($tx['pic']) || filled($tx['whatsapp'])) {
     $detail[] = ['PIC Event', implode(' · ', array_filter([
         filled($tx['pic']) ? e($tx['pic']) : '',
@@ -134,12 +122,12 @@ $sec = 0; // penomoran bagian otomatis
 
     /* Lembar A4: 11mm atas, 15mm kiri-kanan */
     .sheet {
-      width: 210mm; min-height: 297mm; margin: 24px auto; padding: 11mm 15mm;
+      width: 210mm; min-height: 297mm; margin: 24px auto; padding: 9mm 14mm;
       background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,.12);
     }
 
     /* Kop */
-    .kop { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
+    .kop { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); }
     .kop__brand { display: flex; align-items: center; gap: 12px; }
     .kop__logo { height: 20px; width: auto; filter: invert(1); }
     .brand { font-size: 14pt; letter-spacing: -0.02em; }
@@ -147,15 +135,15 @@ $sec = 0; // penomoran bagian otomatis
     .kop__meta { text-align: right; font-size: 8.5pt; color: var(--text-2); }
     .kop__meta strong { display: block; font-size: 9.5pt; color: var(--ink); font-variant-numeric: tabular-nums; }
 
-    .title { margin: 14px 0 4px; text-align: center; }
+    .title { margin: 10px 0 2px; text-align: center; }
     h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14pt; font-weight: 800; letter-spacing: .04em; }
     .title p { margin-top: 1px; font-size: 8.5pt; color: var(--muted); }
 
     /* Bagian: jarak ±14px */
-    section { margin-top: 14px; }
+    section { margin-top: 10px; }
     h2 {
       display: flex; align-items: center; gap: 8px;
-      margin-bottom: 6px; padding-bottom: 4px; font-size: 10pt; letter-spacing: -0.01em;
+      margin-bottom: 5px; padding-bottom: 3px; font-size: 10pt; letter-spacing: -0.01em;
       border-bottom: 1px solid var(--line);
       break-after: avoid; page-break-after: avoid;
     }
@@ -165,10 +153,18 @@ $sec = 0; // penomoran bagian otomatis
     }
 
     /* Detail: label abu-abu ±130px : isi hitam */
-    .kv { display: grid; grid-template-columns: 130px 1fr; gap: 3px 10px; margin: 0; }
+    .kv { display: grid; grid-template-columns: 120px 1fr; gap: 2px 10px; margin: 0; }
     .kv dt { color: var(--muted); }
     .kv dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
     .kv strong { font-weight: 700; }
+
+    /* Detail Event: daftar di kiri, Lokasi + Shareloc (QR) di kanan */
+    .detail { display: flex; align-items: flex-start; gap: 14px; }
+    .detail .kv { flex: 1; min-width: 0; }
+    .loc { flex: none; width: 64mm; padding-left: 12px; border-left: 1px solid var(--line-2); }
+    .loc__label { font-size: 8pt; color: var(--muted); }
+    .loc__val { font-weight: 500; margin-bottom: 6px; overflow-wrap: anywhere; }
+    .loc .sl { margin-top: 2px; align-items: flex-start; }
 
     /* Shareloc: QR ±66px dalam kotak bergaris tipis (selalu putih + hitam) */
     .sl { display: flex; align-items: center; gap: 10px; }
@@ -186,9 +182,9 @@ $sec = 0; // penomoran bagian otomatis
     table { width: 100%; border-collapse: collapse; font-size: 9pt; }
     th {
       text-align: left; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: .06em;
-      color: var(--muted); padding: 5px 8px; background: var(--soft); border-bottom: 1px solid var(--line);
+      color: var(--muted); padding: 4px 8px; background: var(--soft); border-bottom: 1px solid var(--line);
     }
-    td { padding: 5px 8px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+    td { padding: 3px 8px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
     tr { break-inside: avoid; page-break-inside: avoid; }
     .c { text-align: center; } .r { text-align: right; } .no { width: 10mm; }
     .empty { color: var(--muted); font-style: italic; }
@@ -201,7 +197,7 @@ $sec = 0; // penomoran bagian otomatis
     /* Tanda tangan: satu kolom rata kanan ±220px */
     .sign { width: 220px; margin-left: auto; break-inside: avoid; page-break-inside: avoid; }
     .sign__label { font-size: 8pt; color: var(--muted); }
-    .sign__space { height: 60px; }
+    .sign__space { height: 50px; }
     .sign__line { border-top: 1px solid var(--ink); padding-top: 4px; }
     .sign__name { font-weight: 700; min-height: 1.45em; }
     .sign__sub { font-size: 8pt; color: var(--muted); }
@@ -209,11 +205,13 @@ $sec = 0; // penomoran bagian otomatis
     @media screen and (max-width: 840px) {
       .sheet { width: auto; min-height: 0; margin: 16px; padding: 20px; }
       .kv { grid-template-columns: 110px 1fr; }
+      .detail { flex-direction: column; }
+      .loc { width: auto; padding-left: 0; border-left: 0; }
     }
     @media print {
       html, body { background: #fff !important; color: var(--ink); }
       .toolbar, .sl__link { display: none !important; }
-      .sheet { width: auto; min-height: 0; margin: 0; padding: 11mm 15mm; box-shadow: none; }
+      .sheet { width: auto; min-height: 0; margin: 0; padding: 9mm 14mm; box-shadow: none; }
     }
   </style>
 </head>
@@ -247,11 +245,33 @@ $sec = 0; // penomoran bagian otomatis
     <!-- ① Detail Event -->
     <section>
       <h2><span class="n"><?= ++$sec ?></span>Detail Event</h2>
+      <div class="detail">
       <dl class="kv">
         <?php foreach ($detail as [$label, $html]): ?>
           <dt><?= e($label) ?></dt><dd><?= $html ?></dd>
         <?php endforeach; ?>
       </dl>
+      <?php if (filled($tx['location']) || $loc): ?>
+        <!-- Kolom kanan: Lokasi Acara + Shareloc (QR) -->
+        <aside class="loc">
+          <?php if (filled($tx['location'])): ?>
+            <p class="loc__label">Lokasi Acara</p>
+            <p class="loc__val"><?= e($tx['location']) ?></p>
+          <?php endif; ?>
+          <?php if ($loc): ?>
+            <p class="loc__label">Shareloc</p>
+            <div class="sl">
+              <div class="sl__qr" data-qr="<?= e($loc['url']) ?>" role="img" aria-label="QR code lokasi di Google Maps"></div>
+              <div class="sl__text">
+                <?php if ($loc['place']): ?><strong><?= e($loc['place']) ?></strong><?php endif; ?>
+                <span class="sl__hint">Scan untuk buka di Google Maps</span>
+                <a class="sl__link" href="<?= e($loc['url']) ?>" target="_blank" rel="noopener">Buka di Google Maps</a>
+              </div>
+            </div>
+          <?php endif; ?>
+        </aside>
+      <?php endif; ?>
+      </div>
     </section>
 
     <!-- ② Crew -->
