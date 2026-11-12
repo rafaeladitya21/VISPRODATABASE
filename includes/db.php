@@ -379,10 +379,10 @@ function asset(string $path): string
     return e($path . (is_file($file) ? '?v=' . filemtime($file) : ''));
 }
 
-/** Tag favicon + ikon aplikasi (dipasang di setiap <head>). File di assets/img/icon/favicon_io. */
+/** Tag favicon + ikon aplikasi (dipasang di setiap <head>). File di assets/img/icon. */
 function favicon_tags(): string
 {
-    $d = 'assets/img/icon/favicon_io/';
+    $d = 'assets/img/icon/';
     return '<link rel="icon" href="' . asset($d . 'favicon.ico') . '" sizes="any">'
          . '<link rel="icon" type="image/png" sizes="32x32" href="' . asset($d . 'favicon-32x32.png') . '">'
          . '<link rel="icon" type="image/png" sizes="16x16" href="' . asset($d . 'favicon-16x16.png') . '">'
