@@ -202,7 +202,18 @@ $sec = 0; // penomoran bagian otomatis
     .honor { display: flex; justify-content: space-between; margin-top: 6px; padding: 6px 8px; background: var(--soft); border-radius: 4px; }
 
     /* Tanda tangan: satu kolom rata kanan ±220px */
-    .sign { width: 220px; margin-left: auto; break-inside: avoid; page-break-inside: avoid; }
+    /* Baris TTD: ketentuan alat di kiri, tanda tangan di kanan */
+    .sign-row { display: flex; align-items: flex-start; gap: 16px; break-inside: avoid; page-break-inside: avoid; }
+    .rules {
+      flex: 1; min-width: 0; padding: 6px 9px; font-size: 7.5pt; line-height: 1.4;
+      border: 1.5px solid var(--ink); border-left-width: 4px; border-radius: 3px;
+    }
+    .rules__title { font-weight: 800; font-size: 8pt; letter-spacing: .04em; margin-bottom: 2px; }
+    .rules ol { margin: 0; padding-left: 14px; }
+    .rules li { margin: 1px 0; }
+    .rules strong { font-weight: 800; }
+    .rules__foot { margin-top: 3px; font-style: italic; color: var(--text-2); }
+    .sign { flex: none; width: 200px; margin-left: auto; break-inside: avoid; page-break-inside: avoid; }
     .sign__label { font-size: 8pt; color: var(--muted); }
     .sign__space { height: 50px; }
     .sign__line { border-top: 1px solid var(--ink); padding-top: 4px; }
@@ -212,7 +223,7 @@ $sec = 0; // penomoran bagian otomatis
     @media screen and (max-width: 840px) {
       .sheet { width: auto; min-height: 0; margin: 16px; padding: 20px; }
       .kv { grid-template-columns: 110px 1fr; }
-      .detail { flex-direction: column; }
+      .detail, .sign-row { flex-direction: column; }
       .loc { width: auto; padding-left: 0; border-left: 0; }
     }
     @media print {
@@ -328,6 +339,19 @@ $sec = 0; // penomoran bagian otomatis
     <!-- ④ Tanda Tangan (PIC Event) -->
     <section>
       <h2><span class="n"><?= ++$sec ?></span>Tanda Tangan</h2>
+      <div class="sign-row">
+      <!-- Ketentuan tegas untuk crew / freelance soal tanggung jawab alat -->
+      <div class="rules">
+        <p class="rules__title">PERHATIAN — TANGGUNG JAWAB ALAT</p>
+        <ol>
+          <li>Seluruh alat &amp; kelengkapan menjadi <strong>tanggung jawab penuh crew yang bertugas</strong> sejak keluar gudang sampai kembali ke kantor.</li>
+          <li>Alat wajib dicek &amp; dicentang saat <strong>berangkat</strong> dan <strong>pulang</strong>. Tidak dicentang = <strong>dianggap tidak dikembalikan.</strong></li>
+          <li>Hilang / rusak karena lalai <strong>WAJIB DIGANTI 100% harga baru</strong>, dipotong langsung dari honor; kekurangannya tetap ditagih.</li>
+          <li><strong>Dilarang</strong> meminjamkan, menitipkan, atau meninggalkan alat tanpa pengawasan.</li>
+          <li>Kehilangan wajib dilapor <strong>saat itu juga</strong>. Menyembunyikan / tidak jujur = <strong>blacklist permanen</strong>.</li>
+        </ol>
+        <p class="rules__foot">Crew yang bertugas dianggap telah membaca, memahami, dan menyetujui seluruh ketentuan di atas.</p>
+      </div>
       <div class="sign">
         <p class="sign__label">PIC Event</p>
         <div class="sign__space"></div>
@@ -335,6 +359,7 @@ $sec = 0; // penomoran bagian otomatis
           <p class="sign__name"><?= filled($tx['pic']) ? e($tx['pic']) : '&nbsp;' ?></p>
           <?php if (filled($tx['whatsapp'])): ?><p class="sign__sub">WA <span class="num"><?= e($tx['whatsapp']) ?></span></p><?php endif; ?>
         </div>
+      </div>
       </div>
     </section>
   </main>
