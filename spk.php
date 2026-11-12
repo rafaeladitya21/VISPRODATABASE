@@ -225,11 +225,7 @@ $sec = 0; // penomoran bagian otomatis
     <!-- Kop -->
     <header class="kop">
       <div class="kop__brand">
-        <img class="kop__logo" src="<?= asset('assets/img/logo.png') ?>" alt="">
-        <div>
-          <p class="brand">Visual Production.id</p>
-          <p class="kop__sub">Jasa Produksi Visual · Dokumentasi · Live Streaming</p>
-        </div>
+        <img class="kop__logo" src="<?= asset('assets/img/logo.png') ?>" alt="Visual Production">
       </div>
       <div class="kop__meta">
         No. SPK<strong><?= e($spkNo) ?></strong>
