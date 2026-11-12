@@ -47,7 +47,7 @@ $tglPendek = fn(?string $s) => $s ? tgl_id($s, false) : '—';
     .toolbar button { height: 40px; padding: 0 18px; border: 0; border-radius: 8px; font: 600 14px 'Plus Jakarta Sans', sans-serif; background: #fff; cursor: pointer; }
     .sheet { width: 210mm; min-height: 297mm; margin: 24px auto; padding: 14mm; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,.12); }
     .kop { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid #0A0A0A; }
-    .kop img { height: 30px; filter: invert(1); }
+    .kop img { height: 20px; filter: invert(1); }
     .kop div { text-align: right; } .kop strong { display: block; font-size: 11pt; } .kop span { font-size: 8.5pt; color: #6B6B6B; }
     h1 { margin: 14px 0 2px; font-size: 15pt; }
     .sub { margin: 0 0 10px; color: #6B6B6B; font-size: 9pt; }

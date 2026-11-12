@@ -97,7 +97,7 @@ function render_sidebar(string $active, array $user): void
     <aside class="sidebar" aria-label="Navigasi utama">
       <?php $sekolah = $area === 'magang' ? sidebar_logo_sekolah((int)$user['id']) : null; ?>
       <a class="sidebar__logo<?= $sekolah ? ' sidebar__logo--duo' : '' ?>" href="<?= e(home_path($user)) ?>">
-        <img src="assets/img/logo.png" alt="Visual Production.id">
+        <img src="assets/img/<?= $sekolah ? 'logo-mark.png' : 'logo.png' ?>" alt="Visual Production">
         <?php if ($sekolah): ?>
         <span class="sidebar__sep" aria-hidden="true"></span>
         <span class="sidebar__school"><img src="<?= e($sekolah['logo']) ?>" alt="<?= e($sekolah['nama']) ?>"></span>

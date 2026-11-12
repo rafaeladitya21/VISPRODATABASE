@@ -28,7 +28,7 @@ if (!dev_no_login() && ($u = current_user())) { header('Location: ' . home_path(
       <canvas class="silk silk--light" data-tone="light" aria-hidden="true"></canvas>
 
       <div class="fbu" style="--d:650ms">
-        <img class="login__logo" src="assets/img/logo.png" alt="Visual Production.id">
+        <img class="login__logo" src="assets/img/logo.png" alt="Visual Production">
         <span class="login__wordmark" hidden>Visual Production.id</span>
       </div>
 

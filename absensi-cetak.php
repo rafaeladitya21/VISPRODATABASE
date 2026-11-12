@@ -35,7 +35,7 @@ $dot = fn(?string $hm) => $hm ? str_replace(':', '.', $hm) : '—';
     .toolbar button { height: 40px; padding: 0 18px; border: 0; border-radius: 8px; font: 600 14px 'Plus Jakarta Sans', sans-serif; background: #fff; cursor: pointer; }
     .sheet { width: 210mm; min-height: 297mm; margin: 24px auto; padding: 14mm; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,.12); }
     .kop { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 2px solid #0A0A0A; }
-    .kop img { height: 30px; filter: invert(1); }
+    .kop img { height: 20px; filter: invert(1); }
     h1 { margin: 16px 0 2px; font-size: 16pt; }
     .sub { margin: 0 0 12px; color: #6B6B6B; font-size: 9pt; }
     h2 { margin: 16px 0 6px; font-size: 11pt; }

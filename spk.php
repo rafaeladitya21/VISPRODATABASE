@@ -141,7 +141,7 @@ $sec = 0; // penomoran bagian otomatis
     /* Kop */
     .kop { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
     .kop__brand { display: flex; align-items: center; gap: 12px; }
-    .kop__logo { height: 32px; width: auto; filter: invert(1); }
+    .kop__logo { height: 20px; width: auto; filter: invert(1); }
     .brand { font-size: 14pt; letter-spacing: -0.02em; }
     .kop__sub { font-size: 8pt; color: var(--muted); }
     .kop__meta { text-align: right; font-size: 8.5pt; color: var(--text-2); }

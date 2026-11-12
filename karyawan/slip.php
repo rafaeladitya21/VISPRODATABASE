@@ -109,7 +109,7 @@ layout_start('Slip Gaji', 'k-slip');
   <!-- Ringkasan slip -->
   <aside class="card ks-sum fbu" aria-label="Ringkasan slip" aria-live="polite">
     <div class="ks-sum__head">
-      <img class="ks-sum__logo" src="assets/img/logo.png" alt="Visual Production.id">
+      <img class="ks-sum__logo" src="assets/img/logo.png" alt="Visual Production">
       <span class="badge" id="ss-status">Draft</span>
     </div>
     <p class="ks-sum__label num" id="ss-kode">Slip gaji</p>
