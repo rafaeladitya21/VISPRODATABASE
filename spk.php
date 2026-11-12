@@ -93,7 +93,8 @@ $sec = 0; // penomoran bagian otomatis
       font-weight: 700; font-style: normal; font-display: block;
     }
     /* Margin 0 → judul / tanggal / URL bawaan browser tidak ikut tercetak; jarak tepi diatur padding .sheet */
-    @page { size: A4; margin: 0; }
+    /* Kertas F4 / Folio 215 × 330 mm */
+    @page { size: 215mm 330mm; margin: 0; }
 
     :root { --ink: #0A0A0A; --text-2: #404040; --muted: #6B6B6B; --line: #D4D4D4; --line-2: #EEEEEE; --soft: #F5F5F5; color-scheme: light; }
     * { box-sizing: border-box; }
@@ -120,9 +121,9 @@ $sec = 0; // penomoran bagian otomatis
     }
     .toolbar button:hover { background: #EEEEEE; }
 
-    /* Lembar A4: 11mm atas, 15mm kiri-kanan */
+    /* Lembar F4: 9mm atas, 14mm kiri-kanan */
     .sheet {
-      width: 210mm; min-height: 297mm; margin: 24px auto; padding: 9mm 14mm;
+      width: 215mm; min-height: 330mm; margin: 24px auto; padding: 9mm 14mm;
       background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,.12);
     }
 
@@ -361,6 +362,30 @@ $sec = 0; // penomoran bagian otomatis
     })();
   </script>
 <?php endif; ?>
+  <script>
+    // Selalu 1 lembar F4: sebelum cetak, ukur tinggi isi; kalau lebih dari 1 halaman,
+    // perkecil (zoom) seluruh lembar secukupnya supaya tanda tangan tetap di halaman yang sama.
+    (function () {
+      var MM = 96 / 25.4, PAGE_W = 215 * MM, PAGE_H = 330 * MM - 6; // 6px cadangan pembulatan
+      var sheet = document.querySelector('.sheet');
+      function fit() {
+        var s = sheet.style;
+        s.zoom = ''; s.width = PAGE_W + 'px'; s.minHeight = '0'; s.padding = '9mm 14mm';
+        var z = 1;
+        for (var i = 0; i < 4; i++) {               // lebar ikut melebar saat di-zoom → ukur ulang
+          var h = sheet.offsetHeight * z;
+          if (h <= PAGE_H) break;
+          z = z * PAGE_H / h;
+          s.width = (PAGE_W / z) + 'px';
+        }
+        s.zoom = z < 1 ? String(z) : '';
+        if (z >= 1) s.width = '';
+      }
+      function reset() { sheet.removeAttribute('style'); }
+      window.addEventListener('beforeprint', fit);
+      window.addEventListener('afterprint', reset);
+    })();
+  </script>
 <?php if ($autoPrint): ?>
   <script>
     // Tunggu font & logo termuat agar hasil PDF rapi, lalu buka dialog cetak
