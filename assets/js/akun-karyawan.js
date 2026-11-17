@@ -56,20 +56,22 @@
         : 'Belum ada akun karyawan. Klik <strong>Tambah Karyawan</strong>.') + '</td></tr>';
       return;
     }
+    // Guru utama + guru tambahan yang ikut memantau
+    function guruNama(k) { return [k.guru].concat((k.guru_tambahan || []).map(function (g) { return g.name; })).filter(Boolean).join(', '); }
     body.innerHTML = list.map(function (k) {
       var intern = k.tipe === 'intern', guru = k.tipe === 'guru';
       // Intern: kolom Jabatan berisi divisi + periode magang + guru pendamping (tombol chat WhatsApp)
       // Guru: asal sekolah + jumlah siswa bimbingan + WhatsApp
       var jab = intern
         ? esc([k.divisi || 'Intern', k.kelas].filter(Boolean).join(' · ')) + '<br><small class="muted num">' + esc(tglPendek(k.magang_mulai) + ' – ' + tglPendek(k.magang_selesai)) + '</small>' +
-          (guruCol ? '' : k.guru ? '<br><small class="muted">Guru: ' + esc(k.guru) + '</small>' + waBtn(k.guru_wa_url, k.guru) : '<br>' + noGuru())
+          (guruCol ? '' : k.guru ? '<br><small class="muted">Guru: ' + esc(guruNama(k)) + '</small>' + waBtn(k.guru_wa_url, k.guru) : '<br>' + noGuru())
         : guru
         ? esc(k.sekolah || '—') + '<br><small class="muted num">' + k.siswa + ' siswa bimbingan' + (k.whatsapp ? ' · ' + esc(k.whatsapp) : '') + '</small>' + waBtn(k.wa_url, k.name)
         : esc(k.jabatan || '—');
       return '<tr' + (k.aktif ? '' : ' class="muted"') + '>' +
         '<td><div class="adm-who"><span class="avatar" aria-hidden="true">' + esc(initials(k.name)) + '</span><span class="adm-who__txt"><strong>' + esc(k.name) + '</strong><small>' + esc(k.email) + '</small></span></div></td>' +
         '<td>' + jab + '</td>' +
-        (guruCol ? '<td>' + (k.guru ? esc(k.guru) + waBtn(k.guru_wa_url, k.guru) : noGuru()) + '</td>' : '') +
+        (guruCol ? '<td>' + (k.guru ? esc(guruNama(k)) + waBtn(k.guru_wa_url, k.guru) : noGuru()) + '</td>' : '') +
         '<td>' + MH.tipeBadge(k.tipe) + '</td>' +
         '<td class="r">' + (k.tipe !== 'inhouse' ? '<span class="muted">—</span>' : MH.rupiah(k.gaji_pokok)) + '</td>' +
         '<td class="r">' + (intern || guru ? '<span class="muted">—</span>' : k.jobs) + '</td>' +
@@ -147,7 +149,7 @@
     bimbPick.innerHTML = calon.length
       ? calon.map(function (k) {
           return '<label class="check"><input type="checkbox" value="' + k.id + '"><span>' + esc(k.name) +
-            (k.guru && k.guru_id !== gid ? ' <small class="muted">· sekarang: ' + esc(k.guru) + '</small>' : '') + '</span></label>';
+            (k.guru && k.guru_id !== gid ? ' <small class="muted">· tetap juga dibimbing ' + esc(k.guru) + '</small>' : '') + '</span></label>';
         }).join('') + '<button type="button" class="btn btn--primary" id="st-bimb-add">Tautkan terpilih</button>'
       : '<p class="field__hint">Semua intern aktif sudah tertaut ke guru ini.</p>';
   }
@@ -284,7 +286,7 @@
     logoHint.classList.remove('is-error');
     renderLogo();
     f.sekolah_intern.value = k && k.tipe === 'intern' && k.sekolah ? k.sekolah : '';
-    bimb = k && k.tipe === 'guru' ? items.filter(function (x) { return x.tipe === 'intern' && x.guru_id === k.id; }).map(function (x) { return x.id; }) : [];
+    bimb = k && k.tipe === 'guru' ? items.filter(function (x) { return x.tipe === 'intern' && (x.guru_id === k.id || (x.guru_tambahan || []).some(function (g) { return g.id === k.id; })); }).map(function (x) { return x.id; }) : [];
     bimbPick.hidden = true;
     f.panggilan.value = k && k.tipe === 'guru' ? (k.panggilan || '') : 'Pak';
     f.aktif.checked = k ? k.aktif : true;

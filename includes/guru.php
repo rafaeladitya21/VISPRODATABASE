@@ -162,19 +162,24 @@ function guru_all(bool $activeOnly = false): array
     return array_values(array_filter(array_map(fn($r) => guru_row((int)$r['id']), $rows)));
 }
 
-/** Siswa bimbingan (intern aktif dengan guru_id = $guruId), urut nama */
+/** Siswa bimbingan (intern aktif dengan guru_id = $guruId ATAU guru tambahan di guru_siswa), urut nama */
 function guru_siswa(int $guruId): array
 {
-    $st = db()->prepare("SELECT id FROM users WHERE role = 'karyawan' AND tipe = 'intern' AND aktif = 1 AND guru_id = ? ORDER BY name");
-    $st->execute([$guruId]);
+    $st = db()->prepare("SELECT id FROM users WHERE role = 'karyawan' AND tipe = 'intern' AND aktif = 1
+                         AND (guru_id = ? OR id IN (SELECT intern_id FROM guru_siswa WHERE guru_id = ?)) ORDER BY name");
+    $st->execute([$guruId, $guruId]);
     return array_values(array_filter(array_map(fn($id) => intern_row((int)$id), $st->fetchAll(PDO::FETCH_COLUMN))));
 }
 
-/** Satu siswa — HANYA bila dibimbing $guruId; selain itu null (pemanggil membalas 403) */
+/** Satu siswa — HANYA bila dibimbing $guruId (utama atau tambahan); selain itu null (pemanggil membalas 403) */
 function guru_siswa_get(int $guruId, int $internId): ?array
 {
     $i = intern_row($internId);
-    return $i && $i['aktif'] && $i['guru_id'] === $guruId ? $i : null;
+    if (!$i || !$i['aktif']) return null;
+    if ($i['guru_id'] === $guruId) return $i;
+    $st = db()->prepare('SELECT 1 FROM guru_siswa WHERE guru_id = ? AND intern_id = ?');
+    $st->execute([$guruId, $internId]);
+    return $st->fetchColumn() ? $i : null;
 }
 
 /** Hari kerja yang dihitung (sejak mulai magang / akun dibuat, yang paling akhir) ∩ [$from, $to], s.d. $today */

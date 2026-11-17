@@ -13,7 +13,8 @@
  *       sekolah (asal sekolah) & kelas (kelas / jurusan). Guru: siswa_ids [] → daftar siswa bimbingan.
  *       'guru' (guru pendamping sekolah): hanya nama, email, whatsapp, sekolah — tanpa gaji, tarif, jam kerja;
  *       bukan crew, tanpa slip / absen / jadwal. Banner guru: kota_sekolah, logo_sekolah (data URL PNG/JPG/WebP ≤ 1 MB;
- *       kosong = tidak diubah) dan hapus_logo = true untuk menghapus logo. Satu guru → banyak intern; satu intern → satu guru.
+ *       kosong = tidak diubah) dan hapus_logo = true untuk menghapus logo. Satu guru → banyak intern; satu intern → satu guru
+ *       UTAMA (users.guru_id) + guru tambahan (tabel guru_siswa) yang ikut memantau.
  * Akun tidak dihapus (slip lama tetap utuh) — cukup dinonaktifkan; akun nonaktif tidak bisa login
  * dan session yang masih ada langsung berakhir (lihat auth-check.php).
  * Setelah simpan, baris crew transaksi dengan nama sama otomatis ditautkan ke akun ini.
@@ -29,11 +30,17 @@ function staff_list(): array
     $rows = db()->query("SELECT u.id, u.name, u.email, u.jabatan, u.tipe, u.gaji_pokok, u.aktif,
             u.divisi, u.magang_mulai, u.magang_selesai, u.jam_masuk, u.jam_pulang, u.mentor_id, m.name AS mentor_name,
             u.whatsapp, u.sekolah, u.panggilan, u.kelas, u.kota_sekolah, u.logo_sekolah, u.guru_id, g.name AS guru_name, g.whatsapp AS guru_wa,
-            (SELECT COUNT(*) FROM users x WHERE x.guru_id = u.id AND x.tipe = 'intern' AND x.aktif = 1) AS siswa,
+            (SELECT COUNT(*) FROM users x WHERE x.tipe = 'intern' AND x.aktif = 1
+               AND (x.guru_id = u.id OR x.id IN (SELECT gs.intern_id FROM guru_siswa gs WHERE gs.guru_id = u.id))) AS siswa,
             (SELECT COUNT(DISTINCT tc.transaction_id) FROM transaction_crew tc WHERE tc.user_id = u.id) AS jobs,
             (SELECT COUNT(*) FROM slip s WHERE s.user_id = u.id AND s.status = 'diajukan') AS pending
         FROM users u LEFT JOIN users m ON m.id = u.mentor_id LEFT JOIN users g ON g.id = u.guru_id
         WHERE u.role = 'karyawan' ORDER BY u.aktif DESC, u.name")->fetchAll();
+    // Guru tambahan per intern: [intern_id => [[id, name], ...]]
+    $tambahan = [];
+    foreach (db()->query('SELECT gs.intern_id, g.id, g.name FROM guru_siswa gs JOIN users g ON g.id = gs.guru_id ORDER BY g.name') as $r) {
+        $tambahan[(int)$r['intern_id']][] = ['id' => (int)$r['id'], 'name' => $r['name']];
+    }
     $khusus = [];
     foreach (db()->query('SELECT user_id, tarif_output_id, fee, tampil FROM tarif_khusus') as $r) {
         $khusus[(int)$r['user_id']][(string)$r['tarif_output_id']] = [
@@ -51,6 +58,7 @@ function staff_list(): array
         'mentor_id' => $r['mentor_id'] === null ? null : (int)$r['mentor_id'], 'mentor' => $r['mentor_name'],
         'kelas' => $r['kelas'], 'guru_id' => $r['guru_id'] === null ? null : (int)$r['guru_id'],
         'guru' => $r['guru_name'], 'guru_wa' => $r['guru_wa'], 'guru_wa_url' => wa_url($r['guru_wa']),
+        'guru_tambahan' => $tambahan[(int)$r['id']] ?? [],   // guru lain yang ikut memantau (guru_siswa)
         // Guru pendamping
         'whatsapp' => $r['whatsapp'], 'wa_url' => wa_url($r['whatsapp']), 'sekolah' => $r['sekolah'], 'panggilan' => $r['panggilan'], 'siswa' => (int)$r['siswa'],
         'kota_sekolah' => $r['kota_sekolah'], 'logo_sekolah' => $r['logo_sekolah'],
@@ -195,8 +203,10 @@ function staff_input(array $in, bool $create): array
 }
 
 /**
- * Siswa bimbingan dari form guru: intern di $ids ditautkan ke guru ini (pindah dari guru lain bila ada);
- * intern yang tadinya tertaut tapi tidak ada di daftar dilepas. Tanpa siswa_ids (null) → tidak diubah.
+ * Siswa bimbingan dari form guru: intern di $ids dipantau guru ini. Intern tanpa guru utama → guru ini jadi guru
+ * UTAMA (users.guru_id); intern yang sudah punya guru utama lain → guru ini jadi guru TAMBAHAN (guru_siswa),
+ * guru utamanya tidak berubah. Intern yang tadinya tertaut tapi tidak ada di daftar dilepas
+ * (utama → guru_id NULL, tambahan → baris guru_siswa dihapus). Tanpa siswa_ids (null) → tidak diubah.
  */
 function save_siswa_bimbingan(int $guruId, ?array $ids): void
 {
@@ -205,10 +215,21 @@ function save_siswa_bimbingan(int $guruId, ?array $ids): void
     if ($ids) {
         $in = implode(',', array_fill(0, count($ids), '?'));
         $pdo->prepare("UPDATE users SET guru_id = NULL WHERE guru_id = ? AND id NOT IN ($in)")->execute([$guruId, ...$ids]);
-        $pdo->prepare("UPDATE users SET guru_id = ? WHERE id IN ($in) AND role = 'karyawan' AND tipe = 'intern'")->execute([$guruId, ...$ids]);
+        $pdo->prepare("DELETE FROM guru_siswa WHERE guru_id = ? AND intern_id NOT IN ($in)")->execute([$guruId, ...$ids]);
+        $pdo->prepare("UPDATE users SET guru_id = ? WHERE id IN ($in) AND guru_id IS NULL AND role = 'karyawan' AND tipe = 'intern'")->execute([$guruId, ...$ids]);
+        $pdo->prepare("INSERT INTO guru_siswa (guru_id, intern_id)
+                       SELECT ?, id FROM users WHERE id IN ($in) AND guru_id <> ? AND role = 'karyawan' AND tipe = 'intern'
+                       ON CONFLICT DO NOTHING")->execute([$guruId, ...$ids, $guruId]);
     } else {
         $pdo->prepare('UPDATE users SET guru_id = NULL WHERE guru_id = ?')->execute([$guruId]);
+        $pdo->prepare('DELETE FROM guru_siswa WHERE guru_id = ?')->execute([$guruId]);
     }
+}
+
+/** Guru utama sebuah intern tidak perlu tercatat juga sebagai guru tambahannya */
+function guru_tambahan_rapikan(int $internId): void
+{
+    db()->prepare('DELETE FROM guru_siswa gs USING users u WHERE u.id = gs.intern_id AND gs.intern_id = ? AND gs.guru_id = u.guru_id')->execute([$internId]);
 }
 
 /** Calon mentor: admin & karyawan in-house yang aktif */
@@ -244,6 +265,7 @@ try {
         save_tarif_khusus($newId, $d['tipe'], $in['tarif_khusus'] ?? null);
         crew_link_user($newId);
         if ($d['tipe'] === 'guru') save_siswa_bimbingan($newId, $d['siswa_ids'] ?? null);
+        if ($d['tipe'] === 'intern') guru_tambahan_rapikan($newId);
         if ($d['tipe'] === 'guru' && is_array($d['logo'])) logo_sekolah_save($newId, $d['logo']);
         staff_response(201);
     }
@@ -268,11 +290,14 @@ try {
             // Bukan guru lagi → lepaskan siswa yang tadinya dibimbing
             if ($d['tipe'] !== 'guru') {
                 db()->prepare('UPDATE users SET guru_id = NULL WHERE guru_id = ?')->execute([$id]);
+                db()->prepare('DELETE FROM guru_siswa WHERE guru_id = ?')->execute([$id]);
                 logo_sekolah_save($id, null);   // logo sekolah hanya untuk akun guru
             } else {
                 save_siswa_bimbingan($id, $d['siswa_ids'] ?? null);
                 if ($d['logo'] !== false) logo_sekolah_save($id, $d['logo']);
             }
+            if ($d['tipe'] === 'intern') guru_tambahan_rapikan($id);
+            else db()->prepare('DELETE FROM guru_siswa WHERE intern_id = ?')->execute([$id]);
         } catch (PDOException $e) {
             if (is_unique_violation($e)) json_error('Email sudah dipakai akun lain.', 409);
             throw $e;

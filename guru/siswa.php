@@ -1,6 +1,6 @@
 <?php
 /**
- * Siswa Magang — guru pendamping (read-only). Hanya siswa dengan users.guru_id = guru yang login.
+ * Siswa Magang — guru pendamping (read-only). Hanya siswa dengan users.guru_id = guru yang login, atau guru tambahan (guru_siswa).
  * Detail siswa (Kehadiran / Jurnal + catatan guru) dimuat dari api/guru.php — assets/js/g-siswa.js.
  */
 declare(strict_types=1);

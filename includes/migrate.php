@@ -701,6 +701,19 @@ const MH_MIGRATIONS = [
           ADD COLUMN umur_bulan   SMALLINT NOT NULL DEFAULT 48 CHECK (umur_bulan BETWEEN 1 AND 600),
           ADD COLUMN nilai_sisa   BIGINT   NOT NULL DEFAULT 0 CHECK (nilai_sisa >= 0);
         SQL,
+
+    // 20 — Guru pendamping tambahan: satu intern bisa dipantau lebih dari satu guru.
+    //      users.guru_id tetap guru UTAMA (nama/WA/logo sekolah); tabel ini guru lain yang ikut memantau.
+    20 => <<<'SQL'
+        CREATE TABLE guru_siswa (
+          guru_id    INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          intern_id  INTEGER      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TIMESTAMP(0) NOT NULL DEFAULT LOCALTIMESTAMP(0),
+          PRIMARY KEY (guru_id, intern_id)
+        );
+        CREATE INDEX idx_guru_siswa_intern ON guru_siswa (intern_id);
+        ALTER TABLE guru_siswa ENABLE ROW LEVEL SECURITY;
+        SQL,
 ];
 
 /** Jalankan migrasi yang belum tercatat. Dipanggil db() setiap koneksi baru (cek cepat: 1–2 query). */
