@@ -44,7 +44,9 @@
     var ctx = canvas.getContext('2d');
     var host = canvas.parentElement;
     var o = opts;
-    var rgb = hexToRgb(o.color);
+    // Tanpa data-color → pakai warna CSS `color` canvas (hitam di latar putih, putih di latar hitam)
+    var css = canvas.hasAttribute('data-color') ? null : getComputedStyle(canvas).color.match(/\d+(\.\d+)?/g);
+    var rgb = css && css.length >= 3 ? css.slice(0, 3).join(',') : hexToRgb(o.color);
 
     var dpr = 1, W = 0, H = 0, cols = 0, rows = 0, cw = 0, ch = 0;
     var chars = [], base, energy, nextSwap, empty;

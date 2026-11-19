@@ -487,8 +487,9 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
   width: 100%; height: 100%;
   pointer-events: none; z-index: 0;
 }
-.matrix--brand { animation: fade-blur 1.2s var(--ease-out) 700ms both; }
-.matrix--auth  { animation: fade-blur 1.2s var(--ease-out) 900ms both; }
+/* Warna huruf = `color` canvas: putih di panel hitam, hitam di area putih */
+.matrix--brand { color: #FFFFFF; animation: fade-blur 1.2s var(--ease-out) 700ms both; }
+.matrix--auth  { color: #0A0A0A; animation: fade-blur 1.2s var(--ease-out) 900ms both; }
 
 .login__brand {
   display: flex; flex-direction: column; justify-content: space-between; gap: 48px;
@@ -498,7 +499,7 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
 }
 .login__brand > :not(canvas) { position: relative; z-index: 1; }
 
-.login__logo { display: block; width: min(100%, 380px); height: auto; }
+.login__logo { display: block; width: min(100%, 300px); height: auto; }
 .login__wordmark {
   display: inline-block;
   font-family: var(--font-display); font-weight: 700; font-size: 20px;
@@ -554,7 +555,7 @@ select.input.is-termin:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .15); }
     padding: 24px 20px 36px;
     animation-name: curtain-y;
   }
-  .login__logo { width: min(100%, 280px); }
+  .login__logo { width: min(100%, 220px); }
   .login__wordmark { line-height: 40px; font-size: 17px; }
   .login__title { font-size: 34px; }
   .login__foot { display: none; }
