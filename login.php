@@ -25,7 +25,7 @@ if (!dev_no_login() && ($u = current_user())) { header('Location: ' . home_path(
 
     <!-- Kiri: panel brand -->
     <section class="login__brand">
-      <canvas class="silk silk--light" data-tone="light" aria-hidden="true"></canvas>
+      <canvas class="matrix matrix--brand" data-matrix aria-hidden="true"></canvas>
 
       <div class="fbu" style="--d:650ms">
         <img class="login__logo" src="assets/img/logo.png" alt="Visual Production">
@@ -43,7 +43,7 @@ if (!dev_no_login() && ($u = current_user())) { header('Location: ' . home_path(
 
     <!-- Kanan: kartu login -->
     <section class="login__auth">
-      <canvas class="silk silk--dark" data-tone="dark" aria-hidden="true"></canvas>
+      <canvas class="matrix matrix--auth" data-matrix aria-hidden="true"></canvas>
 
       <div class="login__wrap fbu" style="--d:1000ms">
         <div class="window login__window" id="login-window">
@@ -109,7 +109,7 @@ if (!dev_no_login() && ($u = current_user())) { header('Location: ' . home_path(
 
   </main>
 
-  <script src="<?= asset('assets/js/silk.js') ?>" defer></script>
+  <script src="<?= asset('assets/js/matrix-trail.js') ?>" defer></script>
   <script src="<?= asset('assets/js/login.js') ?>" defer></script>
 </body>
 </html>
