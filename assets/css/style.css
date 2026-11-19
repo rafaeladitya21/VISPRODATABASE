@@ -1179,8 +1179,14 @@ select.input option { color: var(--ink); }
   .comp { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Daftar semua transaksi: tinggi terbatas, header menempel */
-#tx-results { max-height: 420px; overflow: auto; }
+/* Daftar semua transaksi: isi sisa tinggi layar (tidak terpotong di tengah),
+   header menempel. Saat editor terbuka di bawahnya, daftar diringkas. */
+#tx-results {
+  max-height: calc(100vh - 252px); max-height: calc(100dvh - 252px);
+  overflow: auto;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+}
+.main:has(#tx-editor:not([hidden])) #tx-results { max-height: 420px; }
 #tx-results thead th { position: sticky; top: 0; z-index: 1; }
 #tx-results tr.is-current td { background: var(--line-2); }
 #tx-results tr.is-current td:first-child { box-shadow: inset 3px 0 0 var(--ink); }
